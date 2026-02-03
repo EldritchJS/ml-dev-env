@@ -183,13 +183,10 @@ Typical build times on cluster:
 
 ## Customizing Build Resources
 
-If build fails with OOM (out of memory), increase resources:
+If build fails with OOM (out of memory), increase resources by patching the BuildConfig:
 
 ```bash
-# Use the version with explicit resources
-oc apply -f buildconfig-with-resources.yaml
-
-# Or patch existing BuildConfig
+# Patch BuildConfig to add resource limits
 oc patch bc/ml-dev-env -n nccl-test -p '
 {
   "spec": {
@@ -398,8 +395,8 @@ oc get builds -n nccl-test
 # Rebuild
 oc start-build ml-dev-env -n nccl-test
 
-# Increase resources
-oc apply -f buildconfig-with-resources.yaml
+# Increase resources (if build fails with OOM)
+oc patch bc/ml-dev-env -n nccl-test -p '{"spec":{"resources":{"limits":{"cpu":"8","memory":"16Gi"}}}}'
 
 # Delete build
 oc delete build ml-dev-env-1 -n nccl-test
