@@ -2,6 +2,10 @@
 
 This guide covers how to debug Python code running on your OpenShift GPU cluster using VSCode.
 
+## Prerequisites
+
+For local VSCode debugging (Method 3), you need the Python extension installed. See [VSCODE-SETUP.md](VSCODE-SETUP.md) for installation instructions.
+
 ## Method 1: Port-Forward to code-server (Browser-based VSCode)
 
 The pod runs code-server (VSCode in browser) on port 8080.
@@ -141,6 +145,8 @@ Create `.vscode/launch.json` in your local project:
 - Keep code in sync between local and remote
 - Attach to running processes
 
+**For a detailed step-by-step tutorial of Method 3, see [REMOTE-DEBUG-WALKTHROUGH.md](REMOTE-DEBUG-WALKTHROUGH.md).**
+
 ---
 
 ## Method 4: Jupyter Notebook Debugging
@@ -258,30 +264,12 @@ oc port-forward -n nccl-test ml-dev-env 5678:5678 5679:5679 5680:5680 5681:5681
 
 ## Troubleshooting
 
-### Issue: Port-forward disconnects
-**Solution:** Use a persistent connection:
-```bash
-while true; do
-    oc port-forward -n nccl-test ml-dev-env 8080:8080
-    echo "Port-forward disconnected, reconnecting..."
-    sleep 2
-done
-```
+For detailed troubleshooting steps, see [VSCODE-DEBUG-TROUBLESHOOTING.md](VSCODE-DEBUG-TROUBLESHOOTING.md).
 
-### Issue: Debugger won't attach
-**Solution:** Check firewall and verify port is listening:
-```bash
-oc exec ml-dev-env -n nccl-test -- netstat -tlnp | grep 5678
-```
-
-### Issue: Code files out of sync
-**Solution:** Use rsync to sync local files to pod:
-```bash
-# Copy local files to pod
-oc rsync ./my-code/ ml-dev-env:/workspace/my-code/ -n nccl-test
-
-# Or mount a PVC with your code
-```
+Common issues:
+- Debugger dropdown not appearing → Check Python extension installation
+- Port-forward disconnects → Use a reconnection loop
+- Breakpoints not hitting → Verify path mappings in launch.json
 
 ---
 
