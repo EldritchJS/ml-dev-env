@@ -1,0 +1,91 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Dev Session (Sync + Port-forward + Debug)",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/dev-session.sh",
+            "args": ["test_debug.py"],
+            "isBackground": false,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Start Code Sync (Watch Mode)",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/sync-code.sh",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Remote Debug Script",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/debug-remote.sh",
+            "args": ["${fileBasenameNoExtension}.py"],
+            "isBackground": false,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Port-forward Debug Port",
+            "type": "shell",
+            "command": "oc port-forward -n nccl-test ml-dev-env 5678:5678",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Sync Code Once (Manual)",
+            "type": "shell",
+            "command": "oc rsync ${workspaceFolder}/workspace/ ml-dev-env:/workspace/ -n nccl-test --exclude='.git' --exclude='__pycache__' --exclude='*.pyc'",
+            "isBackground": false,
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Open Shell in Pod",
+            "type": "shell",
+            "command": "oc exec -it ml-dev-env -n nccl-test -- bash",
+            "isBackground": false,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Check Pod Status",
+            "type": "shell",
+            "command": "oc get pod ml-dev-env -n nccl-test && echo '' && oc describe pod ml-dev-env -n nccl-test | tail -20",
+            "isBackground": false,
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
+        }
+    ]
+}
