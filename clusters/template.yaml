@@ -39,17 +39,30 @@ storage:
 network:
   # RDMA/InfiniBand settings
   rdma:
+    # Set to true if cluster has InfiniBand/RoCE hardware
+    # Set to false if cluster only has standard Ethernet
+    # If false, RDMA mode will automatically fall back to TCP
     enabled: true
+
     # Mellanox devices (use ibstat to find active devices)
     # Example: mlx5_2,mlx5_3,mlx5_4,mlx5_5
+    # Only used if enabled: true
     devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+
     # Network interfaces for RDMA (usually net1, net2, etc.)
+    # Only used if enabled: true
     interfaces: "net1,net2,net3,net4"
+
     # GID index for RoCE v2 (usually 3)
+    # Only used if enabled: true
     gid_index: "3"
+
     # GPUDirect RDMA level (5 = full GPUDirect)
+    # Only used if enabled: true
     gdr_level: "5"
+
     # NCCL tuning parameters
+    # Only used if enabled: true
     cross_nic: "1"
     ib_timeout: "22"
     min_nchannels: "4"
@@ -57,8 +70,11 @@ network:
   # TCP/Ethernet fallback settings
   tcp:
     # Interfaces to exclude from NCCL (loopback, docker)
+    # Used in both TCP and RDMA modes
     interface_exclude: "^lo,docker0"
+
     # P2P level (NVL = NVLink intra-node, TCP inter-node)
+    # Used in TCP mode
     p2p_level: "NVL"
 
 # Security configuration
@@ -96,6 +112,11 @@ nccl:
 notes: |
   Cluster-specific notes go here.
 
+  RDMA Availability:
+  - Set network.rdma.enabled to true if cluster has InfiniBand/RoCE
+  - Set network.rdma.enabled to false for standard Ethernet clusters
+  - When enabled=false, RDMA mode requests automatically fall back to TCP
+
   Setup steps:
   1. Create service account (if requires_privileged_scc: true):
      oc create serviceaccount ml-dev-sa -n nccl-test
@@ -106,6 +127,7 @@ notes: |
   3. Verify storage classes are available:
      oc get storageclass
 
-  4. Check InfiniBand devices (for RDMA):
+  4. Check InfiniBand devices (if network.rdma.enabled: true):
      # Login to a GPU node and run:
      ibstat
+     # Look for "State: Active" devices and update network.rdma.devices

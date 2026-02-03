@@ -158,6 +158,9 @@ Cluster config approach:
 - ✅ Automatic substitution of cluster-specific values
 - ✅ Version control cluster configurations
 - ✅ Single command deployment: `make deploy-cluster CLUSTER=cairo MODE=rdma`
+- ✅ **Automatic RDMA detection**: Clusters indicate if RDMA/InfiniBand is available
+  - RDMA mode automatically falls back to TCP if cluster doesn't support RDMA
+  - No need to remember which clusters have InfiniBand
 
 ### Available Clusters
 

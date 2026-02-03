@@ -225,7 +225,11 @@ oc get storageclass
 ```yaml
 network:
   rdma:
+    # Set to true if cluster has InfiniBand/RoCE hardware
+    # Set to false for standard Ethernet-only clusters
     enabled: true
+
+    # RDMA device settings (only used if enabled: true)
     devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"  # Mellanox devices
     interfaces: "net1,net2,net3,net4"        # Network interfaces
     gid_index: "3"                            # RoCE v2
@@ -233,17 +237,42 @@ network:
     cross_nic: "1"
     ib_timeout: "22"
     min_nchannels: "4"
+
   tcp:
+    # TCP settings (used when RDMA disabled or in TCP mode)
     interface_exclude: "^lo,docker0"  # Exclude loopback/docker
     p2p_level: "NVL"                   # NVLink intra-node
 ```
 
-**Finding RDMA devices**:
+**RDMA Enabled Flag**:
+- **`enabled: true`**: Cluster has InfiniBand/RoCE hardware
+  - RDMA mode will use InfiniBand devices
+  - TCP mode available as fallback
+- **`enabled: false`**: Cluster only has standard Ethernet
+  - RDMA mode requests automatically fall back to TCP
+  - RDMA device settings are ignored
+  - Deployment script will warn about fallback
+
+**Finding RDMA devices** (if `enabled: true`):
 ```bash
 # SSH to a GPU node
 ibstat
 # Look for "State: Active" devices
 # Note the device names (e.g., mlx5_2)
+# Update network.rdma.devices with active devices
+```
+
+**For Ethernet-only clusters** (if `enabled: false`):
+```yaml
+network:
+  rdma:
+    enabled: false  # No InfiniBand/RoCE hardware
+    # Device settings below are ignored when enabled: false
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    interfaces: "net1,net2,net3,net4"
+  tcp:
+    interface_exclude: "^lo,docker0"
+    p2p_level: "NVL"
 ```
 
 ### Security Section
@@ -347,6 +376,117 @@ make status-cluster CLUSTER=cairo
 # Clean up
 make clean-cluster CLUSTER=cairo
 ```
+
+## Clusters Without RDMA
+
+Some clusters only have standard Ethernet networking without InfiniBand/RoCE hardware. The cluster configuration system handles this automatically.
+
+### Configuring an Ethernet-Only Cluster
+
+Set `network.rdma.enabled: false` in the cluster config:
+
+```yaml
+cluster:
+  name: ethernet-cluster
+  api: api.ethernet-cluster.example.com
+  namespace: nccl-test
+
+network:
+  rdma:
+    enabled: false  # No InfiniBand/RoCE hardware
+
+    # These settings are ignored when enabled: false
+    # But can be left in the config for documentation
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    interfaces: "net1,net2,net3,net4"
+    gid_index: "3"
+    gdr_level: "5"
+
+  tcp:
+    # TCP settings are used when RDMA is disabled
+    interface_exclude: "^lo,docker0"
+    p2p_level: "NVL"
+
+storage:
+  mode: volumeClaimTemplates  # Often clusters without RDMA also lack RWX
+  class_rwo: standard
+
+security:
+  requires_privileged_scc: false  # Often don't need privileged for TCP-only
+  ipc_lock: false
+
+gpus:
+  per_node: 4
+  default_nodes: 2
+```
+
+### Automatic Fallback Behavior
+
+When deploying to a cluster with `enabled: false`:
+
+**RDMA mode requested**:
+```bash
+make deploy-cluster CLUSTER=ethernet-cluster MODE=rdma
+```
+
+Output:
+```
+⚠️  WARNING: RDMA mode requested but cluster 'ethernet-cluster' has RDMA disabled
+    Deployment will use TCP mode instead
+    To deploy with TCP mode explicitly, use: --mode tcp
+
+Mode: RDMA (falling back to TCP - RDMA not available)
+RDMA: Disabled
+```
+
+Result: Uses TCP template automatically, RDMA settings ignored.
+
+**TCP mode (recommended for Ethernet-only clusters)**:
+```bash
+make deploy-cluster CLUSTER=ethernet-cluster MODE=tcp
+```
+
+Output:
+```
+Mode: TCP
+RDMA: Disabled
+```
+
+Result: Uses TCP template, no warnings.
+
+### When to Use enabled: false
+
+Set `network.rdma.enabled: false` when:
+- ✅ Cluster only has standard Ethernet (no InfiniBand adapters)
+- ✅ InfiniBand hardware exists but is not configured/accessible
+- ✅ Running on cloud VMs without specialized networking
+- ✅ Testing on development clusters
+
+Set `network.rdma.enabled: true` when:
+- ✅ Cluster has InfiniBand or RoCE adapters
+- ✅ Adapters are configured and showing "State: Active" in `ibstat`
+- ✅ Host network access is available
+- ✅ Running on HPC or high-end GPU clusters
+
+### Performance Impact
+
+**RDMA Disabled (TCP mode)**:
+- Bandwidth: 10-40 GB/s (Ethernet)
+- Latency: 10-100 microseconds
+- GPU transfers: Via CPU memory
+- Best for: Small-medium models, moderate communication
+
+**RDMA Enabled**:
+- Bandwidth: 50-100 GB/s (InfiniBand)
+- Latency: <1 microsecond
+- GPU transfers: Direct GPU-to-GPU (GPUDirect)
+- Best for: Large models, heavy communication workloads
+
+For most training workloads, TCP mode is sufficient. Use RDMA when:
+- Training very large models (100B+ parameters)
+- High gradient synchronization overhead
+- Performance benchmarking
+- Production training at scale
 
 ## Troubleshooting
 

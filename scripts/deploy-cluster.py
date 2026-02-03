@@ -37,49 +37,61 @@ def load_cluster_config(cluster_name: str) -> Dict[str, Any]:
 
 def generate_statefulset(config: Dict[str, Any], mode: str, output_file: str):
     """Generate StatefulSet YAML with cluster-specific configuration"""
-    
+
+    # Check if RDMA is enabled on this cluster
+    rdma_enabled = config['network']['rdma'].get('enabled', False)
+
     # Read base template
-    if mode == 'rdma':
+    # Use TCP template if RDMA not enabled, even if mode is 'rdma'
+    if mode == 'rdma' and rdma_enabled:
         template_file = 'k8s/statefulset-multi-node-rdma.yaml'
     else:
         template_file = 'k8s/statefulset-multi-node-tcp.yaml'
-    
+        if mode == 'rdma' and not rdma_enabled:
+            print(f"⚠️  Warning: RDMA mode requested but cluster '{config['cluster']['name']}' has RDMA disabled")
+            print(f"    Using TCP template instead")
+
     with open(template_file, 'r') as f:
         content = f.read()
-    
-    # Replace cluster-specific values
+
+    # Build replacements dict - start with common values
     replacements = {
-        # RDMA devices
-        'mlx5_6,mlx5_7,mlx5_10,mlx5_11': config['network']['rdma']['devices'],
-        'mlx5_2,mlx5_3,mlx5_4,mlx5_5': config['network']['rdma']['devices'],
-        'mlx5_6,7,10,11': config['network']['rdma']['devices'].replace('mlx5_', ''),
-
-        # Network interfaces
-        'net1,net2,net3,net4': config['network']['rdma']['interfaces'],
-
-        # TCP interface exclusion
+        # TCP interface exclusion (used in both modes)
         '^lo,docker0': config['network']['tcp']['interface_exclude'],
-        
+
         # Resources
         '128Gi  # Memory request': f"{config['resources']['requests']['memory']}  # Memory request",
         '256Gi  # Memory limit': f"{config['resources']['limits']['memory']}  # Memory limit",
         'cpu: 32': f"cpu: {config['resources']['requests']['cpu']}",
         'cpu: 64': f"cpu: {config['resources']['limits']['cpu']}",
-        
+
         # GPUs
         'nvidia.com/gpu: 4  # Default: 4 GPUs per pod': f"nvidia.com/gpu: {config['gpus']['per_node']}  # GPUs per pod",
-        
+
         # World size (nodes * GPUs per node)
         'value: "8"  # Default: 2 nodes × 4 GPUs = 8 total': f'value: "{config["gpus"]["default_nodes"] * config["gpus"]["per_node"]}"  # {config["gpus"]["default_nodes"]} nodes × {config["gpus"]["per_node"]} GPUs',
         'value: "4"  # Default: 4 GPUs per node': f'value: "{config["gpus"]["per_node"]}"  # GPUs per node',
-        
+
         # Replicas
         'replicas: 2  # Default: 2 nodes': f'replicas: {config["gpus"]["default_nodes"]}  # nodes',
-        
+
         # NCCL debug
         'value: "INFO"': f'value: "{config["nccl"]["debug"]}"',
     }
-    
+
+    # Add RDMA-specific replacements only if RDMA is enabled
+    if rdma_enabled and mode == 'rdma':
+        rdma_replacements = {
+            # RDMA devices
+            'mlx5_6,mlx5_7,mlx5_10,mlx5_11': config['network']['rdma']['devices'],
+            'mlx5_2,mlx5_3,mlx5_4,mlx5_5': config['network']['rdma']['devices'],
+            'mlx5_6,7,10,11': config['network']['rdma']['devices'].replace('mlx5_', ''),
+
+            # Network interfaces
+            'net1,net2,net3,net4': config['network']['rdma']['interfaces'],
+        }
+        replacements.update(rdma_replacements)
+
     for old, new in replacements.items():
         content = content.replace(old, new)
     
@@ -235,9 +247,19 @@ def main():
     # Load cluster configuration
     print(f"Loading configuration for cluster: {args.cluster}")
     config = load_cluster_config(args.cluster)
-    
+
+    # Check RDMA availability
+    rdma_enabled = config['network']['rdma'].get('enabled', False)
+
+    # Warn if RDMA mode requested but not available
+    if args.mode == 'rdma' and not rdma_enabled:
+        print(f"\n⚠️  WARNING: RDMA mode requested but cluster '{args.cluster}' has RDMA disabled")
+        print(f"    Deployment will use TCP mode instead")
+        print(f"    To deploy with TCP mode explicitly, use: --mode tcp\n")
+
     print(f"Cluster: {config['cluster']['name']} ({config['cluster']['api']})")
-    print(f"Mode: {args.mode.upper()}")
+    print(f"Mode: {args.mode.upper()}{' (falling back to TCP - RDMA not available)' if args.mode == 'rdma' and not rdma_enabled else ''}")
+    print(f"RDMA: {'Enabled' if rdma_enabled else 'Disabled'}")
     print(f"Storage: {config['storage']['mode']} ({config['storage'].get('class_rwx', config['storage']['class_rwo'])})")
     print(f"Nodes: {len(config['nodes']['gpu_nodes']) if config['nodes']['gpu_nodes'] else 'auto-select'}")
     print(f"GPUs: {config['gpus']['per_node']} per node")
