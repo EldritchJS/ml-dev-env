@@ -1,6 +1,9 @@
-# Multi-Node Quick Start
+# Multi-Node Quick Start (RDMA Mode)
 
-Train on **16 H100 GPUs** (4 nodes × 4 GPUs) in 5 minutes.
+Train on **16 H100 GPUs** (4 nodes × 4 GPUs) in 5 minutes with RDMA/RoCE networking.
+
+> **⚠️ NOTE:** This guide uses RDMA/RoCE mode (requires InfiniBand hardware).
+> For standard Ethernet/TCP networking, see **[MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md)**.
 
 ## 🚀 5-Minute Setup
 
@@ -8,8 +11,8 @@ Train on **16 H100 GPUs** (4 nodes × 4 GPUs) in 5 minutes.
 > If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
 ```bash
-# 1. Deploy 4-node cluster
-make deploy-multi-node
+# 1. Deploy 4-node cluster (RDMA mode)
+make deploy-multi-node-rdma
 
 # 2. Wait for pods (2-3 minutes)
 oc get pods -n nccl-test -l app=ml-dev-env-multi -w
@@ -182,7 +185,7 @@ oc rsync ./workspace/ ml-dev-env-0:/workspace/ -n nccl-test
 
 ## ✅ Summary
 
-**Deploy:** `make deploy-multi-node`
+**Deploy:** `make deploy-multi-node-rdma`
 
 **Sync:** `make sync-multi-node`
 

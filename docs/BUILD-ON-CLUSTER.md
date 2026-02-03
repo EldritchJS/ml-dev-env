@@ -179,7 +179,23 @@ Typical build times on cluster:
 | PyTorch install | 3-4 min |
 | flash-attn compile | 5-10 min |
 | Other packages | 3-5 min |
+| NumPy 1.x force-reinstall | < 1 min |
 | **Total** | **15-20 min** |
+
+### Important: NumPy Version
+
+The BuildConfig forces **NumPy 1.26.4** (latest 1.x) as the final step:
+
+```dockerfile
+# After all packages are installed
+RUN pip install --no-cache-dir --force-reinstall --no-deps "numpy<2.0"
+```
+
+**Why NumPy 1.x?**
+- NumPy 2.x causes compatibility warnings with PyTorch and other packages
+- Many packages are compiled against NumPy 1.x
+- NumPy 1.26.4 provides optimal compatibility
+- This is applied **after** all other packages to override any numpy 2.x
 
 ## Customizing Build Resources
 

@@ -26,7 +26,7 @@ metadata:
     app: ml-dev-env-multi
 spec:
   serviceName: ml-dev-env-headless
-  replicas: 4  # 4 nodes
+  replicas: 2  # 2 nodes
   podManagementPolicy: Parallel  # Launch all pods simultaneously
 
   selector:
@@ -80,11 +80,11 @@ spec:
             memory: 256Gi
             cpu: 64
 
-        # Security context for RDMA access
+        # Security context (IPC_LOCK not required for TCP mode)
         securityContext:
           capabilities:
             add:
-              - IPC_LOCK
+              - IPC_LOCK  # Optional, helps with shared memory
 
         # Environment variables for multi-GPU and multi-node
         env:
@@ -93,25 +93,18 @@ spec:
         - name: NVIDIA_DRIVER_CAPABILITIES
           value: "compute,utility"
 
-        # NCCL configuration for multi-node
+        # NCCL configuration for multi-node (TCP/Ethernet - NO RDMA)
         - name: NCCL_DEBUG
           value: "INFO"
+        # Disable InfiniBand/RDMA - use TCP sockets instead
         - name: NCCL_IB_DISABLE
-          value: "0"
-        - name: NCCL_IB_HCA
-          value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
-        - name: NCCL_IB_GID_INDEX
-          value: "3"
-        - name: NCCL_NET_GDR_LEVEL
-          value: "5"
-        - name: NCCL_SOCKET_IFNAME
-          value: "net1,net2,net3,net4"
-        - name: NCCL_CROSS_NIC
           value: "1"
-        - name: NCCL_IB_TIMEOUT
-          value: "22"
-        - name: NCCL_MIN_NCHANNELS
-          value: "4"
+        # Use standard Ethernet interface (auto-detect or specify eth0)
+        - name: NCCL_SOCKET_IFNAME
+          value: "^lo,docker0"  # Exclude loopback and docker, use primary interface
+        # Use TCP/IP for communication
+        - name: NCCL_P2P_LEVEL
+          value: "NVL"  # NVLink for intra-node, TCP for inter-node
 
         # Pod identity for DeepSpeed
         - name: POD_NAME
@@ -135,7 +128,7 @@ spec:
 
         # World size and rank calculation
         - name: WORLD_SIZE
-          value: "16"  # 4 nodes × 4 GPUs
+          value: "8"  # 2 nodes × 4 GPUs
         - name: GPUS_PER_NODE
           value: "4"
 
@@ -203,11 +196,13 @@ spec:
 
           echo "=========================================="
           echo "ML Dev Environment - Multi-Node DeepSpeed"
+          echo "Network Mode: TCP/Ethernet (NO RDMA)"
           echo "=========================================="
           echo "Pod: $POD_NAME"
           echo "Node Rank: $NODE_RANK"
           echo "World Size: $WORLD_SIZE"
           echo "Master: $MASTER_ADDR:$MASTER_PORT"
+          echo "NCCL: TCP sockets (IB disabled)"
           echo ""
 
           # Show GPU info
@@ -222,8 +217,6 @@ spec:
           cat > /workspace/.deepspeed/hostfile << EOF
           ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
           ml-dev-env-1.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-          ml-dev-env-2.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-          ml-dev-env-3.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
           EOF
 
           echo "Hostfile created at /workspace/.deepspeed/hostfile"

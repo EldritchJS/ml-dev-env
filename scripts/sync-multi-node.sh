@@ -21,7 +21,7 @@ RUNNING_PODS=$(oc get pods -n "$NAMESPACE" -l app=ml-dev-env-multi --field-selec
 
 if [ "$RUNNING_PODS" -eq 0 ]; then
     echo "❌ No running pods found"
-    echo "Deploy first: ./scripts/deploy-multi-node.sh"
+    echo "Deploy first: ./scripts/deploy-multi-node-rdma.sh or ./scripts/deploy-multi-node-tcp.sh"
     exit 1
 fi
 

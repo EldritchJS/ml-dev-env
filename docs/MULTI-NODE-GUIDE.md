@@ -2,6 +2,9 @@
 
 Train ML models on **4 nodes × 4 GPUs = 16 H100s** using DeepSpeed and RDMA/RoCE networking.
 
+> **⚠️ NOTE:** This guide covers RDMA/RoCE mode (requires InfiniBand hardware).
+> For standard Ethernet/TCP networking (works on any cluster), see **[MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md)**.
+
 ## 🎯 Overview
 
 **Architecture:**
@@ -30,13 +33,13 @@ Total: 16 H100 GPUs with RoCE RDMA interconnect
 ### Step 1: Deploy Multi-Node Environment
 
 ```bash
-./scripts/deploy-multi-node.sh
+./scripts/deploy-multi-node-rdma.sh
 ```
 
 Or:
 
 ```bash
-make deploy-multi-node
+make deploy-multi-node-rdma
 ```
 
 This creates:
@@ -87,7 +90,7 @@ Training runs across all 16 GPUs! 🎉
 
 ```bash
 # 1. Deploy multi-node StatefulSet
-make deploy-multi-node
+make deploy-multi-node-rdma
 
 # 2. Check all pods are running
 oc get pods -n nccl-test -l app=ml-dev-env-multi
@@ -355,7 +358,7 @@ oc exec -it ml-dev-env-0 -n nccl-test -- bash -c "cd /workspace && ./launch_deep
 
 ```bash
 # Deploy multi-node environment
-make deploy-multi-node
+make deploy-multi-node-rdma
 
 # Sync code to all nodes
 make sync-multi-node
@@ -461,7 +464,7 @@ oc exec ml-dev-env-0 -n nccl-test -- ibstat
 
 ### Custom Node Selection
 
-Edit `k8s/statefulset-multi-node.yaml`:
+Edit `k8s/statefulset-multi-node-rdma.yaml`:
 
 ```yaml
 spec:
@@ -482,7 +485,7 @@ spec:
 
 ### Different Number of Nodes
 
-Change `replicas` in `k8s/statefulset-multi-node.yaml`:
+Change `replicas` in `k8s/statefulset-multi-node-rdma.yaml`:
 
 ```yaml
 spec:
@@ -522,7 +525,7 @@ For H100s, consider **BF16** for better precision:
 
 ## ✅ Summary
 
-**Deploy:** `make deploy-multi-node`
+**Deploy:** `make deploy-multi-node-rdma`
 
 **Sync code:** `make sync-multi-node`
 

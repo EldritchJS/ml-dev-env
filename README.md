@@ -10,7 +10,9 @@ Development and testing on one node with 4x H100 GPUs.
 ### **Multi-Node (16 GPUs) - NEW!**
 Distributed training across **4 nodes × 4 GPUs = 16 H100s** using DeepSpeed.
 
-See **[MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)** to train on 16 GPUs in 5 minutes!
+**Two networking modes available:**
+- **RDMA/RoCE** (faster, requires InfiniBand) - See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)
+- **TCP/Ethernet** (slower, works anywhere) - See [MULTI-NODE-TCP-GUIDE.md](docs/MULTI-NODE-TCP-GUIDE.md)
 
 ## Features
 
@@ -21,7 +23,8 @@ See **[MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)** to train on 16
 - ✅ **transformers** - Hugging Face transformers library
 - ✅ **flash-attn** - Flash Attention for efficient attention computation
 - ✅ **deepspeed** - Distributed training optimization
-- ✅ **PyTorch 2.1.2** with CUDA 12.1 support
+- ✅ **PyTorch 2.5.0** with CUDA 12.6 support
+- ✅ **NumPy 1.26.4** - Pinned to 1.x for package compatibility
 - ✅ **ffmpeg** - Video/audio processing
 
 ### Development Tools
@@ -451,6 +454,23 @@ volumes:
     sizeLimit: 64Gi  # Increase from 32Gi
 ```
 
+### NumPy Compatibility Warnings
+
+The environment uses **NumPy 1.26.4** (latest 1.x) for compatibility with packages compiled against NumPy 1.x.
+
+If you see NumPy version warnings, the image may need to be rebuilt:
+
+```bash
+# Rebuild the image (admin/maintainer only)
+oc start-build ml-dev-env -n nccl-test
+
+# Or verify current NumPy version
+oc exec ml-dev-env -- python -c "import numpy; print(numpy.__version__)"
+# Should show: 1.26.4
+```
+
+**Note:** NumPy 2.x causes compatibility warnings with PyTorch and other packages. The BuildConfig is configured to force NumPy 1.x for optimal compatibility.
+
 ## File Organization
 
 ```
@@ -464,17 +484,20 @@ ml-dev-env/
 │   ├── pod-multi-gpu.yaml     # Single-node pod (4 GPUs)
 │   ├── pvcs.yaml              # Persistent storage
 │   ├── service.yaml           # Services and routes
-│   └── statefulset-multi-node.yaml  # Multi-node (16 GPUs)
+│   ├── statefulset-multi-node-rdma.yaml  # Multi-node (RDMA/RoCE)
+│   └── statefulset-multi-node-tcp.yaml  # Multi-node (TCP/Ethernet)
 │
 ├── docs/                      # Documentation
 │   ├── QUICKSTART.md
 │   ├── MULTI-NODE-QUICKSTART.md
+│   ├── MULTI-NODE-TCP-GUIDE.md     # TCP/Ethernet mode (no RDMA)
 │   ├── AUTOMATION-GUIDE.md
-│   └── ... (12 documentation files)
+│   └── ... (13 documentation files)
 │
-├── scripts/                   # Automation scripts
+├── scripts/                   # Automation scripts (7 files)
 │   ├── deploy.sh
-│   ├── deploy-multi-node.sh
+│   ├── deploy-multi-node-rdma.sh   # RDMA/RoCE deployment
+│   ├── deploy-multi-node-tcp.sh    # TCP/Ethernet deployment
 │   ├── dev-session.sh
 │   └── ...
 │

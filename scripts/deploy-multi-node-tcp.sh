@@ -1,15 +1,16 @@
 #!/bin/bash
 
-# Deploy multi-node StatefulSet for distributed training
-# Usage: ./scripts/deploy-multi-node.sh [namespace]
+# Deploy multi-node StatefulSet for distributed training (TCP/Ethernet - NO RDMA)
+# Usage: ./scripts/deploy-multi-node-tcp.sh [namespace]
 
 NAMESPACE="${1:-${NAMESPACE:-nccl-test}}"
 
-echo "🚀 Deploying Multi-Node ML Environment"
+echo "🚀 Deploying Multi-Node ML Environment (TCP Mode)"
 echo "======================================"
 echo "Namespace: $NAMESPACE"
-echo "Nodes:     4"
-echo "GPUs:      16 (4 per node)"
+echo "Nodes:     2 (default, adjust in YAML)"
+echo "GPUs:      8 (4 per node, default)"
+echo "Network:   TCP/Ethernet (NO RDMA required)"
 echo ""
 
 # Check if PVCs exist
@@ -37,10 +38,10 @@ if [ -z "$IMAGE_TAG" ]; then
 fi
 echo "✅ Using image: $IMAGE_TAG"
 
-# Deploy StatefulSet
+# Deploy StatefulSet (TCP variant)
 echo ""
-echo "🚢 Deploying StatefulSet..."
-cat k8s/statefulset-multi-node.yaml | sed "s|namespace: nccl-test|namespace: $NAMESPACE|g" | oc apply -f -
+echo "🚢 Deploying StatefulSet (TCP/Ethernet mode)..."
+cat k8s/statefulset-multi-node-tcp.yaml | sed "s|namespace: nccl-test|namespace: $NAMESPACE|g" | oc apply -f -
 
 echo ""
 echo "⏳ Waiting for pods to be created..."
@@ -54,6 +55,11 @@ oc get pods -n "$NAMESPACE" -l app=ml-dev-env-multi -o wide
 echo ""
 echo "======================================"
 echo "Deployment initiated!"
+echo ""
+echo "⚠️  NOTE: This uses TCP/Ethernet networking (NO RDMA)"
+echo "   - Works on any nodes (no InfiniBand required)"
+echo "   - Slower than RDMA but more compatible"
+echo "   - For RDMA mode, use: make deploy-multi-node"
 echo ""
 echo "Monitor progress:"
 echo "  oc get pods -n $NAMESPACE -l app=ml-dev-env-multi -w"

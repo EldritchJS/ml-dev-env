@@ -5,6 +5,8 @@
 > **Note:** The container image should already be built by your administrator.
 > If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
+> **Important:** The environment uses **NumPy 1.26.4** (not 2.x) for optimal compatibility with PyTorch and ML packages.
+
 ```bash
 # 1. Deploy everything
 make deploy

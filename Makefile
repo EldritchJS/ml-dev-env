@@ -44,10 +44,11 @@ help:
 	@echo "  make sync-once      - One-time code sync"
 	@echo ""
 	@echo "Multi-node training (4 nodes × 4 GPUs = 16 H100s):"
-	@echo "  make deploy-multi-node  - Deploy 4-node StatefulSet for distributed training"
-	@echo "  make sync-multi-node    - Sync code to all 4 nodes"
-	@echo "  make shell-multi-node   - Shell into master node (ml-dev-env-0)"
-	@echo "  make status-multi-node  - Show multi-node deployment status"
+	@echo "  make deploy-multi-node-rdma - Deploy multi-node (RDMA/RoCE mode)"
+	@echo "  make deploy-multi-node-tcp  - Deploy multi-node (TCP/Ethernet mode - no RDMA)"
+	@echo "  make sync-multi-node        - Sync code to all nodes"
+	@echo "  make shell-multi-node       - Shell into master node (ml-dev-env-0)"
+	@echo "  make status-multi-node      - Show multi-node deployment status"
 	@echo "  make clean-multi-node   - Remove multi-node deployment"
 	@echo ""
 	@echo "Configuration options (via environment variables):"
@@ -210,8 +211,11 @@ sync-once:
 	@echo "✅ Sync complete"
 
 # Multi-Node DeepSpeed Training
-deploy-multi-node:
-	@NAMESPACE=$(NAMESPACE) ./scripts/deploy-multi-node.sh
+deploy-multi-node-rdma:
+	@NAMESPACE=$(NAMESPACE) ./scripts/deploy-multi-node-rdma.sh
+
+deploy-multi-node-tcp:
+	@NAMESPACE=$(NAMESPACE) ./scripts/deploy-multi-node-tcp.sh
 
 sync-multi-node:
 	@NAMESPACE=$(NAMESPACE) LOCAL_DIR=$(LOCAL_DIR) REMOTE_DIR=$(REMOTE_DIR) ./scripts/sync-multi-node.sh

@@ -112,6 +112,11 @@ spec:
           tensorboard \
           wandb
 
+      # Fix NumPy compatibility: Force downgrade to 1.x after all packages installed
+      # This prevents NumPy 2.x compatibility warnings from packages compiled against 1.x
+      # Using --force-reinstall --no-deps to override any numpy 2.x without checking dependencies
+      RUN pip install --no-cache-dir --force-reinstall --no-deps "numpy<2.0"
+
       # Install code-server (VSCode in browser)
       RUN curl -fsSL https://code-server.dev/install.sh | sh
 
