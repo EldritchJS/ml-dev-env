@@ -176,11 +176,37 @@ The pod is configured to use **4 GPUs** by default. To change:
 
 Edit `k8s/pod-multi-gpu.yaml`:
 ```yaml
+# CUSTOMIZE: Change GPU count
 resources:
   requests:
     nvidia.com/gpu: 2  # Change to desired number
   limits:
-    nvidia.com/gpu: 2
+    nvidia.com/gpu: 2  # Must match requests
+```
+
+### Node Selection (Optional)
+
+By default, the pod can run on **any GPU node**. To pin to a specific node:
+
+**Option 1: Pin to exact node (simplest)**
+```yaml
+# Uncomment in k8s/pod-multi-gpu.yaml:
+nodeName: your-node-name
+```
+
+**Option 2: Use affinity for flexible selection**
+```yaml
+# Uncomment in k8s/pod-multi-gpu.yaml:
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - node-1
+          - node-2
 ```
 
 ### NCCL Configuration

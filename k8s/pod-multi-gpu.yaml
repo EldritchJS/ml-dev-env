@@ -15,8 +15,22 @@ spec:
 
   restartPolicy: Never
 
-  # Pin to specific node
-  nodeName: moc-r4pcc04u25-nairr
+  # OPTIONAL: Pin to specific node
+  # Uncomment to run on a specific node:
+  # nodeName: your-node-name
+
+  # OPTIONAL: Use affinity for more flexible node selection
+  # Uncomment and edit to constrain to specific nodes:
+  # affinity:
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: kubernetes.io/hostname
+  #           operator: In
+  #           values:
+  #           - your-node-1
+  #           - your-node-2
 
   # Node selector to ensure placement on GPU nodes
   nodeSelector:
@@ -27,14 +41,15 @@ spec:
     image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:latest
     imagePullPolicy: Always
 
-    # Request multiple GPUs
+    # CUSTOMIZE: Change GPU count
+    # Common options: 1, 2, 4, 8 (depending on node availability)
     resources:
       requests:
-        nvidia.com/gpu: 4
+        nvidia.com/gpu: 4  # Default: 4 GPUs
         memory: 128Gi
         cpu: 32
       limits:
-        nvidia.com/gpu: 4
+        nvidia.com/gpu: 4  # Must match requests
         memory: 256Gi
         cpu: 64
 
