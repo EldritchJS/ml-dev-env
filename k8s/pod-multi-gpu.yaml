@@ -70,7 +70,7 @@ spec:
     - name: NCCL_IB_DISABLE
       value: "0"
     - name: NCCL_IB_HCA
-      value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+      value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
     - name: NCCL_IB_GID_INDEX
       value: "3"
     - name: NCCL_NET_GDR_LEVEL
