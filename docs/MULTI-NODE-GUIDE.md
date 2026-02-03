@@ -462,37 +462,74 @@ oc exec ml-dev-env-0 -n nccl-test -- ibstat
 
 ## 📚 Advanced Topics
 
-### Custom Node Selection
+### Customizing Node Count, GPU Count, and Node Selection
 
-Edit `k8s/statefulset-multi-node-rdma.yaml`:
+The multi-node configurations are now **fully customizable** with clear `CUSTOMIZE` markers in the YAML files.
 
-```yaml
-spec:
-  template:
-    spec:
-      # Pin specific pods to specific nodes
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - moc-r4pcc04u17  # Your preferred nodes
-                - moc-r4pcc04u18
-```
+**To change configuration, edit** `k8s/statefulset-multi-node-rdma.yaml`:
 
-### Different Number of Nodes
-
-Change `replicas` in `k8s/statefulset-multi-node-rdma.yaml`:
+#### 1. Number of Nodes
 
 ```yaml
 spec:
-  replicas: 2  # Use only 2 nodes (8 GPUs)
+  # CUSTOMIZE: Change replicas to set number of nodes (each node gets 1 pod)
+  # Examples: 2 nodes = 8 GPUs, 4 nodes = 16 GPUs, 8 nodes = 32 GPUs
+  replicas: 2  # Default: 2 nodes
 ```
 
-Update WORLD_SIZE and hostfile accordingly.
+#### 2. GPUs Per Node
+
+```yaml
+resources:
+  requests:
+    nvidia.com/gpu: 4  # Default: 4 GPUs per pod
+  limits:
+    nvidia.com/gpu: 4  # Must match requests
+```
+
+#### 3. Update World Size
+
+When you change nodes or GPUs, update these environment variables:
+
+```yaml
+env:
+  # CUSTOMIZE: Update WORLD_SIZE and GPUS_PER_NODE to match your configuration
+  # WORLD_SIZE = replicas × GPUS_PER_NODE (total GPUs across all nodes)
+  - name: WORLD_SIZE
+    value: "8"  # Example: 2 nodes × 4 GPUs = 8 total
+  - name: GPUS_PER_NODE
+    value: "4"  # Must match nvidia.com/gpu above
+```
+
+**Example Configurations:**
+
+| Nodes | GPUs/Node | replicas | GPUS_PER_NODE | WORLD_SIZE |
+|-------|-----------|----------|---------------|------------|
+| 2 | 4 | 2 | "4" | "8" |
+| 4 | 4 | 4 | "4" | "16" |
+| 2 | 8 | 2 | "8" | "16" |
+| 8 | 4 | 8 | "4" | "32" |
+
+**The hostfile is generated automatically** based on WORLD_SIZE and GPUS_PER_NODE - no manual editing needed!
+
+#### 4. Pin to Specific Nodes (Optional)
+
+By default, pods can run on any GPU node. To constrain to specific nodes, **uncomment and edit** this section:
+
+```yaml
+affinity:
+  # OPTIONAL: Constrain to specific nodes
+  # Uncomment and edit to run on specific nodes:
+  # nodeAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/hostname
+  #         operator: In
+  #         values:
+  #         - moc-r4pcc04u17
+  #         - moc-r4pcc04u18
+```
 
 ### Mixed Precision Training
 

@@ -26,7 +26,9 @@ metadata:
     app: ml-dev-env-multi
 spec:
   serviceName: ml-dev-env-headless
-  replicas: 2  # 2 nodes
+  # CUSTOMIZE: Change replicas to set number of nodes (each node gets 1 pod)
+  # Examples: 2 nodes = 8 GPUs, 4 nodes = 16 GPUs, 8 nodes = 32 GPUs
+  replicas: 2  # Default: 2 nodes
   podManagementPolicy: Parallel  # Launch all pods simultaneously
 
   selector:
@@ -42,7 +44,7 @@ spec:
     spec:
       restartPolicy: Always
 
-      # Spread pods across different nodes
+      # Spread pods across different nodes (one pod per node)
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -53,6 +55,19 @@ spec:
                 values:
                 - ml-dev-env-multi
             topologyKey: kubernetes.io/hostname
+
+        # OPTIONAL: Constrain to specific nodes
+        # Uncomment and edit to run on specific nodes:
+        # nodeAffinity:
+        #   requiredDuringSchedulingIgnoredDuringExecution:
+        #     nodeSelectorTerms:
+        #     - matchExpressions:
+        #       - key: kubernetes.io/hostname
+        #         operator: In
+        #         values:
+        #         - your-node-1
+        #         - your-node-2
+        #         - your-node-3
 
       # Node selector to ensure placement on GPU nodes
       nodeSelector:
@@ -69,14 +84,16 @@ spec:
         image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:latest
         imagePullPolicy: Always
 
-        # Request 4 GPUs per pod
+        # CUSTOMIZE: Change GPU count per pod
+        # Total GPUs = replicas × GPUs per pod
+        # Examples: 2 nodes × 4 GPUs = 8 total, 4 nodes × 8 GPUs = 32 total
         resources:
           requests:
-            nvidia.com/gpu: 4
+            nvidia.com/gpu: 4  # Default: 4 GPUs per pod
             memory: 128Gi
             cpu: 32
           limits:
-            nvidia.com/gpu: 4
+            nvidia.com/gpu: 4  # Must match requests
             memory: 256Gi
             cpu: 64
 
@@ -126,11 +143,12 @@ spec:
         - name: MASTER_PORT
           value: "29500"
 
-        # World size and rank calculation
+        # CUSTOMIZE: Update WORLD_SIZE and GPUS_PER_NODE to match your configuration
+        # WORLD_SIZE = replicas × GPUS_PER_NODE (total GPUs across all nodes)
         - name: WORLD_SIZE
-          value: "8"  # 2 nodes × 4 GPUs
+          value: "8"  # Default: 2 nodes × 4 GPUs = 8 total
         - name: GPUS_PER_NODE
-          value: "4"
+          value: "4"  # Default: 4 GPUs per node (must match nvidia.com/gpu above)
 
         # OpenMP threads
         - name: OMP_NUM_THREADS
@@ -212,14 +230,16 @@ spec:
           # Start code-server in background
           code-server --bind-addr 0.0.0.0:8080 --auth none /workspace &
 
-          # Create hostfile for DeepSpeed
+          # Create hostfile for DeepSpeed dynamically
           mkdir -p /workspace/.deepspeed
-          cat > /workspace/.deepspeed/hostfile << EOF
-          ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-          ml-dev-env-1.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-          EOF
+          NUM_NODES=$((WORLD_SIZE / GPUS_PER_NODE))
+          > /workspace/.deepspeed/hostfile
+          for i in $(seq 0 $((NUM_NODES - 1))); do
+            echo "ml-dev-env-$i.ml-dev-env-headless.nccl-test.svc.cluster.local slots=$GPUS_PER_NODE" >> /workspace/.deepspeed/hostfile
+          done
 
-          echo "Hostfile created at /workspace/.deepspeed/hostfile"
+          echo "Hostfile created at /workspace/.deepspeed/hostfile ($NUM_NODES nodes)"
+          cat /workspace/.deepspeed/hostfile
           echo ""
           echo "Ready for multi-node training!"
           echo "=========================================="

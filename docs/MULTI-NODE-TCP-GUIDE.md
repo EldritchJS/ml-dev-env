@@ -277,21 +277,72 @@ oc exec ml-dev-env-0 -n nccl-test -- bash -c "NCCL_DEBUG=INFO python -c 'import 
 
 ## 🛠️ Advanced Configuration
 
-### Adjusting Number of Nodes
+### Customizing Node Count, GPU Count, and Node Selection
 
-**TCP Mode:**
-Edit `k8s/statefulset-multi-node-tcp.yaml`:
+Both TCP and RDMA configurations are **fully customizable** with clear `CUSTOMIZE` markers in the YAML files.
+
+#### For TCP Mode
+
+**Edit** `k8s/statefulset-multi-node-tcp.yaml`:
+
+**1. Number of Nodes:**
 ```yaml
 spec:
-  replicas: 4  # Change to desired number of nodes
-
-env:
-- name: WORLD_SIZE
-  value: "16"  # 4 nodes × 4 GPUs
+  # CUSTOMIZE: Change replicas to set number of nodes (each node gets 1 pod)
+  # Examples: 2 nodes = 8 GPUs, 4 nodes = 16 GPUs, 8 nodes = 32 GPUs
+  replicas: 2  # Default: 2 nodes
 ```
 
-**RDMA Mode:**
-Edit `k8s/statefulset-multi-node-rdma.yaml` similarly.
+**2. GPUs Per Node:**
+```yaml
+resources:
+  requests:
+    nvidia.com/gpu: 4  # Default: 4 GPUs per pod
+  limits:
+    nvidia.com/gpu: 4  # Must match requests
+```
+
+**3. Update World Size:**
+```yaml
+env:
+  # CUSTOMIZE: Update WORLD_SIZE and GPUS_PER_NODE to match your configuration
+  # WORLD_SIZE = replicas × GPUS_PER_NODE (total GPUs across all nodes)
+  - name: WORLD_SIZE
+    value: "8"  # Example: 2 nodes × 4 GPUs = 8 total
+  - name: GPUS_PER_NODE
+    value: "4"  # Must match nvidia.com/gpu above
+```
+
+**4. Pin to Specific Nodes (Optional):**
+```yaml
+affinity:
+  # OPTIONAL: Constrain to specific nodes
+  # Uncomment and edit to run on specific nodes:
+  # nodeAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/hostname
+  #         operator: In
+  #         values:
+  #         - your-node-1
+  #         - your-node-2
+```
+
+**The hostfile is generated automatically** based on WORLD_SIZE and GPUS_PER_NODE - no manual editing needed!
+
+#### For RDMA Mode
+
+**Edit** `k8s/statefulset-multi-node-rdma.yaml` with the **same customization options** as TCP mode above.
+
+**Example Configurations:**
+
+| Nodes | GPUs/Node | replicas | GPUS_PER_NODE | WORLD_SIZE |
+|-------|-----------|----------|---------------|------------|
+| 2 | 4 | 2 | "4" | "8" |
+| 4 | 4 | 4 | "4" | "16" |
+| 2 | 8 | 2 | "8" | "16" |
+| 8 | 4 | 8 | "4" | "32" |
 
 ### Custom Network Interfaces
 

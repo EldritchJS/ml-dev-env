@@ -36,9 +36,9 @@ Distributed training across **4 nodes × 4 GPUs = 16 H100s** using DeepSpeed.
 
 ### Multi-GPU & Multi-Node Support
 - ✅ **Single-node:** 4x NVIDIA H100 GPUs
-- ✅ **Multi-node:** 4 nodes × 4 GPUs = 16 H100s with DeepSpeed
-- ✅ **RDMA/RoCE** networking (mlx5_6,7,10,11 on net1-4)
-- ✅ **NCCL** with GPUDirect RDMA for optimal performance
+- ✅ **Multi-node:** Fully configurable (default: 2 nodes × 4 GPUs = 8 H100s) with DeepSpeed
+- ✅ **RDMA/RoCE** networking (mlx5_6,7,10,11 on net1-4) or **TCP/Ethernet** mode
+- ✅ **NCCL** with GPUDirect RDMA for optimal performance (RDMA mode)
 - ✅ **DeepSpeed** ZeRO-2/3 optimization
 - ✅ **StatefulSet** for distributed training pods
 - ✅ **GPU topology** aware configuration
