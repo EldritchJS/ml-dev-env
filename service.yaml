@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-dev-env
+  namespace: nccl-test
+  labels:
+    app: ml-dev-env
+spec:
+  type: ClusterIP
+  selector:
+    app: ml-dev-env
+  ports:
+  - name: code-server
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: jupyter
+    port: 8888
+    targetPort: 8888
+    protocol: TCP
+  - name: tensorboard
+    port: 6006
+    targetPort: 6006
+    protocol: TCP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ml-dev-vscode
+  namespace: nccl-test
+spec:
+  to:
+    kind: Service
+    name: ml-dev-env
+  port:
+    targetPort: code-server
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ml-dev-jupyter
+  namespace: nccl-test
+spec:
+  to:
+    kind: Service
+    name: ml-dev-env
+  port:
+    targetPort: jupyter
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ml-dev-tensorboard
+  namespace: nccl-test
+spec:
+  to:
+    kind: Service
+    name: ml-dev-env
+  port:
+    targetPort: tensorboard
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

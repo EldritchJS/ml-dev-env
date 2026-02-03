@@ -1,0 +1,64 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0,1,2,3"
+      }
+    },
+    {
+      "name": "Python: Multi-GPU Training",
+      "type": "python",
+      "request": "launch",
+      "module": "torch.distributed.launch",
+      "args": [
+        "--nproc_per_node=4",
+        "--nnodes=1",
+        "--node_rank=0",
+        "${file}"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0,1,2,3",
+        "NCCL_DEBUG": "INFO"
+      }
+    },
+    {
+      "name": "Python: DeepSpeed",
+      "type": "python",
+      "request": "launch",
+      "module": "deepspeed.launcher.launch",
+      "args": [
+        "--num_gpus=4",
+        "${file}"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0,1,2,3"
+      }
+    },
+    {
+      "name": "Python: Attach to Remote",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/workspace"
+        }
+      ]
+    }
+  ]
+}

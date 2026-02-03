@@ -1,0 +1,155 @@
+# ML Development Environment - NVIDIA PyTorch Base
+# Uses NVIDIA's official PyTorch container for guaranteed CUDA compatibility
+# Using 24.10 for flash-attn compatibility
+
+FROM nvcr.io/nvidia/pytorch:24.10-py3 AS base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies using apt (Ubuntu base)
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    vim \
+    less \
+    bash-completion \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    ninja-build \
+    ffmpeg \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install RDMA/InfiniBand tools
+RUN apt-get update && apt-get install -y \
+    libibverbs-dev \
+    librdmacm-dev \
+    rdma-core \
+    infiniband-diags \
+    pciutils \
+    numactl \
+    && rm -rf /var/lib/apt/lists/*
+
+# PyTorch is already installed in the base image
+# Upgrade pip and install base packages
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Set NCCL environment variables for RDMA/GPUDirect
+ENV NCCL_DEBUG=INFO \
+    NCCL_IB_DISABLE=0 \
+    NCCL_IB_HCA=mlx5 \
+    NCCL_IB_GID_INDEX=3 \
+    NCCL_SOCKET_IFNAME=eth0 \
+    NCCL_NET_GDR_LEVEL=5
+
+# Install flash-attention (compile from source for PyTorch compatibility)
+RUN pip install --no-cache-dir packaging ninja && \
+    pip install --no-cache-dir flash-attn --upgrade --no-build-isolation
+
+# Install transformers and related libraries
+RUN pip install --no-cache-dir \
+    transformers>=4.37.0 \
+    accelerate \
+    datasets \
+    tokenizers \
+    sentencepiece \
+    protobuf
+
+# Install deepspeed
+RUN pip install --no-cache-dir deepspeed
+
+# Install LLaMAFactory and its dependencies
+RUN pip install --no-cache-dir \
+    llamafactory \
+    peft \
+    trl \
+    bitsandbytes
+
+# Install VideoLLaMA2 dependencies
+RUN pip install --no-cache-dir \
+    einops \
+    timm \
+    av \
+    opencv-python \
+    decord
+
+# Install EasyR1 and additional ML tools
+RUN pip install --no-cache-dir \
+    scipy \
+    scikit-learn \
+    matplotlib \
+    jupyter \
+    ipykernel \
+    notebook
+
+# Install development tools
+RUN pip install --no-cache-dir \
+    ipython \
+    debugpy \
+    pytest \
+    black \
+    flake8 \
+    tensorboard \
+    wandb
+
+# Install code-server (VSCode in browser)
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
+# Create workspace directory
+RUN mkdir -p /workspace
+
+# Configure bash completion
+RUN echo "if [ -f /usr/share/bash-completion/bash_completion ]; then" >> /root/.bashrc && \
+    echo "  source /usr/share/bash-completion/bash_completion" >> /root/.bashrc && \
+    echo "fi" >> /root/.bashrc && \
+    echo "export PS1='\\[\\033[01;32m\\]\\u@ml-dev\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '" >> /root/.bashrc && \
+    echo "alias ll='ls -lah'" >> /root/.bashrc
+
+# Set working directory
+WORKDIR /workspace
+
+# Expose ports for code-server, jupyter, tensorboard
+EXPOSE 8080 8888 6006
+
+# Create entrypoint script
+RUN echo '#!/bin/bash' > /entrypoint.sh && \
+    echo 'echo "=========================================="' >> /entrypoint.sh && \
+    echo 'echo "ML Development Environment (Ubuntu Base)"' >> /entrypoint.sh && \
+    echo 'echo "=========================================="' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "GPU Information:"' >> /entrypoint.sh && \
+    echo 'nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "GPU Topology:"' >> /entrypoint.sh && \
+    echo 'nvidia-smi topo -m' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "InfiniBand Devices:"' >> /entrypoint.sh && \
+    echo 'ibstat 2>/dev/null || echo "  No IB devices found (may need host network)"' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "Python version:"' >> /entrypoint.sh && \
+    echo 'python --version' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "PyTorch version:"' >> /entrypoint.sh && \
+    echo 'python -c "import torch; print(f\"PyTorch {torch.__version__}, CUDA available: {torch.cuda.is_available()}, CUDA version: {torch.version.cuda}\")"' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "Installed packages:"' >> /entrypoint.sh && \
+    echo 'echo "  - transformers: $(python -c \"import transformers; print(transformers.__version__)\")"' >> /entrypoint.sh && \
+    echo 'echo "  - deepspeed: $(python -c \"import deepspeed; print(deepspeed.__version__)\")"' >> /entrypoint.sh && \
+    echo 'echo "  - flash-attn: installed"' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "Base Image: NVIDIA PyTorch (Ubuntu 22.04)"' >> /entrypoint.sh && \
+    echo 'echo "=========================================="' >> /entrypoint.sh && \
+    echo 'echo "VSCode Server: http://localhost:8080"' >> /entrypoint.sh && \
+    echo 'echo "Jupyter: http://localhost:8888"' >> /entrypoint.sh && \
+    echo 'echo "TensorBoard: http://localhost:6006"' >> /entrypoint.sh && \
+    echo 'echo "=========================================="' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'exec "$@"' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["tail", "-f", "/dev/null"]

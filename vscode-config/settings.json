@@ -1,0 +1,21 @@
+{
+  "python.defaultInterpreterPath": "/usr/bin/python3.10",
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": true,
+  "python.formatting.provider": "black",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "editor.formatOnSave": true,
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/*/**": true,
+    "**/__pycache__/**": true,
+    "**/.pytest_cache/**": true
+  },
+  "terminal.integrated.env.linux": {
+    "CUDA_VISIBLE_DEVICES": "0,1,2,3",
+    "NCCL_DEBUG": "INFO"
+  }
+}

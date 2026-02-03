@@ -1,0 +1,8 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: ml-dev-env
+  namespace: nccl-test
+spec:
+  lookupPolicy:
+    local: true

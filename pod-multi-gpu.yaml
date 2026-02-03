@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ml-dev-env
+  namespace: nccl-test
+  labels:
+    app: ml-dev-env
+    base: ubuntu
+  annotations:
+    description: "Multi-GPU ML development environment with RDMA support - Ubuntu base"
+spec:
+  # Use host network for RDMA/InfiniBand access (disabled for now to fix CUDA libraries)
+  # hostNetwork: true
+  # hostIPC: true
+
+  restartPolicy: Never
+
+  # Pin to specific node
+  nodeName: moc-r4pcc04u25-nairr
+
+  # Node selector to ensure placement on GPU nodes
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: ml-dev
+    image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:latest
+    imagePullPolicy: Always
+
+    # Request multiple GPUs
+    resources:
+      requests:
+        nvidia.com/gpu: 4
+        memory: 128Gi
+        cpu: 32
+      limits:
+        nvidia.com/gpu: 4
+        memory: 256Gi
+        cpu: 64
+
+    # Security context for access to devices
+    securityContext:
+      capabilities:
+        add:
+          - IPC_LOCK
+
+    # Environment variables for multi-GPU and RDMA
+    env:
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: "all"
+    - name: NVIDIA_DRIVER_CAPABILITIES
+      value: "compute,utility"
+    - name: NCCL_DEBUG
+      value: "INFO"
+    - name: NCCL_IB_DISABLE
+      value: "0"
+    - name: NCCL_IB_HCA
+      value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+    - name: NCCL_IB_GID_INDEX
+      value: "3"
+    - name: NCCL_NET_GDR_LEVEL
+      value: "5"
+    - name: NCCL_SOCKET_IFNAME
+      value: "net1,net2,net3,net4"
+    - name: CUDA_VISIBLE_DEVICES
+      value: "0,1,2,3"
+    - name: OMP_NUM_THREADS
+      value: "8"
+
+    # Volume mounts
+    volumeMounts:
+    - name: workspace
+      mountPath: /workspace
+    - name: datasets
+      mountPath: /datasets
+
+    # Ports for services
+    ports:
+    - containerPort: 8080
+      name: code-server
+      protocol: TCP
+    - containerPort: 8888
+      name: jupyter
+      protocol: TCP
+    - containerPort: 6006
+      name: tensorboard
+      protocol: TCP
+
+    # Startup command
+    command:
+    - /bin/bash
+    - -c
+    - |
+      # Start code-server in background
+      code-server --bind-addr 0.0.0.0:8080 --auth none /workspace &
+
+      # Keep container running
+      tail -f /dev/null
+
+  volumes:
+  - name: workspace
+    persistentVolumeClaim:
+      claimName: ml-dev-workspace
+  - name: datasets
+    persistentVolumeClaim:
+      claimName: ml-datasets
+
+  # Tolerate GPU node taints
+  tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule

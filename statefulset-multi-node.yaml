@@ -1,0 +1,247 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-dev-env-headless
+  namespace: nccl-test
+  labels:
+    app: ml-dev-env-multi
+spec:
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: ml-dev-env-multi
+  ports:
+  - port: 29500
+    name: master
+  - port: 8080
+    name: code-server
+  - port: 5678
+    name: debug
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ml-dev-env
+  namespace: nccl-test
+  labels:
+    app: ml-dev-env-multi
+spec:
+  serviceName: ml-dev-env-headless
+  replicas: 4  # 4 nodes
+  podManagementPolicy: Parallel  # Launch all pods simultaneously
+
+  selector:
+    matchLabels:
+      app: ml-dev-env-multi
+
+  template:
+    metadata:
+      labels:
+        app: ml-dev-env-multi
+        base: ubuntu
+
+    spec:
+      restartPolicy: Always
+
+      # Spread pods across different nodes
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - ml-dev-env-multi
+            topologyKey: kubernetes.io/hostname
+
+      # Node selector to ensure placement on GPU nodes
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      # Tolerate GPU node taints
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      containers:
+      - name: ml-dev
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:latest
+        imagePullPolicy: Always
+
+        # Request 4 GPUs per pod
+        resources:
+          requests:
+            nvidia.com/gpu: 4
+            memory: 128Gi
+            cpu: 32
+          limits:
+            nvidia.com/gpu: 4
+            memory: 256Gi
+            cpu: 64
+
+        # Security context for RDMA access
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+
+        # Environment variables for multi-GPU and multi-node
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+
+        # NCCL configuration for multi-node
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_IB_DISABLE
+          value: "0"
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+        - name: NCCL_IB_GID_INDEX
+          value: "3"
+        - name: NCCL_NET_GDR_LEVEL
+          value: "5"
+        - name: NCCL_SOCKET_IFNAME
+          value: "net1,net2,net3,net4"
+        - name: NCCL_CROSS_NIC
+          value: "1"
+        - name: NCCL_IB_TIMEOUT
+          value: "22"
+        - name: NCCL_MIN_NCHANNELS
+          value: "4"
+
+        # Pod identity for DeepSpeed
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # DeepSpeed master address (pod-0 is master)
+        - name: MASTER_ADDR
+          value: "ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local"
+        - name: MASTER_PORT
+          value: "29500"
+
+        # World size and rank calculation
+        - name: WORLD_SIZE
+          value: "16"  # 4 nodes × 4 GPUs
+        - name: GPUS_PER_NODE
+          value: "4"
+
+        # OpenMP threads
+        - name: OMP_NUM_THREADS
+          value: "8"
+
+        # Volume mounts
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: datasets
+          mountPath: /datasets
+        - name: dshm
+          mountPath: /dev/shm
+
+        # Ports for services
+        ports:
+        - containerPort: 29500
+          name: master
+          protocol: TCP
+        - containerPort: 8080
+          name: code-server
+          protocol: TCP
+        - containerPort: 8888
+          name: jupyter
+          protocol: TCP
+        - containerPort: 6006
+          name: tensorboard
+          protocol: TCP
+        - containerPort: 5678
+          name: debug
+          protocol: TCP
+
+        # Liveness probe
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - nvidia-smi
+          initialDelaySeconds: 30
+          periodSeconds: 30
+
+        # Readiness probe
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - nvidia-smi && [ -d /workspace ]
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+        # Startup command
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+
+          # Calculate node rank from pod ordinal
+          POD_ORDINAL=${HOSTNAME##*-}
+          export NODE_RANK=$POD_ORDINAL
+
+          echo "=========================================="
+          echo "ML Dev Environment - Multi-Node DeepSpeed"
+          echo "=========================================="
+          echo "Pod: $POD_NAME"
+          echo "Node Rank: $NODE_RANK"
+          echo "World Size: $WORLD_SIZE"
+          echo "Master: $MASTER_ADDR:$MASTER_PORT"
+          echo ""
+
+          # Show GPU info
+          nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
+          echo ""
+
+          # Start code-server in background
+          code-server --bind-addr 0.0.0.0:8080 --auth none /workspace &
+
+          # Create hostfile for DeepSpeed
+          mkdir -p /workspace/.deepspeed
+          cat > /workspace/.deepspeed/hostfile << EOF
+          ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
+          ml-dev-env-1.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
+          ml-dev-env-2.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
+          ml-dev-env-3.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
+          EOF
+
+          echo "Hostfile created at /workspace/.deepspeed/hostfile"
+          echo ""
+          echo "Ready for multi-node training!"
+          echo "=========================================="
+
+          # Keep container running
+          tail -f /dev/null
+
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: ml-dev-workspace
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: ml-datasets
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
