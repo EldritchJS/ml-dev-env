@@ -96,7 +96,7 @@ export NAMESPACE=my-ml-namespace
 NAMESPACE=my-ml-namespace make deploy
 
 # Option 3: Use deploy script
-NAMESPACE=my-ml-namespace ./deploy.sh deploy
+NAMESPACE=my-ml-namespace ./scripts/deploy.sh deploy
 
 # Option 4: Create .env file
 cp .env.example .env

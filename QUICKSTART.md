@@ -59,7 +59,7 @@ make shell
 
 **Option C: Use deploy script**
 ```bash
-NAMESPACE=my-ml-project ./deploy.sh deploy
+NAMESPACE=my-ml-project ./scripts/deploy.sh deploy
 ```
 
 **Option D: Create .env file**

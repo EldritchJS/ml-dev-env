@@ -107,10 +107,10 @@ NAMESPACE=ml-team make build
 
 ```bash
 # Build only
-./deploy.sh build
+./scripts/deploy.sh build
 
 # Or with custom namespace
-NAMESPACE=my-namespace ./deploy.sh build
+NAMESPACE=my-namespace ./scripts/deploy.sh build
 ```
 
 ### Method 3: Manual oc Commands
