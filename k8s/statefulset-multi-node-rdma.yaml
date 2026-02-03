@@ -97,7 +97,11 @@ spec:
             memory: 256Gi
             cpu: 64
 
-        # Security context removed - IPC_LOCK not permitted by OpenShift SCC
+        # Security context for RDMA access
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
 
         # Environment variables for multi-GPU and multi-node
         env:
@@ -113,7 +117,7 @@ spec:
         - name: NCCL_IB_DISABLE
           value: "0"
         - name: NCCL_IB_HCA
-          value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
+          value: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
         - name: NCCL_IB_GID_INDEX
           value: "3"
         - name: NCCL_NET_GDR_LEVEL
@@ -252,26 +256,13 @@ spec:
           tail -f /dev/null
 
       volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: ml-dev-workspace
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: ml-datasets
       - name: dshm
         emptyDir:
           medium: Memory
           sizeLimit: 32Gi
-
-  # VolumeClaimTemplates: Each pod gets its own PVC (works with RWO storage)
-  volumeClaimTemplates:
-  - metadata:
-      name: workspace
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: ocs-external-storagecluster-ceph-rbd
-      resources:
-        requests:
-          storage: 100Gi
-  - metadata:
-      name: datasets
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: ocs-external-storagecluster-ceph-rbd
-      resources:
-        requests:
-          storage: 500Gi

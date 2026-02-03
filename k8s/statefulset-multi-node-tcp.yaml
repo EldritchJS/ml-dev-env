@@ -97,7 +97,11 @@ spec:
             memory: 256Gi
             cpu: 64
 
-        # Security context removed - IPC_LOCK not permitted by OpenShift SCC
+        # Security context (IPC_LOCK not required for TCP mode)
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK  # Optional, helps with shared memory
 
         # Environment variables for multi-GPU and multi-node
         env:
@@ -244,26 +248,13 @@ spec:
           tail -f /dev/null
 
       volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: ml-dev-workspace
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: ml-datasets
       - name: dshm
         emptyDir:
           medium: Memory
           sizeLimit: 32Gi
-
-  # VolumeClaimTemplates: Each pod gets its own PVC (works with RWO storage)
-  volumeClaimTemplates:
-  - metadata:
-      name: workspace
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: ocs-external-storagecluster-ceph-rbd
-      resources:
-        requests:
-          storage: 100Gi
-  - metadata:
-      name: datasets
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: ocs-external-storagecluster-ceph-rbd
-      resources:
-        requests:
-          storage: 500Gi
