@@ -1,74 +1,65 @@
 # Multi-Node DeepSpeed Training Guide
 
-Train ML models on **4 nodes × 4 GPUs = 16 H100s** using DeepSpeed and RDMA/RoCE networking.
+Train ML models on **multiple H100 GPUs across nodes** using DeepSpeed with RDMA/RoCE networking or TCP fallback.
 
-> **⚠️ NOTE:** This guide covers RDMA/RoCE mode (requires InfiniBand hardware).
-> For standard Ethernet/TCP networking (works on any cluster), see **[MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md)**.
+> **💡 TIP:** For quickest deployment, see **[MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md)** first.
 
 ## 🎯 Overview
 
-**Architecture:**
-```
-ml-dev-env-0  (Node: moc-r4pcc04u17)       - Rank 0-3   (Master)
-ml-dev-env-1  (Node: moc-r4pcc04u18)       - Rank 4-7
-ml-dev-env-2  (Node: moc-r4pcc04u23-nairr) - Rank 8-11
-ml-dev-env-3  (Node: moc-r4pcc04u25-nairr) - Rank 12-15
-
-Total: 16 H100 GPUs with RoCE RDMA interconnect
-```
+This guide covers multi-node distributed training using the **cluster configuration system** for easy deployment.
 
 **Key Features:**
+- ✅ Cluster-based deployment (all settings in one file)
+- ✅ RDMA mode for high-performance NCCL communication
+- ✅ TCP mode for universal compatibility
 - ✅ StatefulSet ensures one pod per node
-- ✅ Headless service for pod-to-pod communication
-- ✅ DeepSpeed ZeRO-2 optimization
-- ✅ NCCL over RDMA (mlx5_6,7,10,11 on net1-4)
-- ✅ Shared PVC across all pods
-- ✅ Automatic hostfile generation
+- ✅ Headless service for pod-to-pod DNS
+- ✅ DeepSpeed ZeRO-2/3 optimization
+- ✅ Shared workspace (when RWX storage available)
 
 ## 🚀 Quick Start
 
-> **Note:** The container image should already be built by your administrator.
-> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
-
-### Step 1: Deploy Multi-Node Environment
+### Step 1: Choose Your Cluster
 
 ```bash
-./scripts/deploy-multi-node-rdma.sh
+# List configured clusters
+make list-clusters
 ```
 
-Or:
+Example clusters:
+- **cairo** - NERC Cairo cluster (RDMA + RWX storage)
+- **barcelona** - NERC Barcelona cluster (TCP + per-pod storage)
 
+### Step 2: Deploy Multi-Node Environment
+
+**Option A: Use RDMA (High Performance)**
 ```bash
-make deploy-multi-node-rdma
+make deploy-cluster CLUSTER=cairo MODE=rdma
 ```
 
-This creates:
-- Headless service for pod discovery
-- StatefulSet with 4 pods
-- Hostfile for DeepSpeed
+**Option B: Use TCP (Universal)**
+```bash
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+```
 
-### Step 2: Wait for All Pods
+### Step 3: Wait for Pods
 
 ```bash
 # Watch pods come up
 oc get pods -n nccl-test -l app=ml-dev-env-multi -w
 
-# Should see:
+# Should see (example for 2-node deployment):
 # ml-dev-env-0   1/1     Running   0          2m
 # ml-dev-env-1   1/1     Running   0          2m
-# ml-dev-env-2   1/1     Running   0          2m
-# ml-dev-env-3   1/1     Running   0          2m
 ```
 
-### Step 3: Sync Your Code to All Nodes
+### Step 4: Sync Code to All Nodes
 
 ```bash
-./scripts/sync-multi-node.sh
+make sync-multi-node
 ```
 
-This syncs `./workspace/` to all 4 pods.
-
-### Step 4: Run Multi-Node Training
+### Step 5: Run Training
 
 ```bash
 # Shell into master node (pod-0)
@@ -79,234 +70,207 @@ cd /workspace
 ./launch_deepspeed.sh train_multi_node.py
 ```
 
-Training runs across all 16 GPUs! 🎉
+## 📋 Architecture
 
-## 📝 Detailed Workflow
+### With Cluster Configuration System
 
-### Deploy and Setup
+The cluster config defines:
+- **Nodes**: Which GPU nodes to use
+- **Storage**: RWX shared storage or per-pod volumes
+- **Network**: RDMA devices or TCP interfaces
+- **Security**: Privileged SCC if needed for IPC_LOCK
+- **Resources**: GPU count, memory, CPU per pod
 
-> **Note:** The container image should already be built by your administrator.
-> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
+Example architecture (Cairo cluster, 2 nodes):
+```
+ml-dev-env-0  (moc-r4pcc02u15)  - Rank 0-3   (Master)
+ml-dev-env-1  (moc-r4pcc02u16)  - Rank 4-7
+
+Total: 8 H100 GPUs with RDMA over mlx5_2,3,4,5
+```
+
+### Deployment Components
+
+```
+┌─────────────────────────────────────────────┐
+│  Headless Service (ml-dev-env-headless)    │
+│  - DNS: ml-dev-env-0.ml-dev-env-headless   │
+│  - DNS: ml-dev-env-1.ml-dev-env-headless   │
+└─────────────────────────────────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+┌───────▼────────┐    ┌────────▼────────┐
+│ ml-dev-env-0   │    │ ml-dev-env-1    │
+│ (Master)       │    │ (Worker)        │
+│ - 4 H100 GPUs  │    │ - 4 H100 GPUs   │
+│ - Rank 0-3     │    │ - Rank 4-7      │
+│ - /workspace   │◄───►│ - /workspace    │
+└────────────────┘    └─────────────────┘
+        │                       │
+        └───────────┬───────────┘
+                    │
+        ┌───────────▼───────────┐
+        │  Shared PVC (if RWX)  │
+        │  or Per-Pod Volumes   │
+        └───────────────────────┘
+```
+
+## 🌐 Networking Modes
+
+### RDMA Mode (Recommended for Performance)
+
+**Requirements:**
+- InfiniBand adapters (mlx5_*)
+- RDMA-capable network
+- Cluster config with RDMA devices specified
+
+**Features:**
+- GPUDirect RDMA for GPU-to-GPU transfers
+- Lower latency, higher bandwidth
+- NCCL over InfiniBand
+
+**Configuration** (in cluster YAML):
+```yaml
+network:
+  rdma:
+    enabled: true
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    interfaces: "net1,net2,net3,net4"
+    gid_index: "3"
+    gdr_level: "5"  # GPUDirect RDMA
+```
+
+**Deploy:**
+```bash
+make deploy-cluster CLUSTER=cairo MODE=rdma
+```
+
+### TCP Mode (Universal Compatibility)
+
+**Requirements:**
+- Standard Ethernet networking
+- Works on any cluster
+
+**Features:**
+- No special hardware needed
+- TCP/IP for inter-node communication
+- Slightly lower performance than RDMA
+
+**Configuration** (in cluster YAML):
+```yaml
+network:
+  tcp:
+    interface_exclude: "^lo,docker0"
+    p2p_level: "NVL"  # NVLink intra-node, TCP inter-node
+```
+
+**Deploy:**
+```bash
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+```
+
+## 💾 Storage Modes
+
+### Shared RWX Storage (Preferred)
+
+**When available:**
+- Uses ReadWriteMany PVC
+- All pods share `/workspace` and `/datasets`
+- Files immediately visible across nodes
+- Ideal for collaborative workloads
+
+**Configuration** (in cluster YAML):
+```yaml
+storage:
+  mode: rwx
+  class_rwx: nfs-csi
+  workspace_size: 100Gi
+  datasets_size: 500Gi
+```
+
+### Per-Pod Storage (Fallback)
+
+**When RWX unavailable:**
+- Each pod gets own volume via volumeClaimTemplates
+- Manual file sync required between pods
+- Works on any cluster
+
+**Configuration** (in cluster YAML):
+```yaml
+storage:
+  mode: volumeClaimTemplates
+  class_rwo: ceph-rbd
+  workspace_size: 100Gi
+```
+
+## 🔧 Creating Cluster Configurations
+
+### Using a Template
 
 ```bash
-# 1. Deploy multi-node StatefulSet
-make deploy-multi-node-rdma
+# 1. Copy template
+cp clusters/template.yaml clusters/my-cluster.yaml
 
-# 2. Check all pods are running
-oc get pods -n nccl-test -l app=ml-dev-env-multi
-
-# 3. Check GPU allocation per pod
-for i in {0..3}; do
-  echo "=== ml-dev-env-$i ==="
-  oc exec ml-dev-env-$i -n nccl-test -- nvidia-smi --query-gpu=name --format=csv,noheader
-done
+# 2. Edit configuration
+vim clusters/my-cluster.yaml
 ```
 
-### Develop and Sync Code
+### Example Configuration
+
+```yaml
+cluster:
+  name: my-cluster
+  api: api.my-cluster.example.com
+  namespace: nccl-test
+
+nodes:
+  gpu_nodes:
+    - gpu-node-1
+    - gpu-node-2
+
+storage:
+  mode: rwx
+  class_rwx: nfs-csi
+  workspace_size: 100Gi
+
+network:
+  rdma:
+    enabled: true
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    interfaces: "net1,net2,net3,net4"
+
+security:
+  service_account: ml-dev-sa
+  requires_privileged_scc: true
+  ipc_lock: true
+
+gpus:
+  per_node: 4
+  default_nodes: 2
+```
+
+### Deploy Custom Cluster
 
 ```bash
-# Edit code locally
-code workspace/train_multi_node.py
-
-# Sync to all nodes
-make sync-multi-node
-
-# Or sync specific directory
-./scripts/sync-multi-node.sh ./my-code /workspace
+make deploy-cluster CLUSTER=my-cluster MODE=rdma
 ```
 
-### Run Distributed Training
+See [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) for complete details.
 
-**Option 1: Use launcher script (recommended)**
+## 🎓 DeepSpeed Training
 
-```bash
-oc exec -it ml-dev-env-0 -n nccl-test -- bash -c "cd /workspace && ./launch_deepspeed.sh train_multi_node.py"
-```
-
-**Option 2: Manual DeepSpeed command**
-
-```bash
-oc exec -it ml-dev-env-0 -n nccl-test -- bash
-
-# Inside pod-0:
-deepspeed \
-  --hostfile=/workspace/.deepspeed/hostfile \
-  --master_addr=ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local \
-  --master_port=29500 \
-  /workspace/train_multi_node.py \
-  --deepspeed \
-  --deepspeed_config=/workspace/ds_config.json \
-  --epochs=10
-```
-
-## 🔧 Configuration Files
-
-### 1. DeepSpeed Config (`workspace/ds_config.json`)
-
-```json
-{
-  "train_batch_size": 128,
-  "train_micro_batch_size_per_gpu": 8,
-  "gradient_accumulation_steps": 4,
-
-  "fp16": {
-    "enabled": true
-  },
-
-  "zero_optimization": {
-    "stage": 2,
-    "offload_optimizer": {
-      "device": "none"
-    },
-    "allgather_partitions": true,
-    "overlap_comm": true
-  },
-
-  "gradient_clipping": 1.0
-}
-```
-
-**ZeRO Stages:**
-- **Stage 0:** No optimization (baseline)
-- **Stage 1:** Optimizer state partitioning
-- **Stage 2:** Optimizer + gradient partitioning (recommended for 16 GPUs)
-- **Stage 3:** Optimizer + gradient + parameter partitioning (for very large models)
-
-### 2. Hostfile (auto-generated)
-
-Located at `/workspace/.deepspeed/hostfile`:
-
-```
-ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-ml-dev-env-1.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-ml-dev-env-2.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-ml-dev-env-3.ml-dev-env-headless.nccl-test.svc.cluster.local slots=4
-```
-
-## 🐛 Debugging Multi-Node
-
-### Check Individual Pods
-
-```bash
-# Check pod status
-oc get pods -n nccl-test -l app=ml-dev-env-multi -o wide
-
-# Check logs for each pod
-for i in {0..3}; do
-  echo "=== ml-dev-env-$i logs ==="
-  oc logs ml-dev-env-$i -n nccl-test --tail=20
-done
-
-# Shell into specific pod
-oc exec -it ml-dev-env-2 -n nccl-test -- bash
-```
-
-### Test Network Connectivity
-
-```bash
-# From pod-0, ping other pods
-oc exec ml-dev-env-0 -n nccl-test -- bash -c '
-for i in {1..3}; do
-  echo "Pinging ml-dev-env-$i..."
-  ping -c 1 ml-dev-env-$i.ml-dev-env-headless.nccl-test.svc.cluster.local
-done
-'
-```
-
-### Test NCCL Communication
-
-```bash
-# Run NCCL test across all nodes
-oc exec -it ml-dev-env-0 -n nccl-test -- bash
-
-# Inside pod:
-cat > /tmp/test_nccl.py << 'EOF'
-import torch
-import torch.distributed as dist
-import os
-
-dist.init_process_group(backend="nccl")
-rank = dist.get_rank()
-world_size = dist.get_world_size()
-
-print(f"Rank {rank}/{world_size} initialized")
-
-# All-reduce test
-tensor = torch.ones(1000, 1000, device='cuda') * rank
-dist.all_reduce(tensor)
-
-expected = sum(range(world_size)) * 1000 * 1000
-actual = tensor.sum().item()
-
-if abs(actual - expected) < 1e-5:
-    print(f"✅ Rank {rank}: NCCL working! Sum: {actual}")
-else:
-    print(f"❌ Rank {rank}: NCCL failed. Expected {expected}, got {actual}")
-
-dist.destroy_process_group()
-EOF
-
-deepspeed --hostfile=/workspace/.deepspeed/hostfile /tmp/test_nccl.py
-```
-
-### Check RDMA/RoCE
-
-```bash
-# Check InfiniBand devices on each node
-for i in {0..3}; do
-  echo "=== ml-dev-env-$i RDMA devices ==="
-  oc exec ml-dev-env-$i -n nccl-test -- ibstat | grep -E "CA '|State:|Rate:"
-done
-
-# Check NCCL environment
-oc exec ml-dev-env-0 -n nccl-test -- env | grep NCCL
-```
-
-## 📊 Monitoring Training
-
-### Watch Training Logs
-
-```bash
-# Follow logs from master (pod-0)
-oc logs -f ml-dev-env-0 -n nccl-test
-
-# Follow logs from all pods
-for i in {0..3}; do
-  oc logs -f ml-dev-env-$i -n nccl-test &
-done
-# Ctrl+C to stop all
-```
-
-### Monitor GPU Usage
-
-```bash
-# GPU usage on all pods
-for i in {0..3}; do
-  echo "=== ml-dev-env-$i GPUs ==="
-  oc exec ml-dev-env-$i -n nccl-test -- nvidia-smi --query-gpu=utilization.gpu,utilization.memory,memory.used,memory.total --format=csv
-done
-```
-
-### Port-Forward for TensorBoard
-
-```bash
-# Port-forward from master pod
-oc port-forward ml-dev-env-0 -n nccl-test 6006:6006
-
-# Open http://localhost:6006
-```
-
-## 🎓 Example: Custom Training Script
+### Example Training Script
 
 ```python
-#!/usr/bin/env python3
+# workspace/train_multi_node.py
 import os
 import torch
 import deepspeed
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from torch.utils.data import DataLoader, Dataset
 
 def main():
-    # DeepSpeed initialization
+    # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--local_rank', type=int, default=0)
@@ -316,258 +280,301 @@ def main():
     # Get distributed info
     NODE_RANK = int(os.environ.get('NODE_RANK', 0))
     LOCAL_RANK = int(os.environ.get('LOCAL_RANK', 0))
-    WORLD_SIZE = int(os.environ.get('WORLD_SIZE', 16))
     GLOBAL_RANK = NODE_RANK * 4 + LOCAL_RANK
+    WORLD_SIZE = int(os.environ.get('WORLD_SIZE', 8))
 
-    # Initialize distributed
+    print(f"[Rank {GLOBAL_RANK}] Node {NODE_RANK}, Local Rank {LOCAL_RANK}")
+
+    # Initialize DeepSpeed
     deepspeed.init_distributed()
 
-    if GLOBAL_RANK == 0:
-        print(f"Training on {WORLD_SIZE} GPUs across 4 nodes")
+    # Your model
+    model = YourModel()
 
-    # Load model (example: small GPT-2)
-    model = AutoModelForCausalLM.from_pretrained("gpt2")
-    
-    # Initialize DeepSpeed
-    model_engine, optimizer, _, _ = deepspeed.initialize(
+    # DeepSpeed engine
+    model_engine, optimizer, train_loader, _ = deepspeed.initialize(
         args=args,
         model=model,
-        model_parameters=model.parameters()
+        model_parameters=model.parameters(),
+        training_data=your_dataset
     )
 
-    # Your training loop here
-    for epoch in range(10):
-        # ... training code ...
-        pass
+    # Training loop
+    for epoch in range(args.epochs):
+        for batch in train_loader:
+            loss = model_engine(batch)
+            model_engine.backward(loss)
+            model_engine.step()
+
+        if GLOBAL_RANK == 0:
+            print(f"Epoch {epoch} complete")
 
     if GLOBAL_RANK == 0:
-        print("Training complete!")
+        print("Training done!")
 
 if __name__ == "__main__":
     main()
 ```
 
-Save as `workspace/my_training.py`, sync, and run:
+### DeepSpeed Configuration
 
-```bash
-make sync-multi-node
-oc exec -it ml-dev-env-0 -n nccl-test -- bash -c "cd /workspace && ./launch_deepspeed.sh my_training.py"
-```
-
-## 🛠️ Makefile Commands
-
-```bash
-# Deploy multi-node environment
-make deploy-multi-node-rdma
-
-# Sync code to all nodes
-make sync-multi-node
-
-# Shell into master (pod-0)
-make shell-multi-node
-
-# Clean up multi-node deployment
-make clean-multi-node
-
-# Check multi-node status
-make status-multi-node
-```
-
-## 🔍 Troubleshooting
-
-### Issue: Pods stuck in Pending
-
-**Check:**
-```bash
-oc describe pod ml-dev-env-0 -n nccl-test | tail -20
-```
-
-**Common causes:**
-- Not enough GPU nodes available
-- PVC not bound
-- Resource requests too high
-
-**Fix:**
-```bash
-# Check available GPU nodes
-oc get nodes -l nvidia.com/gpu.present=true
-
-# Check PVC status
-oc get pvc -n nccl-test
-
-# Reduce replicas temporarily
-oc scale statefulset ml-dev-env -n nccl-test --replicas=2
-```
-
-### Issue: Training hangs at initialization
-
-**Cause:** Pods can't communicate
-
-**Check:**
-```bash
-# Test connectivity from pod-0
-oc exec ml-dev-env-0 -n nccl-test -- bash -c '
-  for i in {1..3}; do
-    nc -zv ml-dev-env-$i.ml-dev-env-headless.nccl-test.svc.cluster.local 29500
-  done
-'
-```
-
-**Fix:** Ensure headless service is created:
-```bash
-oc get svc ml-dev-env-headless -n nccl-test
-```
-
-### Issue: NCCL timeout
-
-**Cause:** RDMA/RoCE not working
-
-**Check NCCL environment:**
-```bash
-oc exec ml-dev-env-0 -n nccl-test -- env | grep NCCL_IB
-```
-
-**Should show:**
-```
-NCCL_IB_DISABLE=0
-NCCL_IB_HCA=mlx5_6,mlx5_7,mlx5_10,mlx5_11
-```
-
-**Test RDMA devices:**
-```bash
-oc exec ml-dev-env-0 -n nccl-test -- ibstat
-```
-
-### Issue: Out of memory
-
-**Reduce batch size** in `ds_config.json`:
 ```json
 {
-  "train_micro_batch_size_per_gpu": 4,  // Was 8
-  "gradient_accumulation_steps": 8      // Was 4
-}
-```
-
-**Or use ZeRO-3** for larger models:
-```json
-{
+  "train_batch_size": 32,
+  "train_micro_batch_size_per_gpu": 4,
+  "gradient_accumulation_steps": 2,
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 3e-4
+    }
+  },
+  "fp16": {
+    "enabled": true
+  },
   "zero_optimization": {
-    "stage": 3,
-    "offload_param": {
-      "device": "cpu"  // Offload to CPU if needed
+    "stage": 2,
+    "offload_optimizer": {
+      "device": "cpu"
     }
   }
 }
 ```
 
-## 📚 Advanced Topics
+### Launch Script
 
-### Customizing Node Count, GPU Count, and Node Selection
+```bash
+#!/bin/bash
+# workspace/launch_deepspeed.sh
 
-The multi-node configurations are now **fully customizable** with clear `CUSTOMIZE` markers in the YAML files.
+SCRIPT=${1:-train_multi_node.py}
 
-**To change configuration, edit** `k8s/statefulset-multi-node-rdma.yaml`:
-
-#### 1. Number of Nodes
-
-```yaml
-spec:
-  # CUSTOMIZE: Change replicas to set number of nodes (each node gets 1 pod)
-  # Examples: 2 nodes = 8 GPUs, 4 nodes = 16 GPUs, 8 nodes = 32 GPUs
-  replicas: 2  # Default: 2 nodes
+deepspeed \
+  --num_nodes=$WORLD_SIZE \
+  --num_gpus=$GPUS_PER_NODE \
+  --master_addr=ml-dev-env-0.ml-dev-env-headless \
+  --master_port=29500 \
+  --node_rank=$NODE_RANK \
+  --hostfile=/workspace/hostfile \
+  $SCRIPT \
+  --deepspeed_config=/workspace/ds_config.json
 ```
 
-#### 2. GPUs Per Node
+## 📊 Monitoring
 
-```yaml
-resources:
-  requests:
-    nvidia.com/gpu: 4  # Default: 4 GPUs per pod
-  limits:
-    nvidia.com/gpu: 4  # Must match requests
+### Check Pod Status
+
+```bash
+# Via Make
+make status-cluster CLUSTER=cairo
+
+# Via oc
+oc get pods -n nccl-test -l app=ml-dev-env-multi -o wide
 ```
 
-#### 3. Update World Size
+### Follow Training Logs
 
-When you change nodes or GPUs, update these environment variables:
+```bash
+# Master node
+oc logs -f ml-dev-env-0 -n nccl-test
 
-```yaml
-env:
-  # CUSTOMIZE: Update WORLD_SIZE and GPUS_PER_NODE to match your configuration
-  # WORLD_SIZE = replicas × GPUS_PER_NODE (total GPUs across all nodes)
-  - name: WORLD_SIZE
-    value: "8"  # Example: 2 nodes × 4 GPUs = 8 total
-  - name: GPUS_PER_NODE
-    value: "4"  # Must match nvidia.com/gpu above
+# All nodes
+for i in 0 1; do
+  echo "=== Node $i ==="
+  oc logs --tail=20 ml-dev-env-$i -n nccl-test
+done
 ```
 
-**Example Configurations:**
+### GPU Monitoring
 
-| Nodes | GPUs/Node | replicas | GPUS_PER_NODE | WORLD_SIZE |
-|-------|-----------|----------|---------------|------------|
-| 2 | 4 | 2 | "4" | "8" |
-| 4 | 4 | 4 | "4" | "16" |
-| 2 | 8 | 2 | "8" | "16" |
-| 8 | 4 | 8 | "4" | "32" |
-
-**The hostfile is generated automatically** based on WORLD_SIZE and GPUS_PER_NODE - no manual editing needed!
-
-#### 4. Pin to Specific Nodes (Optional)
-
-By default, pods can run on any GPU node. To constrain to specific nodes, **uncomment and edit** this section:
-
-```yaml
-affinity:
-  # OPTIONAL: Constrain to specific nodes
-  # Uncomment and edit to run on specific nodes:
-  # nodeAffinity:
-  #   requiredDuringSchedulingIgnoredDuringExecution:
-  #     nodeSelectorTerms:
-  #     - matchExpressions:
-  #       - key: kubernetes.io/hostname
-  #         operator: In
-  #         values:
-  #         - moc-r4pcc04u17
-  #         - moc-r4pcc04u18
+```bash
+# Watch GPU usage on all nodes
+for i in 0 1; do
+  echo "=== Node $i ==="
+  oc exec ml-dev-env-$i -n nccl-test -- nvidia-smi
+done
 ```
 
-### Mixed Precision Training
+### NCCL Performance Testing
 
-Already enabled in `ds_config.json`:
-
-```json
-{
-  "fp16": {
-    "enabled": true,
-    "initial_scale_power": 16
-  }
-}
+```bash
+# Test NCCL bandwidth
+oc exec ml-dev-env-0 -n nccl-test -- bash -c '
+cd /workspace
+mpirun -n 8 \
+  --allow-run-as-root \
+  --hostfile hostfile \
+  /usr/local/cuda/bin/nccl-tests/all_reduce_perf -b 8 -e 128M -f 2 -g 1
+'
 ```
 
-For H100s, consider **BF16** for better precision:
+## 🔄 Development Workflow
 
-```json
-{
-  "bf16": {
-    "enabled": true
-  }
-}
+### 1. Edit Code Locally
+
+```bash
+# Edit on your local machine
+vim workspace/train_multi_node.py
 ```
 
-## 📖 Resources
+### 2. Sync to Pods
 
-- **DeepSpeed docs:** https://www.deepspeed.ai/
-- **NCCL tuning:** https://docs.nvidia.com/deeplearning/nccl/user-guide/
-- **PyTorch DDP:** https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
+```bash
+# Sync to all pods
+make sync-multi-node
+
+# Or manually
+./scripts/sync-multi-node.sh
+```
+
+### 3. Run Training
+
+```bash
+# Shell into master
+make shell-multi-node
+
+# Run training
+cd /workspace
+./launch_deepspeed.sh train_multi_node.py
+```
+
+### 4. Monitor and Iterate
+
+```bash
+# Monitor logs
+oc logs -f ml-dev-env-0 -n nccl-test
+
+# Make changes, sync again
+make sync-multi-node
+```
+
+## 🐛 Troubleshooting
+
+### Pods Not Starting
+
+```bash
+# Check pod events
+oc describe pod ml-dev-env-0 -n nccl-test
+
+# Check StatefulSet status
+oc get statefulset ml-dev-env -n nccl-test
+
+# Check node affinity
+oc get pods -n nccl-test -o wide
+```
+
+### NCCL Initialization Hangs
+
+```bash
+# Test NCCL on master
+oc exec ml-dev-env-0 -n nccl-test -- bash -c '
+python3 -c "
+import torch
+import torch.distributed as dist
+dist.init_process_group(backend=\"nccl\")
+print(\"NCCL initialized successfully!\")
+"
+'
+
+# Check RDMA devices (if using RDMA)
+oc exec ml-dev-env-0 -n nccl-test -- ibstat
+
+# Check DNS resolution
+oc exec ml-dev-env-0 -n nccl-test -- ping -c 3 ml-dev-env-1.ml-dev-env-headless
+```
+
+### Storage Issues
+
+```bash
+# Check PVCs
+oc get pvc -n nccl-test
+
+# For RWX mode - verify shared storage
+oc exec ml-dev-env-0 -n nccl-test -- touch /workspace/test
+oc exec ml-dev-env-1 -n nccl-test -- ls -la /workspace/test
+
+# Check storage class
+oc get storageclass
+```
+
+### Security/Permissions Errors
+
+```bash
+# Check ServiceAccount
+oc get sa ml-dev-sa -n nccl-test
+
+# Check SCC
+oc describe scc privileged | grep -A 10 Users
+
+# Check pod security context
+oc get pod ml-dev-env-0 -n nccl-test -o yaml | grep -A 10 securityContext
+```
+
+## 🧹 Cleanup
+
+### Remove Deployment
+
+```bash
+# Via Make
+make clean-cluster CLUSTER=cairo
+
+# Manual cleanup
+oc delete statefulset ml-dev-env -n nccl-test
+oc delete service ml-dev-env-headless -n nccl-test
+oc delete serviceaccount ml-dev-sa -n nccl-test
+```
+
+### Preserve PVCs
+
+PVCs are not deleted by default. To remove them:
+
+```bash
+# For RWX storage
+oc delete pvc ml-dev-workspace ml-datasets -n nccl-test
+
+# For per-pod storage
+oc delete pvc -l app=ml-dev-env-multi -n nccl-test
+```
+
+## 📚 Additional Resources
+
+### Documentation
+- [MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md) - Quick 5-minute setup
+- [MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md) - TCP mode details
+- [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) - Cluster configuration
+- [CAIRO_CLUSTER_RWX_RESULTS.md](CAIRO_CLUSTER_RWX_RESULTS.md) - Test results
+
+### External Resources
+- [DeepSpeed Documentation](https://www.deepspeed.ai/)
+- [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/)
+- [PyTorch Distributed Training](https://pytorch.org/tutorials/beginner/dist_overview.html)
 
 ## ✅ Summary
 
-**Deploy:** `make deploy-multi-node-rdma`
+**Deploy:**
+```bash
+make deploy-cluster CLUSTER=cairo MODE=rdma
+```
 
-**Sync code:** `make sync-multi-node`
+**Sync Code:**
+```bash
+make sync-multi-node
+```
 
-**Train:** `oc exec -it ml-dev-env-0 -n nccl-test -- bash -c "cd /workspace && ./launch_deepspeed.sh"`
+**Run Training:**
+```bash
+make shell-multi-node
+cd /workspace && ./launch_deepspeed.sh
+```
 
-**Monitor:** `oc logs -f ml-dev-env-0 -n nccl-test`
+**Monitor:**
+```bash
+oc logs -f ml-dev-env-0 -n nccl-test
+```
 
-You now have 16 H100 GPUs ready for distributed training! 🚀
+**Cleanup:**
+```bash
+make clean-cluster CLUSTER=cairo
+```
+
+Happy distributed training! 🚀

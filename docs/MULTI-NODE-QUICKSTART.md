@@ -1,9 +1,6 @@
-# Multi-Node Quick Start (RDMA Mode)
+# Multi-Node Quick Start
 
-Train on **16 H100 GPUs** (4 nodes × 4 GPUs) in 5 minutes with RDMA/RoCE networking.
-
-> **⚠️ NOTE:** This guide uses RDMA/RoCE mode (requires InfiniBand hardware).
-> For standard Ethernet/TCP networking, see **[MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md)**.
+Train on **multiple H100 GPUs across nodes** in 5 minutes using cluster-based deployment.
 
 ## 🚀 5-Minute Setup
 
@@ -11,39 +8,79 @@ Train on **16 H100 GPUs** (4 nodes × 4 GPUs) in 5 minutes with RDMA/RoCE networ
 > If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
 ```bash
-# 1. Deploy 4-node cluster (RDMA mode)
-make deploy-multi-node-rdma
+# 1. List available clusters
+make list-clusters
 
-# 2. Wait for pods (2-3 minutes)
+# 2. Deploy to cluster (e.g., Cairo with RDMA)
+make deploy-cluster CLUSTER=cairo MODE=rdma
+
+# 3. Wait for pods (2-3 minutes)
 oc get pods -n nccl-test -l app=ml-dev-env-multi -w
 # Wait until all show: 1/1 Running
 
-# 3. Sync code to all nodes
+# 4. Sync code to all nodes
 make sync-multi-node
 
-# 4. Run distributed training
+# 5. Run distributed training
 oc exec -it ml-dev-env-0 -n nccl-test -- bash -c "cd /workspace && ./launch_deepspeed.sh"
 ```
 
-**That's it!** Training runs on 16 H100s with RDMA.
+**That's it!** Training runs across multiple H100s.
 
 ## 📋 What Just Happened?
 
-1. **Deployed 4 pods** (one per node):
-   - `ml-dev-env-0` on `moc-r4pcc04u17` (master)
-   - `ml-dev-env-1` on `moc-r4pcc04u18`
-   - `ml-dev-env-2` on `moc-r4pcc04u23-nairr`
-   - `ml-dev-env-3` on `moc-r4pcc04u25-nairr`
+The cluster configuration system automatically:
 
-2. **Each pod has**:
-   - 4 H100 GPUs
-   - Access to shared `/workspace` PVC
-   - RoCE RDMA networking (mlx5_6,7,10,11)
+1. **Loaded cluster-specific settings** from `clusters/<name>.yaml`:
+   - GPU nodes to use
+   - RDMA devices or TCP networking
+   - Storage mode (RWX shared or per-pod)
+   - Security requirements (privileged SCC if needed)
 
-3. **DeepSpeed launched**:
-   - ZeRO-2 optimization
-   - FP16 mixed precision
-   - NCCL over RDMA for inter-node comm
+2. **Deployed multi-node environment**:
+   - StatefulSet with one pod per node
+   - Each pod gets 4 GPUs (configurable)
+   - Headless service for pod-to-pod DNS
+   - Shared workspace (if cluster supports RWX)
+
+3. **Configured networking**:
+   - RDMA mode: Uses InfiniBand devices for high-speed communication
+   - TCP mode: Falls back to Ethernet (works on any cluster)
+
+## 🌍 Available Clusters
+
+Check configured clusters:
+```bash
+make list-clusters
+```
+
+Example clusters:
+- **cairo** - NERC Cairo cluster with RDMA and RWX storage
+- **barcelona** - NERC Barcelona cluster with per-pod storage
+
+## 📊 Deployment Modes
+
+### RDMA Mode (High Performance)
+Best for production training with InfiniBand hardware:
+```bash
+make deploy-cluster CLUSTER=cairo MODE=rdma
+```
+
+**Features**:
+- GPUDirect RDMA for optimal GPU-to-GPU communication
+- Higher bandwidth, lower latency
+- Requires InfiniBand adapters (mlx5_*)
+
+### TCP Mode (Universal Compatibility)
+Works on any cluster with standard Ethernet:
+```bash
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+```
+
+**Features**:
+- Standard TCP/IP networking
+- No special hardware required
+- Slightly lower performance than RDMA
 
 ## 🔄 Development Loop
 
@@ -68,13 +105,13 @@ oc logs -f ml-dev-env-0 -n nccl-test
 oc logs -f ml-dev-env-0 -n nccl-test
 
 # Check GPU usage on all nodes
-for i in {0..3}; do
+for i in 0 1; do
   echo "=== Node $i ==="
   oc exec ml-dev-env-$i -n nccl-test -- nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv
 done
 
-# Check pod status
-make status-multi-node
+# Check deployment status
+make status-cluster CLUSTER=cairo
 ```
 
 ## 🎓 Run Your Own Model
@@ -145,10 +182,10 @@ make shell-multi-node
 make sync-multi-node
 
 # Check status
-make status-multi-node
+make status-cluster CLUSTER=cairo
 
 # Clean up
-make clean-multi-node
+make clean-cluster CLUSTER=cairo
 ```
 
 ## 🐛 Quick Debug
@@ -177,15 +214,36 @@ print(\"NCCL working!\")
 oc rsync ./workspace/ ml-dev-env-0:/workspace/ -n nccl-test
 ```
 
+## 🔧 Create Your Own Cluster Config
+
+Want to deploy to a new cluster? Copy the template:
+
+```bash
+# 1. Copy template
+cp clusters/template.yaml clusters/my-cluster.yaml
+
+# 2. Edit configuration
+vim clusters/my-cluster.yaml
+# Update nodes, storage classes, RDMA devices, etc.
+
+# 3. Deploy
+make deploy-cluster CLUSTER=my-cluster MODE=rdma
+```
+
+See [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) for details.
+
 ## 📚 Learn More
 
-- **Full guide:** `MULTI-NODE-GUIDE.md`
-- **DeepSpeed config:** `workspace/ds_config.json`
-- **Example training:** `workspace/train_multi_node.py`
+- **Cluster Configuration:** [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md)
+- **RDMA Details:** [MULTI-NODE-GUIDE.md](MULTI-NODE-GUIDE.md)
+- **TCP Mode:** [MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md)
+- **Cairo Test Results:** [CAIRO_CLUSTER_RWX_RESULTS.md](CAIRO_CLUSTER_RWX_RESULTS.md)
 
 ## ✅ Summary
 
-**Deploy:** `make deploy-multi-node-rdma`
+**List clusters:** `make list-clusters`
+
+**Deploy:** `make deploy-cluster CLUSTER=cairo MODE=rdma`
 
 **Sync:** `make sync-multi-node`
 
@@ -193,4 +251,4 @@ oc rsync ./workspace/ ml-dev-env-0:/workspace/ -n nccl-test
 
 **Monitor:** `oc logs -f ml-dev-env-0`
 
-You have 16 H100 GPUs ready! 🚀
+You have multi-node GPU training ready! 🚀

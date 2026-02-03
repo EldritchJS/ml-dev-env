@@ -1,0 +1,111 @@
+# Cluster Configuration Template
+# Copy this file to create a new cluster configuration:
+#   cp clusters/template.yaml clusters/<your-cluster-name>.yaml
+#
+# Then customize the values below for your cluster.
+
+# Basic cluster information
+cluster:
+  name: my-cluster  # Cluster name (used for generated file names)
+  api: api.my-cluster.example.com  # Cluster API endpoint
+  namespace: nccl-test  # Kubernetes namespace for deployment
+  description: "Description of your cluster"
+
+# Node configuration
+nodes:
+  # Specific GPU nodes to use (leave empty for auto-selection)
+  gpu_nodes:
+    - node-1
+    - node-2
+  # Add more nodes as needed
+
+# Storage configuration
+storage:
+  # ReadWriteMany storage class (for shared workspace across pods)
+  class_rwx: nfs-csi  # Replace with your RWX storage class
+  # ReadWriteOnce storage class (for individual pod storage)
+  class_rwo: ceph-rbd  # Replace with your RWO storage class
+
+  # Storage sizes
+  workspace_size: 100Gi
+  datasets_size: 500Gi
+
+  # Storage mode: "rwx" for shared storage, "volumeClaimTemplates" for per-pod
+  # Use "rwx" if your cluster has NFS or CephFS available
+  # Use "volumeClaimTemplates" if RWX is not available
+  mode: rwx
+
+# Network configuration
+network:
+  # RDMA/InfiniBand settings
+  rdma:
+    enabled: true
+    # Mellanox devices (use ibstat to find active devices)
+    # Example: mlx5_2,mlx5_3,mlx5_4,mlx5_5
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    # Network interfaces for RDMA (usually net1, net2, etc.)
+    interfaces: "net1,net2,net3,net4"
+    # GID index for RoCE v2 (usually 3)
+    gid_index: "3"
+    # GPUDirect RDMA level (5 = full GPUDirect)
+    gdr_level: "5"
+    # NCCL tuning parameters
+    cross_nic: "1"
+    ib_timeout: "22"
+    min_nchannels: "4"
+
+  # TCP/Ethernet fallback settings
+  tcp:
+    # Interfaces to exclude from NCCL (loopback, docker)
+    interface_exclude: "^lo,docker0"
+    # P2P level (NVL = NVLink intra-node, TCP inter-node)
+    p2p_level: "NVL"
+
+# Security configuration
+security:
+  # Service account name (required if privileged SCC needed)
+  service_account: ml-dev-sa
+  # Whether privileged SCC is required (for IPC_LOCK capability)
+  requires_privileged_scc: true
+  # Enable IPC_LOCK capability (recommended for shared memory)
+  ipc_lock: true
+
+# GPU configuration
+gpus:
+  # GPUs per node
+  per_node: 4
+  # GPU type (informational)
+  type: "NVIDIA H100 80GB HBM3"
+  # Default number of nodes for multi-node deployment
+  default_nodes: 2
+
+# Resource limits per pod
+resources:
+  requests:
+    memory: 128Gi
+    cpu: 32
+  limits:
+    memory: 256Gi
+    cpu: 64
+
+# NCCL debug level (INFO, WARN, or TRACE)
+nccl:
+  debug: "INFO"
+
+# Notes and setup instructions
+notes: |
+  Cluster-specific notes go here.
+
+  Setup steps:
+  1. Create service account (if requires_privileged_scc: true):
+     oc create serviceaccount ml-dev-sa -n nccl-test
+
+  2. Grant privileged SCC (if requires_privileged_scc: true):
+     oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
+
+  3. Verify storage classes are available:
+     oc get storageclass
+
+  4. Check InfiniBand devices (for RDMA):
+     # Login to a GPU node and run:
+     ibstat

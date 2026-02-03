@@ -1,0 +1,103 @@
+# Barcelona Cluster Configuration
+# Cluster: barcelona.nerc.mghpcc.org
+
+cluster:
+  name: barcelona
+  api: barcelona.nerc.mghpcc.org
+  namespace: nccl-test
+  description: "NERC Barcelona cluster with H100 GPUs and InfiniBand"
+
+# Node configuration
+nodes:
+  # Specific GPU nodes to use (leave empty for auto-selection)
+  gpu_nodes:
+    - moc-r4pcc04u25-nairr
+    - moc-r4pcc04u23-nairr
+  # Optional: Add more nodes as needed
+  # - moc-r4pcc04u17
+  # - moc-r4pcc04u18
+
+# Storage configuration
+storage:
+  # ReadWriteMany storage class (for shared workspace)
+  class_rwx: ocs-external-storagecluster-cephfs
+  # ReadWriteOnce storage class (for individual pods)
+  class_rwo: ocs-external-storagecluster-ceph-rbd
+  # Storage sizes
+  workspace_size: 100Gi
+  datasets_size: 500Gi
+  # Storage mode: "rwx" for shared storage, "volumeClaimTemplates" for per-pod
+  # Note: Barcelona may not have CephFS, use volumeClaimTemplates if RWX unavailable
+  mode: volumeClaimTemplates
+
+# Network configuration
+network:
+  # RDMA/InfiniBand settings
+  rdma:
+    enabled: true
+    # Mellanox devices (original configuration from Barcelona)
+    devices: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+    # Network interfaces for RDMA
+    interfaces: "net1,net2,net3,net4"
+    # GID index for RoCE v2
+    gid_index: "3"
+    # GPUDirect RDMA level
+    gdr_level: "5"
+    # NCCL tuning
+    cross_nic: "1"
+    ib_timeout: "22"
+    min_nchannels: "4"
+  # TCP/Ethernet fallback settings
+  tcp:
+    # Interfaces to exclude (use primary interface)
+    interface_exclude: "^lo,docker0"
+    # P2P level (NVL = NVLink intra-node, TCP inter-node)
+    p2p_level: "NVL"
+
+# Security configuration
+security:
+  # Service account name
+  service_account: ml-dev-sa
+  # Whether privileged SCC is required (may vary by cluster policy)
+  requires_privileged_scc: false
+  # Enable IPC_LOCK capability (may not be allowed without privileged SCC)
+  ipc_lock: false
+
+# GPU configuration
+gpus:
+  # GPUs per node
+  per_node: 4
+  # GPU type
+  type: "NVIDIA H100 80GB HBM3"
+  # Total nodes for multi-node (adjust as needed)
+  default_nodes: 2
+
+# Resource limits per pod
+resources:
+  requests:
+    memory: 128Gi
+    cpu: 32
+  limits:
+    memory: 256Gi
+    cpu: 64
+
+# NCCL debug level
+nccl:
+  debug: "INFO"
+
+# Notes
+notes: |
+  Barcelona cluster configuration.
+  
+  Notes:
+  - This cluster may not have CephFS for RWX storage
+  - Using volumeClaimTemplates (per-pod storage) by default
+  - IPC_LOCK may not be available without cluster admin privileges
+  - If RWX storage becomes available, update storage.mode to "rwx"
+  
+  To enable privileged SCC (if needed):
+  1. Create service account:
+     oc create serviceaccount ml-dev-sa -n nccl-test
+  
+  2. Request cluster admin to grant privileged SCC:
+     oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test

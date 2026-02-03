@@ -1,0 +1,104 @@
+# Cairo Cluster Configuration
+# Cluster: api.cairo.test.nerc.mghpcc.org
+
+cluster:
+  name: cairo
+  api: api.cairo.test.nerc.mghpcc.org
+  namespace: nccl-test
+  description: "NERC Cairo cluster with H100 GPUs and InfiniBand"
+
+# Node configuration
+nodes:
+  # Specific GPU nodes to use (leave empty for auto-selection)
+  gpu_nodes:
+    - moc-r4pcc02u15
+    - moc-r4pcc02u16
+  # Optional: Add more nodes as needed
+  # - moc-r4pcc02u24
+
+# Storage configuration
+storage:
+  # ReadWriteMany storage class (for shared workspace)
+  class_rwx: nfs-csi
+  # ReadWriteOnce storage class (for individual pods)
+  class_rwo: ocs-external-storagecluster-ceph-rbd
+  # Storage sizes
+  workspace_size: 100Gi
+  datasets_size: 500Gi
+  # Storage mode: "rwx" for shared storage, "volumeClaimTemplates" for per-pod
+  mode: rwx
+
+# Network configuration
+network:
+  # RDMA/InfiniBand settings
+  rdma:
+    enabled: true
+    # Active Mellanox devices (verified with ibstat)
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    # Network interfaces for RDMA
+    interfaces: "net1,net2,net3,net4"
+    # GID index for RoCE v2
+    gid_index: "3"
+    # GPUDirect RDMA level
+    gdr_level: "5"
+    # NCCL tuning
+    cross_nic: "1"
+    ib_timeout: "22"
+    min_nchannels: "4"
+  # TCP/Ethernet fallback settings
+  tcp:
+    # Interfaces to exclude (use primary interface)
+    interface_exclude: "^lo,docker0"
+    # P2P level (NVL = NVLink intra-node, TCP inter-node)
+    p2p_level: "NVL"
+
+# Security configuration
+security:
+  # Service account name
+  service_account: ml-dev-sa
+  # Whether privileged SCC is required
+  requires_privileged_scc: true
+  # Enable IPC_LOCK capability
+  ipc_lock: true
+
+# GPU configuration
+gpus:
+  # GPUs per node
+  per_node: 4
+  # GPU type
+  type: "NVIDIA H100 80GB HBM3"
+  # Total nodes for multi-node (adjust as needed)
+  default_nodes: 2
+
+# Resource limits per pod
+resources:
+  requests:
+    memory: 128Gi
+    cpu: 32
+  limits:
+    memory: 256Gi
+    cpu: 64
+
+# NCCL debug level
+nccl:
+  debug: "INFO"
+
+# Notes
+notes: |
+  Cairo cluster configuration.
+  
+  Setup required:
+  1. Create service account:
+     oc create serviceaccount ml-dev-sa -n nccl-test
+  
+  2. Grant privileged SCC:
+     oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
+  
+  3. Ensure NFS server is running (for RWX storage):
+     oc get pods -n nfs
+  
+  Verified InfiniBand devices (400 Gb/s):
+  - mlx5_2: Active
+  - mlx5_3: Active
+  - mlx5_4: Active
+  - mlx5_5: Active

@@ -1,10 +1,10 @@
 # Multi-Node Training: TCP vs RDMA Guide
 
-Train ML models across multiple nodes with or without RDMA networking.
+Train ML models across multiple nodes with **TCP** (universal compatibility) or **RDMA** (high performance) networking.
 
 ## 🎯 Overview
 
-This project supports **two networking modes** for multi-node distributed training:
+The cluster configuration system supports **two networking modes** for multi-node distributed training:
 
 | Mode | Network | Speed | Compatibility | Use Case |
 |------|---------|-------|---------------|----------|
@@ -27,367 +27,465 @@ This project supports **two networking modes** for multi-node distributed traini
 
 **Speed difference:** RDMA can be **2-5x faster** for communication-heavy workloads.
 
-## 🚀 Quick Start
+## 🚀 Quick Start with Cluster Configs
 
-### Option 1: TCP Mode (Works Anywhere)
-
-```bash
-# Deploy with TCP/Ethernet networking
-make deploy-multi-node-tcp
-
-# Or manually:
-./scripts/deploy-multi-node-tcp.sh
-```
-
-**Requirements:**
-- ✅ Any OpenShift/Kubernetes cluster with GPUs
-- ✅ Standard networking (Ethernet)
-- ✅ No special hardware needed
-
-### Option 2: RDMA Mode (Faster, Requires InfiniBand)
+### Choose Networking Mode
 
 ```bash
-# Deploy with RDMA/RoCE networking
-make deploy-multi-node-rdma
+# List available clusters
+make list-clusters
 
-# Or manually:
-./scripts/deploy-multi-node-rdma.sh
+# TCP Mode (universal compatibility)
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+
+# RDMA Mode (high performance)
+make deploy-cluster CLUSTER=cairo MODE=rdma
 ```
 
-**Requirements:**
-- ✅ InfiniBand or RoCE-capable network adapters (mlx5)
-- ✅ Nodes with RDMA networking configured
-- ✅ HostNetwork access for IB devices
-- ✅ Node-specific network interfaces (net1-4)
+### What the Cluster Config Handles
 
-## 🔧 Configuration Files
+The cluster configuration automatically sets:
 
-### TCP Mode
-**File:** `k8s/statefulset-multi-node-tcp.yaml`
+**For TCP Mode:**
+- Disables RDMA: `NCCL_IB_DISABLE=1`
+- Configures socket interface: `NCCL_SOCKET_IFNAME`
+- Uses standard pod networking
+- No host network required
 
-**Key NCCL Settings:**
+**For RDMA Mode:**
+- Enables InfiniBand: `NCCL_IB_DISABLE=0`
+- Configures RDMA devices: `NCCL_IB_HCA`
+- Sets GPUDirect RDMA level: `NCCL_NET_GDR_LEVEL=5`
+- Requires host network access
+
+## 🔧 Cluster Configuration
+
+### TCP Mode Configuration
+
+Example cluster config (Barcelona):
 ```yaml
-env:
-- name: NCCL_IB_DISABLE
-  value: "1"  # Disable InfiniBand
-- name: NCCL_SOCKET_IFNAME
-  value: "^lo,docker0"  # Use primary Ethernet interface
-- name: NCCL_P2P_LEVEL
-  value: "NVL"  # NVLink intra-node, TCP inter-node
+cluster:
+  name: barcelona
+  api: barcelona.nerc.mghpcc.org
+  namespace: nccl-test
+
+network:
+  tcp:
+    # Exclude loopback and docker interfaces
+    interface_exclude: "^lo,docker0"
+    # P2P level: NVLink intra-node, TCP inter-node
+    p2p_level: "NVL"
+  rdma:
+    enabled: false  # RDMA disabled for TCP mode
+
+storage:
+  # Use per-pod storage if RWX not available
+  mode: volumeClaimTemplates
+  class_rwo: ceph-rbd
+
+security:
+  # TCP mode typically doesn't need privileged SCC
+  requires_privileged_scc: false
+  ipc_lock: false
 ```
 
-**Advantages:**
-- Works on **any cluster** (no special hardware)
-- Simpler networking setup
-- Easier debugging
-- More portable
+Deploy with:
+```bash
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+```
 
-**Disadvantages:**
-- Slower inter-node communication
-- Higher CPU overhead
-- Lower bandwidth
+### RDMA Mode Configuration
 
-### RDMA Mode
-**File:** `k8s/statefulset-multi-node-rdma.yaml`
-
-**Key NCCL Settings:**
+Example cluster config (Cairo):
 ```yaml
-env:
-- name: NCCL_IB_DISABLE
-  value: "0"  # Enable InfiniBand
-- name: NCCL_IB_HCA
-  value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
-- name: NCCL_IB_GID_INDEX
-  value: "3"  # RoCE v2
-- name: NCCL_NET_GDR_LEVEL
-  value: "5"  # GPUDirect RDMA
-- name: NCCL_SOCKET_IFNAME
-  value: "net1,net2,net3,net4"  # RDMA interfaces
+cluster:
+  name: cairo
+  api: api.cairo.test.nerc.mghpcc.org
+  namespace: nccl-test
+
+network:
+  rdma:
+    enabled: true
+    # Active InfiniBand devices (verify with ibstat)
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    interfaces: "net1,net2,net3,net4"
+    gid_index: "3"
+    gdr_level: "5"  # GPUDirect RDMA
+  tcp:
+    interface_exclude: "^lo,docker0"
+    p2p_level: "NVL"
+
+storage:
+  # Use RWX shared storage when available
+  mode: rwx
+  class_rwx: nfs-csi
+
+security:
+  # RDMA may require privileged SCC for IPC_LOCK
+  requires_privileged_scc: true
+  ipc_lock: true
 ```
 
-**Advantages:**
-- **Much faster** inter-node communication
-- GPUDirect RDMA (GPU-to-GPU direct)
-- Lower CPU overhead
-- Better scalability
+Deploy with:
+```bash
+make deploy-cluster CLUSTER=cairo MODE=rdma
+```
 
-**Disadvantages:**
-- Requires InfiniBand/RoCE hardware
-- Node-specific configuration
-- More complex setup
+## 🌍 When to Use Each Mode
 
-## 📝 Deployment Comparison
+### Use TCP Mode When:
+- ✅ Testing on a new cluster
+- ✅ Cluster doesn't have InfiniBand hardware
+- ✅ Developing/debugging distributed code
+- ✅ Standard Ethernet networking is available
+- ✅ Communication isn't the bottleneck
+- ✅ Privileged access not available
 
-### TCP Deployment
+**Example clusters:** Standard cloud VMs, development environments
+
+### Use RDMA Mode When:
+- ✅ Production training at scale
+- ✅ Cluster has InfiniBand/RoCE adapters
+- ✅ Communication-heavy workloads (large models, high gradient sync)
+- ✅ Cluster allows host network access
+- ✅ Privileged SCC available (for IPC_LOCK)
+
+**Example clusters:** HPC clusters, high-end GPU clusters like NERC
+
+## 📝 Step-by-Step Deployment
+
+### TCP Mode Deployment
 
 ```bash
-# 1. Deploy
-make deploy-multi-node-tcp
+# 1. List clusters
+make list-clusters
 
-# 2. Wait for pods
+# 2. Deploy with TCP
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+
+# 3. Wait for pods
 oc get pods -n nccl-test -l app=ml-dev-env-multi -w
 
-# 3. Check NCCL mode
-oc exec ml-dev-env-0 -n nccl-test -- env | grep NCCL_IB
-# Should show: NCCL_IB_DISABLE=1
-
-# 4. Run training
-oc exec -it ml-dev-env-0 -n nccl-test -- bash
-cd /workspace
-./launch_deepspeed.sh train_multi_node.py
-```
-
-### RDMA Deployment
-
-```bash
-# 1. Deploy
-make deploy-multi-node-rdma
-
-# 2. Wait for pods
-oc get pods -n nccl-test -l app=ml-dev-env-multi -w
-
-# 3. Verify RDMA
-oc exec ml-dev-env-0 -n nccl-test -- ibstat
-# Should show InfiniBand devices
-
-# 4. Check NCCL mode
-oc exec ml-dev-env-0 -n nccl-test -- env | grep NCCL_IB
-# Should show: NCCL_IB_DISABLE=0
+# 4. Sync code
+make sync-multi-node
 
 # 5. Run training
-oc exec -it ml-dev-env-0 -n nccl-test -- bash
-cd /workspace
-./launch_deepspeed.sh train_multi_node.py
+make shell-multi-node
+cd /workspace && ./launch_deepspeed.sh
 ```
 
-## 🧪 Testing Your Deployment
-
-### Test TCP Mode
+### RDMA Mode Deployment
 
 ```bash
-# Run NCCL test
-oc exec -it ml-dev-env-0 -n nccl-test -- bash -c '
-python << EOF
+# 1. List clusters
+make list-clusters
+
+# 2. Deploy with RDMA
+make deploy-cluster CLUSTER=cairo MODE=rdma
+
+# 3. Wait for pods
+oc get pods -n nccl-test -l app=ml-dev-env-multi -w
+
+# 4. Sync code
+make sync-multi-node
+
+# 5. Run training
+make shell-multi-node
+cd /workspace && ./launch_deepspeed.sh
+```
+
+## 🔍 Configuration Details
+
+### TCP Mode Environment Variables
+
+Set automatically by cluster config:
+```bash
+NCCL_DEBUG=INFO
+NCCL_IB_DISABLE=1                    # Disable InfiniBand
+NCCL_SOCKET_IFNAME=^lo,docker0       # Use primary interface
+NCCL_P2P_LEVEL=NVL                   # NVLink intra-node only
+```
+
+### RDMA Mode Environment Variables
+
+Set automatically by cluster config:
+```bash
+NCCL_DEBUG=INFO
+NCCL_IB_DISABLE=0                    # Enable InfiniBand
+NCCL_IB_HCA=mlx5_2,mlx5_3,mlx5_4,mlx5_5  # Cluster-specific
+NCCL_IB_GID_INDEX=3                  # RoCE v2
+NCCL_NET_GDR_LEVEL=5                 # GPUDirect RDMA
+NCCL_CROSS_NIC=1
+NCCL_IB_TIMEOUT=22
+NCCL_MIN_NCHANNELS=4
+```
+
+## 🔬 Testing and Verification
+
+### Verify TCP Configuration
+
+```bash
+# Check NCCL settings
+oc exec ml-dev-env-0 -n nccl-test -- env | grep NCCL
+
+# Should see:
+# NCCL_IB_DISABLE=1
+# NCCL_SOCKET_IFNAME=^lo,docker0
+
+# Test NCCL communication
+oc exec ml-dev-env-0 -n nccl-test -- bash -c '
+python3 -c "
 import torch
 import torch.distributed as dist
-import os
-
-dist.init_process_group(backend="nccl")
-rank = dist.get_rank()
-world_size = dist.get_world_size()
-
-print(f"Rank {rank}/{world_size} initialized")
-
-# All-reduce test
-tensor = torch.ones(1000, 1000, device="cuda") * rank
-dist.all_reduce(tensor)
-print(f"Rank {rank}: All-reduce completed")
-
-dist.destroy_process_group()
-EOF
+dist.init_process_group(backend=\"nccl\")
+print(\"✓ NCCL TCP mode working!\")
+"
 '
 ```
 
-### Test RDMA Mode
+### Verify RDMA Configuration
 
 ```bash
+# Check NCCL settings
+oc exec ml-dev-env-0 -n nccl-test -- env | grep NCCL
+
+# Should see:
+# NCCL_IB_DISABLE=0
+# NCCL_IB_HCA=mlx5_2,mlx5_3,mlx5_4,mlx5_5
+# NCCL_NET_GDR_LEVEL=5
+
 # Check InfiniBand devices
 oc exec ml-dev-env-0 -n nccl-test -- ibstat
 
-# Check RDMA network
-oc exec ml-dev-env-0 -n nccl-test -- ibstatus
+# Should show active devices
+# State: Active
+# Physical state: LinkUp
+# Rate: 400 Gb/s (or similar)
 
-# Run bandwidth test
-oc exec ml-dev-env-0 -n nccl-test -- ib_write_bw
+# Test NCCL with RDMA
+oc exec ml-dev-env-0 -n nccl-test -- bash -c '
+python3 -c "
+import torch
+import torch.distributed as dist
+dist.init_process_group(backend=\"nccl\")
+print(\"✓ NCCL RDMA mode working!\")
+"
+'
 ```
 
-## 🎓 When to Use Each Mode
-
-### Use TCP Mode When:
-- ✅ Testing multi-node code on any cluster
-- ✅ Don't have InfiniBand/RoCE hardware
-- ✅ Training smaller models (< 7B parameters)
-- ✅ Communication overhead is low (large batch sizes)
-- ✅ Want maximum compatibility
-- ✅ Developing/debugging distributed code
-
-### Use RDMA Mode When:
-- ✅ Training large models (> 7B parameters)
-- ✅ High communication overhead (small batch sizes, many workers)
-- ✅ InfiniBand/RoCE hardware available
-- ✅ Production workloads requiring maximum speed
-- ✅ Scaling to many nodes (4+ nodes)
-- ✅ Using DeepSpeed ZeRO-3 or model parallelism
-
-## 🔍 Troubleshooting
+## 🐛 Troubleshooting
 
 ### TCP Mode Issues
 
-**Problem:** Connection timeouts
+**Problem:** NCCL hangs during initialization
 ```bash
-# Check pod-to-pod connectivity
-oc exec ml-dev-env-0 -n nccl-test -- ping ml-dev-env-1.ml-dev-env-headless.nccl-test.svc.cluster.local
+# Check network connectivity
+oc exec ml-dev-env-0 -n nccl-test -- ping -c 3 ml-dev-env-1.ml-dev-env-headless
 
-# Check NCCL debug output
-oc logs ml-dev-env-0 -n nccl-test | grep NCCL
+# Check NCCL is using TCP
+oc logs ml-dev-env-0 -n nccl-test | grep "Using network"
+# Should show: Using network Socket
 ```
 
-**Problem:** "No socket interface found"
+**Problem:** Slow communication
 ```bash
-# Check available network interfaces
-oc exec ml-dev-env-0 -n nccl-test -- ip addr
-
-# Adjust NCCL_SOCKET_IFNAME if needed
-# Common options: eth0, ens*, eno*
+# TCP is inherently slower than RDMA
+# Expected for TCP mode
+# Consider RDMA if cluster supports it
 ```
 
 ### RDMA Mode Issues
 
-**Problem:** InfiniBand devices not found
+**Problem:** NCCL falls back to TCP
 ```bash
-# Check if IB devices exist on node
-oc exec ml-dev-env-0 -n nccl-test -- ls /dev/infiniband/
-
-# Check ibstat
+# Check InfiniBand devices are visible
 oc exec ml-dev-env-0 -n nccl-test -- ibstat
 
-# May need hostNetwork: true in pod spec
+# Check host network is enabled
+oc get pod ml-dev-env-0 -n nccl-test -o yaml | grep hostNetwork
+# Should show: hostNetwork: true
+
+# Check RDMA devices are correct for this cluster
+# Update cluster config if needed
+vim clusters/my-cluster.yaml
 ```
 
-**Problem:** NCCL fails to initialize RDMA
+**Problem:** IPC_LOCK capability denied
 ```bash
-# Check NCCL can detect IB devices
-oc exec ml-dev-env-0 -n nccl-test -- bash -c "NCCL_DEBUG=INFO python -c 'import torch; torch.cuda.init()'"
+# Check if privileged SCC is granted
+oc get pod ml-dev-env-0 -n nccl-test -o yaml | grep serviceAccount
+# Should show: serviceAccountName: ml-dev-sa
 
-# Look for: "NET/IB : Using [mlx5_X:1]"
+# Verify privileged SCC
+oc adm policy who-can use scc privileged -n nccl-test
+
+# Grant if needed
+oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
 ```
 
-## 📊 Performance Benchmarks
+## 📊 Performance Benchmarking
 
-### Example: LLaMA-7B Training (4 nodes × 4 GPUs)
-
-| Metric | TCP Mode | RDMA Mode | Improvement |
-|--------|----------|-----------|-------------|
-| Throughput | 2.1 samples/sec | 4.8 samples/sec | **2.3x faster** |
-| Inter-node BW | 10 Gb/s | 100 Gb/s | **10x faster** |
-| GPU Utilization | 65% | 92% | **27% higher** |
-| Time to convergence | 48 hours | 21 hours | **2.3x faster** |
-
-*Note: Results depend on model, batch size, and network hardware.*
-
-## 🛠️ Advanced Configuration
-
-### Customizing Node Count, GPU Count, and Node Selection
-
-Both TCP and RDMA configurations are **fully customizable** with clear `CUSTOMIZE` markers in the YAML files.
-
-#### For TCP Mode
-
-**Edit** `k8s/statefulset-multi-node-tcp.yaml`:
-
-**1. Number of Nodes:**
-```yaml
-spec:
-  # CUSTOMIZE: Change replicas to set number of nodes (each node gets 1 pod)
-  # Examples: 2 nodes = 8 GPUs, 4 nodes = 16 GPUs, 8 nodes = 32 GPUs
-  replicas: 2  # Default: 2 nodes
-```
-
-**2. GPUs Per Node:**
-```yaml
-resources:
-  requests:
-    nvidia.com/gpu: 4  # Default: 4 GPUs per pod
-  limits:
-    nvidia.com/gpu: 4  # Must match requests
-```
-
-**3. Update World Size:**
-```yaml
-env:
-  # CUSTOMIZE: Update WORLD_SIZE and GPUS_PER_NODE to match your configuration
-  # WORLD_SIZE = replicas × GPUS_PER_NODE (total GPUs across all nodes)
-  - name: WORLD_SIZE
-    value: "8"  # Example: 2 nodes × 4 GPUs = 8 total
-  - name: GPUS_PER_NODE
-    value: "4"  # Must match nvidia.com/gpu above
-```
-
-**4. Pin to Specific Nodes (Optional):**
-```yaml
-affinity:
-  # OPTIONAL: Constrain to specific nodes
-  # Uncomment and edit to run on specific nodes:
-  # nodeAffinity:
-  #   requiredDuringSchedulingIgnoredDuringExecution:
-  #     nodeSelectorTerms:
-  #     - matchExpressions:
-  #       - key: kubernetes.io/hostname
-  #         operator: In
-  #         values:
-  #         - your-node-1
-  #         - your-node-2
-```
-
-**The hostfile is generated automatically** based on WORLD_SIZE and GPUS_PER_NODE - no manual editing needed!
-
-#### For RDMA Mode
-
-**Edit** `k8s/statefulset-multi-node-rdma.yaml` with the **same customization options** as TCP mode above.
-
-**Example Configurations:**
-
-| Nodes | GPUs/Node | replicas | GPUS_PER_NODE | WORLD_SIZE |
-|-------|-----------|----------|---------------|------------|
-| 2 | 4 | 2 | "4" | "8" |
-| 4 | 4 | 4 | "4" | "16" |
-| 2 | 8 | 2 | "8" | "16" |
-| 8 | 4 | 8 | "4" | "32" |
-
-### Custom Network Interfaces
+### Run NCCL Tests
 
 **TCP Mode:**
-```yaml
-env:
-- name: NCCL_SOCKET_IFNAME
-  value: "eth0"  # Specify exact interface
-  # Or exclude interfaces: value: "^lo,docker0,virbr0"
+```bash
+oc exec ml-dev-env-0 -n nccl-test -- bash -c '
+/usr/local/cuda/bin/nccl-tests/all_reduce_perf -b 8 -e 128M -f 2 -g 1
+'
 ```
 
 **RDMA Mode:**
-```yaml
-env:
-- name: NCCL_IB_HCA
-  value: "mlx5_0,mlx5_1"  # Your IB devices
-- name: NCCL_SOCKET_IFNAME
-  value: "ib0,ib1"  # Your IB interfaces
+```bash
+oc exec ml-dev-env-0 -n nccl-test -- bash -c '
+/usr/local/cuda/bin/nccl-tests/all_reduce_perf -b 8 -e 128M -f 2 -g 1
+'
 ```
 
-## 📚 Related Documentation
+Compare bandwidth results:
+- **TCP:** Typically 10-40 GB/s
+- **RDMA:** Typically 50-100 GB/s (with GPUDirect)
 
-- [MULTI-NODE-GUIDE.md](MULTI-NODE-GUIDE.md) - General multi-node training guide
-- [MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md) - Quick start for multi-node
-- [CONFIGURATION-GUIDE.md](CONFIGURATION-GUIDE.md) - Detailed configuration options
-- [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/user-guide/) - Official NCCL guide
+## 🔄 Switching Between Modes
+
+### From TCP to RDMA
+
+```bash
+# Clean up TCP deployment
+make clean-cluster CLUSTER=barcelona
+
+# Deploy with RDMA
+make deploy-cluster CLUSTER=cairo MODE=rdma
+```
+
+### From RDMA to TCP
+
+```bash
+# Clean up RDMA deployment
+make clean-cluster CLUSTER=cairo
+
+# Deploy with TCP
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+```
+
+## 🔧 Creating Cluster Configs
+
+### For TCP-Only Cluster
+
+```bash
+# Copy template
+cp clusters/template.yaml clusters/tcp-cluster.yaml
+
+# Edit configuration
+vim clusters/tcp-cluster.yaml
+```
+
+```yaml
+cluster:
+  name: tcp-cluster
+  api: api.tcp-cluster.example.com
+  namespace: nccl-test
+
+network:
+  rdma:
+    enabled: false  # Disable RDMA
+  tcp:
+    interface_exclude: "^lo,docker0"
+    p2p_level: "NVL"
+
+storage:
+  mode: volumeClaimTemplates  # Fallback storage
+  class_rwo: standard
+
+security:
+  requires_privileged_scc: false
+  ipc_lock: false
+
+gpus:
+  per_node: 4
+  default_nodes: 2
+```
+
+### For RDMA-Capable Cluster
+
+```bash
+# Copy template
+cp clusters/template.yaml clusters/rdma-cluster.yaml
+
+# Edit configuration
+vim clusters/rdma-cluster.yaml
+```
+
+```yaml
+cluster:
+  name: rdma-cluster
+  api: api.rdma-cluster.example.com
+  namespace: nccl-test
+
+nodes:
+  gpu_nodes:
+    - ib-node-1
+    - ib-node-2
+
+network:
+  rdma:
+    enabled: true
+    # Verify with: ssh node "ibstat"
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    interfaces: "net1,net2,net3,net4"
+    gid_index: "3"
+    gdr_level: "5"
+  tcp:
+    interface_exclude: "^lo,docker0"
+
+storage:
+  mode: rwx  # Use shared storage if available
+  class_rwx: nfs-csi
+
+security:
+  requires_privileged_scc: true
+  ipc_lock: true
+
+gpus:
+  per_node: 4
+  default_nodes: 2
+```
+
+## 📚 Additional Resources
+
+### Documentation
+- [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) - Complete cluster config guide
+- [MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md) - Quick deployment
+- [MULTI-NODE-GUIDE.md](MULTI-NODE-GUIDE.md) - Detailed multi-node guide
+- [CAIRO_CLUSTER_RWX_RESULTS.md](CAIRO_CLUSTER_RWX_RESULTS.md) - Test results
+
+### External Resources
+- [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/)
+- [NCCL Environment Variables](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html)
+- [DeepSpeed Documentation](https://www.deepspeed.ai/)
 
 ## ✅ Summary
 
-### TCP Mode
+**TCP Mode** (Universal):
 ```bash
-# ✅ Works on ANY cluster
-# ✅ Standard Ethernet networking
-# ⚠️  Slower inter-node communication
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+```
+- Works anywhere
+- No special hardware
+- Slightly slower
 
-make deploy-multi-node-tcp
+**RDMA Mode** (High Performance):
+```bash
+make deploy-cluster CLUSTER=cairo MODE=rdma
+```
+- Requires InfiniBand
+- 2-5x faster communication
+- Best for production
+
+**Create Your Own:**
+```bash
+cp clusters/template.yaml clusters/my-cluster.yaml
+vim clusters/my-cluster.yaml
+make deploy-cluster CLUSTER=my-cluster MODE=rdma
 ```
 
-### RDMA Mode
-```bash
-# ⚡ MUCH faster inter-node communication
-# ✅ Best for production workloads
-# ⚠️  Requires InfiniBand/RoCE hardware
-
-make deploy-multi-node-rdma
-```
-
-**Recommendation:** Start with **TCP mode** for testing, then switch to **RDMA mode** for production workloads if you have the hardware.
+See [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) for complete configuration details.

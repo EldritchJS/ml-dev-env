@@ -1,531 +1,436 @@
 # ML Development Environment for OpenShift
 
-A comprehensive GPU-accelerated machine learning development environment with **multi-node distributed training** and RDMA support.
+A comprehensive GPU-accelerated machine learning development environment with **cluster-based deployment** for single-node and multi-node distributed training.
 
-## 🚀 Two Deployment Modes
+## 🚀 Deployment Options
 
-### Single-Node (4 GPUs)
+### Multi-Node Distributed Training (Recommended)
+Train across **multiple GPU nodes** using DeepSpeed with cluster-based configuration:
+- **RDMA/InfiniBand** - High performance for production (requires InfiniBand hardware)
+- **TCP/Ethernet** - Universal compatibility (works on any cluster)
+- **Cluster configs** - All settings in one YAML file per cluster
+
+### Single-Node Development
 Development and testing on one node with 4x H100 GPUs.
 
-### **Multi-Node (16 GPUs) - NEW!**
-Distributed training across **4 nodes × 4 GPUs = 16 H100s** using DeepSpeed.
-
-**Two networking modes available:**
-- **RDMA/RoCE** (faster, requires InfiniBand) - See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)
-- **TCP/Ethernet** (slower, works anywhere) - See [MULTI-NODE-TCP-GUIDE.md](docs/MULTI-NODE-TCP-GUIDE.md)
-
-## Features
+## ✨ Features
 
 ### ML Frameworks & Libraries
-- ✅ **LLaMAFactory** - Efficient fine-tuning of large language models
+- ✅ **PyTorch 2.5.0** with CUDA 12.6 support
+- ✅ **DeepSpeed** - Distributed training optimization (ZeRO-2/3)
+- ✅ **Flash Attention 2.8.3** - Efficient attention computation
+- ✅ **Transformers** - Hugging Face library
+- ✅ **LLaMAFactory** - Efficient LLM fine-tuning
 - ✅ **VideoLLaMA2** - Video understanding with LLMs
 - ✅ **EasyR1** - Reinforcement learning tools
-- ✅ **transformers** - Hugging Face transformers library
-- ✅ **flash-attn** - Flash Attention for efficient attention computation
-- ✅ **deepspeed** - Distributed training optimization
-- ✅ **PyTorch 2.5.0** with CUDA 12.6 support
-- ✅ **NumPy 1.26.4** - Pinned to 1.x for package compatibility
+- ✅ **NumPy 1.26.4** - Pinned to 1.x for compatibility
 - ✅ **ffmpeg** - Video/audio processing
 
 ### Development Tools
-- ✅ **VSCode Server (code-server)** - Browser-based IDE with debugging
+- ✅ **VSCode Server** - Browser-based IDE with debugging
 - ✅ **Jupyter Notebook** - Interactive development
 - ✅ **TensorBoard** - Training visualization
 - ✅ **debugpy** - Python debugging
 - ✅ **wandb** - Experiment tracking
 
-### Multi-GPU & Multi-Node Support
-- ✅ **Single-node:** 4x NVIDIA H100 GPUs
-- ✅ **Multi-node:** Fully configurable (default: 2 nodes × 4 GPUs = 8 H100s) with DeepSpeed
-- ✅ **RDMA/RoCE** networking (mlx5_6,7,10,11 on net1-4) or **TCP/Ethernet** mode
-- ✅ **NCCL** with GPUDirect RDMA for optimal performance (RDMA mode)
-- ✅ **DeepSpeed** ZeRO-2/3 optimization
-- ✅ **StatefulSet** for distributed training pods
-- ✅ **GPU topology** aware configuration
+### Multi-Node Capabilities
+- ✅ **Cluster-based deployment** - All settings in YAML configs
+- ✅ **RDMA or TCP networking** - Choose based on hardware
+- ✅ **RWX shared storage** - Shared workspace across pods (when available)
+- ✅ **Per-pod storage** - Fallback for clusters without RWX
+- ✅ **NCCL with GPUDirect RDMA** - Optimal GPU communication
+- ✅ **StatefulSet** - Distributed training pods
+- ✅ **Automatic configuration** - RDMA devices, storage, security per cluster
 
-## Architecture
+## 🚀 Quick Start
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   OpenShift Cluster                 │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐ │
-│  │          ML Development Pod                   │ │
-│  │                                               │ │
-│  │  ┌─────────┐  ┌─────────┐  ┌──────────────┐ │ │
-│  │  │ VSCode  │  │ Jupyter │  │ TensorBoard  │ │ │
-│  │  │  :8080  │  │  :8888  │  │    :6006     │ │ │
-│  │  └─────────┘  └─────────┘  └──────────────┘ │ │
-│  │                                               │ │
-│  │  ┌─────────────────────────────────────────┐ │ │
-│  │  │   Python 3.10 Environment               │ │ │
-│  │  │   - PyTorch + CUDA                      │ │ │
-│  │  │   - Transformers, DeepSpeed             │ │ │
-│  │  │   - LLaMAFactory, VideoLLaMA2           │ │ │
-│  │  │   - Flash Attention                     │ │ │
-│  │  └─────────────────────────────────────────┘ │ │
-│  │                                               │ │
-│  │  ┌─────────────────────────────────────────┐ │ │
-│  │  │   GPU Resources (4x H100)               │ │ │
-│  │  │   - CUDA 12.1                           │ │ │
-│  │  │   - NCCL with GPUDirect RDMA            │ │ │
-│  │  │   - InfiniBand (mlx5)                   │ │ │
-│  │  └─────────────────────────────────────────┘ │ │
-│  │                                               │ │
-│  │  ┌─────────────┐  ┌─────────────────────┐   │ │
-│  │  │  Workspace  │  │     Datasets        │   │ │
-│  │  │   (100GB)   │  │      (500GB)        │   │ │
-│  │  └─────────────┘  └─────────────────────┘   │ │
-│  └───────────────────────────────────────────────┘ │
-│                                                     │
-│  Routes (HTTPS):                                    │
-│  - ml-dev-vscode.apps.cluster.com                  │
-│  - ml-dev-jupyter.apps.cluster.com                 │
-│  - ml-dev-tensorboard.apps.cluster.com             │
-└─────────────────────────────────────────────────────┘
-```
-
-## Quick Start
-
-### 0. Configure Namespace (Optional)
-
-By default, all resources are deployed to the `nccl-test` namespace. To use a different namespace:
+### 1. List Available Clusters
 
 ```bash
-# Option 1: Set via environment variable
-export NAMESPACE=my-ml-namespace
-
-# Option 2: Pass to make commands
-NAMESPACE=my-ml-namespace make deploy
-
-# Option 3: Use deploy script
-NAMESPACE=my-ml-namespace ./scripts/deploy.sh deploy
-
-# Option 4: Create .env file
-cp .env.example .env
-# Edit .env: NAMESPACE=my-namespace
-source .env
+make list-clusters
 ```
 
-> **Note:** The container image should already be built by your administrator.
-> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](docs/BUILD-ON-CLUSTER.md).
+Example output:
+```
+Available cluster configurations:
+  - cairo      (NERC Cairo - RDMA + RWX storage)
+  - barcelona  (NERC Barcelona - TCP + per-pod storage)
+```
 
-### 1. Create Persistent Storage
+### 2. Deploy to a Cluster
+
+**Multi-Node with RDMA (High Performance):**
+```bash
+make deploy-cluster CLUSTER=cairo MODE=rdma
+```
+
+**Multi-Node with TCP (Universal):**
+```bash
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+```
+
+**Preview before deploying:**
+```bash
+make deploy-cluster-dry-run CLUSTER=cairo MODE=rdma
+```
+
+### 3. Sync Your Code
 
 ```bash
-# Create PVCs for workspace and datasets
+make sync-multi-node
+```
+
+### 4. Run Training
+
+```bash
+# Shell into master node
+make shell-multi-node
+
+# Inside pod:
+cd /workspace
+./launch_deepspeed.sh train_multi_node.py
+```
+
+### 5. Monitor
+
+```bash
+# View deployment status
+make status-cluster CLUSTER=cairo
+
+# Follow training logs
+oc logs -f ml-dev-env-0 -n nccl-test
+```
+
+That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for details.
+
+## 📖 Documentation
+
+### Getting Started
+- **[QUICKSTART.md](docs/QUICKSTART.md)** - Single-node deployment basics
+- **[MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)** - Multi-node in 5 minutes
+- **[BUILD-ON-CLUSTER.md](docs/BUILD-ON-CLUSTER.md)** - Building container images
+
+### Cluster Configuration
+- **[CLUSTER-CONFIG-GUIDE.md](docs/CLUSTER-CONFIG-GUIDE.md)** - Complete cluster config guide
+  - Creating cluster configurations
+  - Configuration reference
+  - Deployment workflows
+  - Troubleshooting
+
+### Multi-Node Training
+- **[MULTI-NODE-GUIDE.md](docs/MULTI-NODE-GUIDE.md)** - Detailed multi-node guide
+  - Architecture and components
+  - DeepSpeed training
+  - Monitoring and debugging
+  - Performance tuning
+- **[MULTI-NODE-TCP-GUIDE.md](docs/MULTI-NODE-TCP-GUIDE.md)** - TCP vs RDMA
+  - When to use each mode
+  - Performance comparison
+  - Configuration examples
+  - Benchmarking
+
+### Development Workflows
+- **[QUICK-DEV-GUIDE.md](docs/QUICK-DEV-GUIDE.md)** - Fast development workflow
+- **[AUTOMATION-GUIDE.md](docs/AUTOMATION-GUIDE.md)** - Dev automation overview
+- **[CONFIGURATION-GUIDE.md](docs/CONFIGURATION-GUIDE.md)** - Script configuration
+
+### VSCode & Debugging
+- **[VSCODE-SETUP.md](docs/VSCODE-SETUP.md)** - VSCode setup
+- **[VSCODE-DEBUG-GUIDE.md](docs/VSCODE-DEBUG-GUIDE.md)** - Debugging guide
+- **[VSCODE-DEBUG-TROUBLESHOOTING.md](docs/VSCODE-DEBUG-TROUBLESHOOTING.md)** - Debug troubleshooting
+- **[REMOTE-DEBUG-WALKTHROUGH.md](docs/REMOTE-DEBUG-WALKTHROUGH.md)** - Remote debugging
+
+### Test Results
+- **[CAIRO_CLUSTER_RWX_RESULTS.md](docs/CAIRO_CLUSTER_RWX_RESULTS.md)** - Cairo cluster test results
+
+## 🔧 Cluster-Based Deployment
+
+### Why Use Cluster Configs?
+
+Traditional approach (manual editing):
+- ❌ Edit multiple YAML files for each cluster
+- ❌ Easy to make mistakes with device names
+- ❌ Hard to track cluster-specific settings
+- ❌ Manual updates when switching clusters
+
+Cluster config approach:
+- ✅ All settings in one YAML file per cluster
+- ✅ Automatic substitution of cluster-specific values
+- ✅ Version control cluster configurations
+- ✅ Single command deployment: `make deploy-cluster CLUSTER=cairo MODE=rdma`
+
+### Available Clusters
+
+**Cairo** - NERC Cairo cluster:
+- RWX storage via NFS
+- RDMA: mlx5_2,3,4,5 (400 Gb/s InfiniBand)
+- Requires privileged SCC for IPC_LOCK
+- Nodes: moc-r4pcc02u15, moc-r4pcc02u16
+
+**Barcelona** - NERC Barcelona cluster:
+- Per-pod storage (volumeClaimTemplates)
+- RDMA: mlx5_6,7,10,11
+- No privileged SCC required
+- Nodes: moc-r4pcc04u25-nairr, moc-r4pcc04u23-nairr
+
+### Deploy to a Cluster
+
+```bash
+# List clusters
+make list-clusters
+
+# Deploy with RDMA
+make deploy-cluster CLUSTER=cairo MODE=rdma
+
+# Deploy with TCP
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+
+# Dry run (preview)
+make deploy-cluster-dry-run CLUSTER=cairo MODE=rdma
+
+# Check status
+make status-cluster CLUSTER=cairo
+
+# Clean up
+make clean-cluster CLUSTER=cairo
+```
+
+### Create a New Cluster Config
+
+```bash
+# 1. Copy template
+cp clusters/template.yaml clusters/my-cluster.yaml
+
+# 2. Edit configuration (see template for all options)
+vim clusters/my-cluster.yaml
+
+# 3. Deploy
+make deploy-cluster CLUSTER=my-cluster MODE=rdma
+```
+
+Example configuration:
+```yaml
+cluster:
+  name: my-cluster
+  api: api.my-cluster.example.com
+  namespace: nccl-test
+
+nodes:
+  gpu_nodes:
+    - gpu-node-1
+    - gpu-node-2
+
+storage:
+  mode: rwx  # or "volumeClaimTemplates"
+  class_rwx: nfs-csi
+  workspace_size: 100Gi
+  datasets_size: 500Gi
+
+network:
+  rdma:
+    enabled: true
+    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    interfaces: "net1,net2,net3,net4"
+    gid_index: "3"
+    gdr_level: "5"
+
+security:
+  service_account: ml-dev-sa
+  requires_privileged_scc: true
+  ipc_lock: true
+
+gpus:
+  per_node: 4
+  default_nodes: 2
+```
+
+See [CLUSTER-CONFIG-GUIDE.md](docs/CLUSTER-CONFIG-GUIDE.md) for complete documentation.
+
+## 🎯 Single-Node Deployment
+
+For single-node development (alternative to cluster-based deployment):
+
+### 1. Build Container Image (if needed)
+
+```bash
+make build
+```
+
+See [BUILD-ON-CLUSTER.md](docs/BUILD-ON-CLUSTER.md) for details.
+
+### 2. Deploy Development Environment
+
+```bash
+# Deploy everything (build + PVCs + pod + services)
+make deploy
+
+# Or step by step:
 oc apply -f k8s/pvcs.yaml
-
-# Verify PVCs
-oc get pvc
-```
-
-### 2. Deploy the Development Environment
-
-```bash
-# Deploy the pod
 oc apply -f k8s/pod-multi-gpu.yaml
-
-# Wait for pod to be ready
-oc wait --for=condition=Ready pod/ml-dev-env --timeout=300s
-
-# Check pod logs
-oc logs ml-dev-env
-```
-
-### 3. Create Services and Routes
-
-```bash
-# Create service and routes for VSCode, Jupyter, TensorBoard
 oc apply -f k8s/service.yaml
-
-# Get the URLs
-oc get routes
 ```
 
-### 4. Access Development Environment
-
-**VSCode (Browser-based IDE):**
-```bash
-# Get the URL
-VSCode_URL=$(oc get route ml-dev-vscode -o jsonpath='{.spec.host}')
-echo "VSCode: https://$VSCode_URL"
-```
-
-**Jupyter Notebook:**
-```bash
-# Start Jupyter in the pod
-oc exec -it ml-dev-env -- bash -c "jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root &"
-
-# Get the URL
-JUPYTER_URL=$(oc get route ml-dev-jupyter -o jsonpath='{.spec.host}')
-echo "Jupyter: https://$JUPYTER_URL"
-```
-
-**Shell Access:**
-```bash
-# Direct shell access
-oc rsh ml-dev-env
-```
-
-## Configuration
-
-### GPU Configuration
-
-The pod is configured to use **4 GPUs** by default. To change:
-
-Edit `k8s/pod-multi-gpu.yaml`:
-```yaml
-# CUSTOMIZE: Change GPU count
-resources:
-  requests:
-    nvidia.com/gpu: 2  # Change to desired number
-  limits:
-    nvidia.com/gpu: 2  # Must match requests
-```
-
-### Node Selection (Optional)
-
-By default, the pod can run on **any GPU node**. To pin to a specific node:
-
-**Option 1: Pin to exact node (simplest)**
-```yaml
-# Uncomment in k8s/pod-multi-gpu.yaml:
-nodeName: your-node-name
-```
-
-**Option 2: Use affinity for flexible selection**
-```yaml
-# Uncomment in k8s/pod-multi-gpu.yaml:
-affinity:
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - node-1
-          - node-2
-```
-
-### NCCL Configuration
-
-NCCL is pre-configured for optimal RDMA performance:
+### 3. Access VSCode
 
 ```bash
-NCCL_DEBUG=INFO                  # Verbose logging
-NCCL_IB_DISABLE=0                # Enable InfiniBand
-NCCL_IB_HCA=mlx5_0,mlx5_1,...   # Mellanox adapters
-NCCL_IB_GID_INDEX=3              # RoCE v2
-NCCL_NET_GDR_LEVEL=5             # GPUDirect RDMA
+make vscode
 ```
 
-To adjust, edit the `env` section in `k8s/pod-multi-gpu.yaml`.
-
-### Storage Configuration
-
-Two PVCs are created:
-- **ml-dev-workspace** (100GB): Your code, models, checkpoints
-- **ml-datasets** (500GB): Training datasets
-
-To adjust sizes, edit `k8s/pvcs.yaml`.
-
-## VSCode Debugging
-
-### 1. Install Extensions in VSCode
-
-Once VSCode is open in browser, install:
-- Python
-- Pylance
-- Jupyter
-
-### 2. Configure Workspace
-
-Copy VSCode configuration:
-```bash
-# From your local machine
-oc cp examples/vscode/launch.json ml-dev-env:/workspace/.vscode/launch.json
-oc cp examples/vscode/settings.json ml-dev-env:/workspace/.vscode/settings.json
-```
-
-### 3. Debugging Configurations
-
-Three debug configurations are provided:
-
-**Single GPU Debugging:**
-- Select "Python: Current File"
-- Set breakpoints
-- Press F5
-
-**Multi-GPU Debugging:**
-- Select "Python: Multi-GPU Training"
-- Uses `torch.distributed.launch` with 4 GPUs
-- Press F5
-
-**DeepSpeed Debugging:**
-- Select "Python: DeepSpeed"
-- Uses DeepSpeed launcher
-- Press F5
-
-### 4. Remote Debugging
-
-For remote debugging from your local VSCode:
-
-```python
-# Add to your training script
-import debugpy
-debugpy.listen(("0.0.0.0", 5678))
-print("Waiting for debugger...")
-debugpy.wait_for_client()
-```
-
-Then use "Python: Attach to Remote" configuration.
-
-## Testing the Environment
-
-### 1. Test GPU Access
+### 4. Test GPUs
 
 ```bash
-oc exec ml-dev-env -- python -c "import torch; print(f'GPUs: {torch.cuda.device_count()}')"
+make test
 ```
 
-### 2. Test Multi-GPU
+See [QUICKSTART.md](docs/QUICKSTART.md) for complete single-node guide.
+
+## 💻 Development Workflow
+
+### Automated Development Session
 
 ```bash
-# Copy test script
-oc cp examples/test_multi_gpu.py ml-dev-env:/workspace/
-
-# Run test
-oc exec ml-dev-env -- python /workspace/test_multi_gpu.py
+# Start dev session (sync + port-forward + watch)
+make dev-session
 ```
 
-Expected output:
-```
-==============================================================
-GPU Availability Test
-==============================================================
-CUDA Available: True
-Number of GPUs: 4
+This automatically:
+1. Syncs your local code to the pod
+2. Watches for changes and auto-syncs
+3. Sets up port-forwarding for debugging
+4. Waits for you to run your script
 
-GPU 0: NVIDIA H100 80GB HBM3
-  Compute Capability: 9.0
-  Total Memory: 80.00 GB
-  ...
-```
+See [QUICK-DEV-GUIDE.md](docs/QUICK-DEV-GUIDE.md) for details.
 
-### 3. Test NCCL and RDMA
+### Manual Workflow
 
 ```bash
-oc exec ml-dev-env -- bash -c "nvidia-smi topo -m"
-oc exec ml-dev-env -- ibstat
+# Sync code once
+make sync-once
+
+# Shell into pod
+make shell
+
+# Port-forward for debugging
+make port-forward
 ```
 
-### 4. Test DeepSpeed
+### Configuration
+
+Customize namespace, pod name, directories:
 
 ```bash
-# Copy DeepSpeed test
-oc cp examples/test_deepspeed.py ml-dev-env:/workspace/
+# Environment variables
+export NAMESPACE=my-namespace
+export POD_NAME=my-pod
+export LOCAL_DIR=./src
+export REMOTE_DIR=/app
 
-# Run with DeepSpeed
-oc exec ml-dev-env -- deepspeed --num_gpus=4 /workspace/test_deepspeed.py
+make dev-session
 ```
 
-## Example Workflows
+See [CONFIGURATION-GUIDE.md](docs/CONFIGURATION-GUIDE.md) for all options.
 
-### LLaMAFactory Fine-tuning
+## 📊 Architecture
 
-```bash
-# Clone LLaMAFactory examples
-oc exec ml-dev-env -- git clone https://github.com/hiyouga/LLaMA-Factory.git /workspace/LLaMA-Factory
+### Multi-Node Architecture
 
-# Run fine-tuning with 4 GPUs
-oc exec ml-dev-env -- bash -c "cd /workspace/LLaMA-Factory && \
-    deepspeed --num_gpus=4 src/train_bash.py \
-    --deepspeed ds_config.json \
-    --model_name_or_path meta-llama/Llama-2-7b-hf \
-    --output_dir /workspace/output"
+```
+┌─────────────────────────────────────────────┐
+│  Headless Service (ml-dev-env-headless)    │
+│  - DNS: ml-dev-env-0.ml-dev-env-headless   │
+│  - DNS: ml-dev-env-1.ml-dev-env-headless   │
+└─────────────────────────────────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+┌───────▼────────┐    ┌────────▼────────┐
+│ ml-dev-env-0   │    │ ml-dev-env-1    │
+│ (Master)       │    │ (Worker)        │
+│ - 4 H100 GPUs  │    │ - 4 H100 GPUs   │
+│ - Rank 0-3     │    │ - Rank 4-7      │
+│ - /workspace   │◄───►│ - /workspace    │
+└────────────────┘    └─────────────────┘
+        │                       │
+        └───────────┬───────────┘
+                    │
+        ┌───────────▼───────────┐
+        │  Shared Storage       │
+        │  (RWX or per-pod)     │
+        └───────────────────────┘
 ```
 
-### Video Processing with VideoLLaMA2
+### Single-Node Architecture
 
-```bash
-# Process videos with ffmpeg and VideoLLaMA2
-oc exec ml-dev-env -- python << 'EOF'
-import torch
-from transformers import AutoModel, AutoTokenizer
-
-model = AutoModel.from_pretrained("DAMO-NLP-SG/VideoLLaMA2-7B")
-model = model.cuda()
-
-# Your video processing code here
-EOF
+```
+┌─────────────────────────────────────────────┐
+│          ML Development Pod                 │
+│                                             │
+│  ┌─────────┐  ┌─────────┐  ┌────────────┐ │
+│  │ VSCode  │  │ Jupyter │  │TensorBoard │ │
+│  │  :8080  │  │  :8888  │  │   :6006    │ │
+│  └─────────┘  └─────────┘  └────────────┘ │
+│                                             │
+│  ┌─────────────────────────────────────┐   │
+│  │   Python 3.10 + ML Frameworks       │   │
+│  │   PyTorch, DeepSpeed, Flash Attn    │   │
+│  └─────────────────────────────────────┘   │
+│                                             │
+│  ┌─────────────────────────────────────┐   │
+│  │   4x H100 GPUs + CUDA 12.6          │   │
+│  └─────────────────────────────────────┘   │
+│                                             │
+│  ┌──────────────┐  ┌──────────────────┐   │
+│  │  Workspace   │  │    Datasets      │   │
+│  │   (100GB)    │  │     (500GB)      │   │
+│  └──────────────┘  └──────────────────┘   │
+└─────────────────────────────────────────────┘
 ```
 
-### Distributed Training with DeepSpeed
-
-```python
-# training.py
-import deepspeed
-
-# Your model definition
-model = YourModel()
-
-# DeepSpeed config
-ds_config = {
-    "train_batch_size": 32,
-    "zero_optimization": {"stage": 2},
-    "fp16": {"enabled": True}
-}
-
-# Initialize
-model_engine, optimizer, _, _ = deepspeed.initialize(
-    model=model,
-    config=ds_config
-)
-
-# Training loop
-for epoch in range(epochs):
-    for batch in dataloader:
-        loss = model_engine(batch)
-        model_engine.backward(loss)
-        model_engine.step()
-```
-
-Run:
-```bash
-deepspeed --num_gpus=4 training.py
-```
-
-## Monitoring and Profiling
-
-### TensorBoard
-
-```bash
-# Start TensorBoard
-oc exec ml-dev-env -- tensorboard --logdir=/workspace/runs --bind_all &
-
-# Access via route
-TENSORBOARD_URL=$(oc get route ml-dev-tensorboard -o jsonpath='{.spec.host}')
-echo "TensorBoard: https://$TENSORBOARD_URL"
-```
-
-### GPU Monitoring
-
-```bash
-# Real-time GPU monitoring
-oc exec ml-dev-env -- watch -n 1 nvidia-smi
-
-# GPU topology
-oc exec ml-dev-env -- nvidia-smi topo -m
-```
-
-### NCCL Performance Testing
-
-```bash
-# Test NCCL all-reduce performance
-oc exec ml-dev-env -- python -m torch.distributed.launch \
-    --nproc_per_node=4 \
-    /workspace/nccl_test.py
-```
-
-## Troubleshooting
-
-### GPUs Not Detected
-
-```bash
-# Check GPU resources
-oc describe pod ml-dev-env | grep -A 5 "Limits"
-
-# Check NVIDIA driver
-oc exec ml-dev-env -- nvidia-smi
-```
-
-### RDMA/InfiniBand Issues
-
-```bash
-# Check IB devices
-oc exec ml-dev-env -- ibstat
-
-# Check NCCL can see IB
-oc exec ml-dev-env -- bash -c "NCCL_DEBUG=INFO python -c 'import torch; torch.cuda.init()'"
-
-# Verify host network
-oc exec ml-dev-env -- ip addr
-```
-
-### Build Failures
-
-If the build fails during flash-attn or other CUDA extensions:
-
-```bash
-# Check build logs
-oc logs bc/ml-dev-env
-
-# Rebuild with more resources
-oc patch bc/ml-dev-env -p '{"spec":{"resources":{"limits":{"memory":"16Gi","cpu":"8"}}}}'
-oc start-build ml-dev-env
-```
-
-### Out of Memory
-
-Increase shared memory or adjust batch sizes:
-
-```yaml
-# In pod-multi-gpu.yaml
-volumes:
-- name: shm
-  emptyDir:
-    medium: Memory
-    sizeLimit: 64Gi  # Increase from 32Gi
-```
-
-### NumPy Compatibility Warnings
-
-The environment uses **NumPy 1.26.4** (latest 1.x) for compatibility with packages compiled against NumPy 1.x.
-
-If you see NumPy version warnings, the image may need to be rebuilt:
-
-```bash
-# Rebuild the image (admin/maintainer only)
-oc start-build ml-dev-env -n nccl-test
-
-# Or verify current NumPy version
-oc exec ml-dev-env -- python -c "import numpy; print(numpy.__version__)"
-# Should show: 1.26.4
-```
-
-**Note:** NumPy 2.x causes compatibility warnings with PyTorch and other packages. The BuildConfig is configured to force NumPy 1.x for optimal compatibility.
-
-## File Organization
+## 🗂️ File Organization
 
 ```
 ml-dev-env/
 ├── README.md                  # This file
 ├── Makefile                   # Build and deployment automation
 │
+├── clusters/                  # Cluster configuration files
+│   ├── cairo.yaml             # Cairo cluster config
+│   ├── barcelona.yaml         # Barcelona cluster config
+│   └── template.yaml          # Template for new clusters
+│
 ├── k8s/                       # Kubernetes/OpenShift manifests
-│   ├── buildconfig.yaml       # OpenShift build configuration
+│   ├── buildconfig.yaml       # Container image build
 │   ├── imagestream.yaml       # Image registry
 │   ├── pod-multi-gpu.yaml     # Single-node pod (4 GPUs)
 │   ├── pvcs.yaml              # Persistent storage
 │   ├── service.yaml           # Services and routes
-│   ├── statefulset-multi-node-rdma.yaml  # Multi-node (RDMA/RoCE)
-│   └── statefulset-multi-node-tcp.yaml  # Multi-node (TCP/Ethernet)
+│   ├── statefulset-multi-node-rdma.yaml  # Multi-node RDMA
+│   └── statefulset-multi-node-tcp.yaml   # Multi-node TCP
 │
-├── docs/                      # Documentation
-│   ├── QUICKSTART.md
+├── scripts/                   # Automation scripts
+│   ├── deploy-cluster.py      # Cluster-based deployment
+│   ├── deploy-multi-node-rdma.sh
+│   ├── deploy-multi-node-tcp.sh
+│   ├── dev-session.sh         # Development automation
+│   ├── sync-code.sh
+│   ├── sync-multi-node.sh
+│   └── debug-remote.sh
+│
+├── docs/                      # Documentation (14 files)
+│   ├── CLUSTER-CONFIG-GUIDE.md
 │   ├── MULTI-NODE-QUICKSTART.md
-│   ├── MULTI-NODE-TCP-GUIDE.md     # TCP/Ethernet mode (no RDMA)
+│   ├── MULTI-NODE-GUIDE.md
+│   ├── MULTI-NODE-TCP-GUIDE.md
+│   ├── QUICKSTART.md
+│   ├── BUILD-ON-CLUSTER.md
+│   ├── QUICK-DEV-GUIDE.md
 │   ├── AUTOMATION-GUIDE.md
-│   └── ... (13 documentation files)
-│
-├── scripts/                   # Automation scripts (7 files)
-│   ├── deploy.sh
-│   ├── deploy-multi-node-rdma.sh   # RDMA/RoCE deployment
-│   ├── deploy-multi-node-tcp.sh    # TCP/Ethernet deployment
-│   ├── dev-session.sh
-│   └── ...
+│   ├── CONFIGURATION-GUIDE.md
+│   ├── VSCODE-SETUP.md
+│   ├── VSCODE-DEBUG-GUIDE.md
+│   ├── VSCODE-DEBUG-TROUBLESHOOTING.md
+│   ├── REMOTE-DEBUG-WALKTHROUGH.md
+│   └── CAIRO_CLUSTER_RWX_RESULTS.md
 │
 ├── examples/                  # Example code and configs
 │   ├── test_multi_gpu.py
@@ -536,54 +441,225 @@ ml-dev-env/
 │       └── settings.json
 │
 ├── workspace/                 # Development workspace (syncs to pod)
-│   ├── ds_config.json
-│   ├── launch_deepspeed.sh
+│   ├── ds_config.json         # DeepSpeed configuration
+│   ├── launch_deepspeed.sh    # Launch script
 │   ├── test_debug.py
 │   └── train_multi_node.py
 │
-└── .vscode/                   # VSCode configuration
+└── .vscode/                   # Local VSCode configuration
     └── launch.json            # Debug configurations
 ```
 
-## Resource Requirements
+## 🧪 Testing
 
-### Minimum
+### Test GPU Access
+
+```bash
+# Quick test
+make test
+
+# Detailed test
+oc exec ml-dev-env -- python /workspace/examples/test_multi_gpu.py
+```
+
+### Test Multi-Node Communication
+
+```bash
+# Test NCCL
+oc exec ml-dev-env-0 -n nccl-test -- bash -c '
+python3 -c "
+import torch
+import torch.distributed as dist
+dist.init_process_group(backend=\"nccl\")
+print(\"NCCL working!\")
+"
+'
+```
+
+### Test RDMA (if using RDMA mode)
+
+```bash
+# Check InfiniBand devices
+oc exec ml-dev-env-0 -n nccl-test -- ibstat
+
+# Check NCCL can see IB devices
+oc exec ml-dev-env-0 -n nccl-test -- env | grep NCCL
+```
+
+## 🔍 Monitoring
+
+### GPU Monitoring
+
+```bash
+# Real-time monitoring
+oc exec ml-dev-env -- watch -n 1 nvidia-smi
+
+# GPU topology
+oc exec ml-dev-env -- nvidia-smi topo -m
+
+# All nodes (multi-node)
+for i in 0 1; do
+  echo "=== Node $i ==="
+  oc exec ml-dev-env-$i -n nccl-test -- nvidia-smi
+done
+```
+
+### Training Logs
+
+```bash
+# Single-node
+oc logs -f ml-dev-env -n nccl-test
+
+# Multi-node (master)
+oc logs -f ml-dev-env-0 -n nccl-test
+```
+
+### TensorBoard
+
+```bash
+# Start TensorBoard
+oc exec ml-dev-env -- tensorboard --logdir=/workspace/runs --bind_all &
+
+# Get URL
+TENSORBOARD_URL=$(oc get route ml-dev-tensorboard -o jsonpath='{.spec.host}')
+echo "TensorBoard: https://$TENSORBOARD_URL"
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**GPUs not detected:**
+```bash
+oc describe pod ml-dev-env | grep -A 5 "Limits"
+oc exec ml-dev-env -- nvidia-smi
+```
+
+**Multi-node pods not starting:**
+```bash
+make status-cluster CLUSTER=cairo
+oc describe pod ml-dev-env-0 -n nccl-test
+```
+
+**NCCL hangs:**
+```bash
+# Check DNS resolution
+oc exec ml-dev-env-0 -n nccl-test -- ping -c 3 ml-dev-env-1.ml-dev-env-headless
+
+# Check RDMA devices (if using RDMA)
+oc exec ml-dev-env-0 -n nccl-test -- ibstat
+```
+
+**Storage issues:**
+```bash
+oc get pvc -n nccl-test
+oc describe pvc ml-dev-workspace -n nccl-test
+```
+
+See individual documentation files for detailed troubleshooting.
+
+## 📦 Resource Requirements
+
+### Minimum (Single-Node)
 - 1x NVIDIA GPU (Compute Capability >= 7.0)
 - 32 GB RAM
 - 50 GB storage
 
-### Recommended (for multi-GPU training)
-- 4x NVIDIA H100 GPUs
-- 128 GB RAM
-- 500 GB+ storage
-- InfiniBand network (for optimal performance)
+### Recommended (Multi-Node)
+- 4x NVIDIA H100 GPUs per node
+- 128 GB RAM per node
+- 500 GB+ shared storage
+- InfiniBand network for RDMA (optional but recommended)
 
-## Security Considerations
+## 🔒 Security Considerations
 
-The pod runs with elevated privileges (`privileged: true`) to access GPUs and InfiniBand devices. In production:
+Multi-node deployments may require elevated privileges:
 
+- **Privileged SCC**: Required for IPC_LOCK capability (RDMA mode)
+- **Host Network**: Required for InfiniBand access (RDMA mode)
+- **Service Account**: Created automatically by cluster config
+
+Best practices:
 1. Use dedicated GPU nodes with node selectors
 2. Apply appropriate RBAC policies
 3. Use network policies to restrict access
 4. Enable authentication for VSCode/Jupyter
 5. Use secrets for API keys (wandb, HuggingFace)
 
-## Next Steps
+## 🚀 Next Steps
 
-1. **Clone your code**: `git clone <repo> /workspace/my-project`
-2. **Download datasets**: Use `/datasets` for large datasets
-3. **Configure wandb**: `wandb login` for experiment tracking
-4. **Start training**: Use DeepSpeed or native PyTorch DDP
-5. **Monitor**: TensorBoard and wandb dashboards
+### For Single-Node Development
+1. Deploy with `make deploy`
+2. Access VSCode with `make vscode`
+3. Clone your code to `/workspace`
+4. Start training with 4 GPUs
 
-## Resources
+### For Multi-Node Training
+1. Choose cluster: `make list-clusters`
+2. Deploy: `make deploy-cluster CLUSTER=cairo MODE=rdma`
+3. Sync code: `make sync-multi-node`
+4. Shell in: `make shell-multi-node`
+5. Run training: `./launch_deepspeed.sh`
 
+### General Setup
+1. **Download datasets**: Use `/datasets` for large datasets
+2. **Configure wandb**: `wandb login` for experiment tracking
+3. **Set up Git**: Clone your repositories to `/workspace`
+4. **Configure VSCode**: Install extensions and set up debugging
+5. **Monitor training**: Use TensorBoard and wandb
+
+## 📚 Additional Resources
+
+### Official Documentation
 - [PyTorch Distributed Training](https://pytorch.org/tutorials/beginner/dist_overview.html)
 - [DeepSpeed Documentation](https://www.deepspeed.ai/)
-- [LLaMAFactory](https://github.com/hiyouga/LLaMA-Factory)
-- [Flash Attention](https://github.com/Dao-AILab/flash-attention)
 - [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/)
+- [Flash Attention](https://github.com/Dao-AILab/flash-attention)
 
-## License
+### Project-Specific
+- [LLaMAFactory](https://github.com/hiyouga/LLaMA-Factory)
+- [VideoLLaMA2](https://github.com/DAMO-NLP-SG/VideoLLaMA2)
+
+### OpenShift/Kubernetes
+- [OpenShift Documentation](https://docs.openshift.com/)
+- [Kubernetes StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
+
+## 📝 License
 
 This example configuration is provided as-is for educational and development purposes.
+
+## 🤝 Contributing
+
+To add a new cluster configuration:
+1. Copy `clusters/template.yaml` to `clusters/<your-cluster>.yaml`
+2. Fill in cluster-specific settings
+3. Test with `make deploy-cluster-dry-run`
+4. Deploy with `make deploy-cluster`
+
+See [CLUSTER-CONFIG-GUIDE.md](docs/CLUSTER-CONFIG-GUIDE.md) for details.
+
+---
+
+**Quick Commands:**
+
+```bash
+# List clusters
+make list-clusters
+
+# Deploy multi-node
+make deploy-cluster CLUSTER=cairo MODE=rdma
+
+# Sync code
+make sync-multi-node
+
+# Shell into master
+make shell-multi-node
+
+# Check status
+make status-cluster CLUSTER=cairo
+
+# Single-node dev
+make dev-session
+```
+
+For detailed guides, see the [docs/](docs/) directory.

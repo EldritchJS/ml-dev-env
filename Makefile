@@ -51,6 +51,12 @@ help:
 	@echo "  make status-multi-node      - Show multi-node deployment status"
 	@echo "  make clean-multi-node   - Remove multi-node deployment"
 	@echo ""
+	@echo "Cluster-based deployment (centralized configuration):"
+	@echo "  make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>  - Deploy to cluster"
+	@echo "  make clean-cluster CLUSTER=<name>                   - Clean cluster deployment"
+	@echo "  make status-cluster CLUSTER=<name>                  - Show cluster deployment status"
+	@echo "  Available clusters: cairo, barcelona"
+	@echo ""
 	@echo "Configuration options (via environment variables):"
 	@echo "  NAMESPACE=<name>     - OpenShift namespace (default: nccl-test)"
 	@echo "  POD_NAME=<name>      - Pod name (default: ml-dev-env)"
@@ -244,3 +250,76 @@ status-multi-node:
 	@echo ""
 	@echo "=== StatefulSet ==="
 	@oc get statefulset ml-dev-env -n $(NAMESPACE) 2>/dev/null || echo "StatefulSet not found"
+
+# Cluster-based Deployment (using cluster config files)
+# Usage: make deploy-cluster CLUSTER=cairo MODE=rdma
+CLUSTER ?= cairo
+MODE ?= tcp
+
+deploy-cluster:
+	@if [ -z "$(CLUSTER)" ]; then \
+		echo "Error: CLUSTER not specified."; \
+		echo "Usage: make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>"; \
+		echo "Available clusters:"; \
+		ls -1 clusters/*.yaml | sed 's/clusters\//  - /' | sed 's/.yaml//'; \
+		exit 1; \
+	fi
+	@if [ ! -f "clusters/$(CLUSTER).yaml" ]; then \
+		echo "Error: Cluster configuration not found: clusters/$(CLUSTER).yaml"; \
+		echo "Available clusters:"; \
+		ls -1 clusters/*.yaml | sed 's/clusters\//  - /' | sed 's/.yaml//'; \
+		exit 1; \
+	fi
+	@echo "Deploying to cluster: $(CLUSTER) (mode: $(MODE))"
+	@python3 scripts/deploy-cluster.py $(CLUSTER) --mode $(MODE)
+
+deploy-cluster-dry-run:
+	@if [ -z "$(CLUSTER)" ]; then \
+		echo "Error: CLUSTER not specified."; \
+		echo "Usage: make deploy-cluster-dry-run CLUSTER=<name> MODE=<tcp|rdma>"; \
+		exit 1; \
+	fi
+	@echo "Dry run for cluster: $(CLUSTER) (mode: $(MODE))"
+	@python3 scripts/deploy-cluster.py $(CLUSTER) --mode $(MODE) --dry-run
+
+clean-cluster:
+	@if [ -z "$(CLUSTER)" ]; then \
+		echo "Error: CLUSTER not specified."; \
+		echo "Usage: make clean-cluster CLUSTER=<name>"; \
+		exit 1; \
+	fi
+	@echo "Cleaning up cluster deployment: $(CLUSTER)"
+	@echo "  Namespace: $(NAMESPACE)"
+	oc delete statefulset ml-dev-env -n $(NAMESPACE) --ignore-not-found=true
+	oc delete service ml-dev-env-headless -n $(NAMESPACE) --ignore-not-found=true
+	oc delete serviceaccount ml-dev-sa -n $(NAMESPACE) --ignore-not-found=true
+	@echo "✅ Cluster deployment cleaned up"
+	@echo "Note: PVCs are preserved. Delete manually if needed."
+
+status-cluster:
+	@if [ -z "$(CLUSTER)" ]; then \
+		echo "Error: CLUSTER not specified."; \
+		echo "Usage: make status-cluster CLUSTER=<name>"; \
+		exit 1; \
+	fi
+	@echo "=== Cluster Deployment Status: $(CLUSTER) ==="
+	@echo "Namespace: $(NAMESPACE)"
+	@echo ""
+	@echo "=== Pods ==="
+	@oc get pods -n $(NAMESPACE) -l app=ml-dev-env-multi -o wide 2>/dev/null || echo "No pods found"
+	@echo ""
+	@echo "=== Service ==="
+	@oc get svc ml-dev-env-headless -n $(NAMESPACE) 2>/dev/null || echo "Service not found"
+	@echo ""
+	@echo "=== StatefulSet ==="
+	@oc get statefulset ml-dev-env -n $(NAMESPACE) 2>/dev/null || echo "StatefulSet not found"
+	@echo ""
+	@echo "=== ServiceAccount ==="
+	@oc get sa ml-dev-sa -n $(NAMESPACE) 2>/dev/null || echo "ServiceAccount not found"
+	@echo ""
+	@echo "=== PVCs ==="
+	@oc get pvc -n $(NAMESPACE) 2>/dev/null | grep ml-dev || echo "No PVCs found"
+
+list-clusters:
+	@echo "Available cluster configurations:"
+	@ls -1 clusters/*.yaml | sed 's/clusters\//  - /' | sed 's/.yaml//'
