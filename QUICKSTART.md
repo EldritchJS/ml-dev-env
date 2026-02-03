@@ -1,23 +1,22 @@
 # Quick Start Guide
 
-## TL;DR - Get Running in 5 Commands
+## TL;DR - Get Running in 3 Commands
+
+> **Note:** The container image should already be built by your administrator.
+> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
 ```bash
-# 1. Build the image (takes ~15-20 min)
-make build
-
-# 2. Deploy everything
+# 1. Deploy everything
 make deploy
 
-# 3. Get VSCode URL
-make vscode
-
-# 4. Test GPUs
+# 2. Test GPUs
 make test
 
-# 5. Open shell
+# 3. Open shell
 make shell
 ```
+
+**Optional:** Get VSCode URL with `make vscode`
 
 ## Step-by-Step Deployment
 
@@ -71,28 +70,10 @@ source .env
 make deploy
 ```
 
-### 2. Build Container Image
+> **Note:** If the container image doesn't exist yet, an administrator will need to build it first.
+> See [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md) for build instructions (admin only).
 
-```bash
-# Start the build
-make build
-
-# This will:
-# - Create ImageStream
-# - Start BuildConfig
-# - Follow build logs
-# - Take ~15-20 minutes (lots of pip installs)
-```
-
-**What's being installed:**
-- PyTorch 2.1.2 + CUDA 12.1
-- Flash Attention (compiled from source)
-- DeepSpeed, Transformers
-- LLaMAFactory, VideoLLaMA2
-- RDMA/InfiniBand tools
-- VSCode Server, Jupyter
-
-### 3. Deploy Environment
+### 2. Deploy Environment
 
 ```bash
 # Deploy everything
@@ -105,7 +86,7 @@ make deploy
 # - Wait for pod to be ready
 ```
 
-### 4. Verify Deployment
+### 3. Verify Deployment
 
 ```bash
 # Check everything
@@ -118,7 +99,7 @@ make status
 # - Routes: 3 routes created
 ```
 
-### 5. Access Development Environment
+### 4. Access Development Environment
 
 **Option A: VSCode in Browser**
 ```bash

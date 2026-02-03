@@ -1,5 +1,12 @@
 # Building on OpenShift Cluster
 
+> **⚠️ ADMIN/MAINTAINER ONLY**
+> This guide is for administrators who need to build or update the container image.
+> **Regular users do not need to build** - just use the pre-built image already in the cluster.
+> See [QUICKSTART.md](QUICKSTART.md) for regular user deployment.
+
+---
+
 The ML development environment is designed to build **entirely on your OpenShift cluster** - no local Docker/Podman required!
 
 ## How It Works

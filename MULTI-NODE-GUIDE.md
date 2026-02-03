@@ -24,13 +24,10 @@ Total: 16 H100 GPUs with RoCE RDMA interconnect
 
 ## 🚀 Quick Start
 
-### Step 1: Build the Image (if not done)
+> **Note:** The container image should already be built by your administrator.
+> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
-```bash
-make build
-```
-
-### Step 2: Deploy Multi-Node Environment
+### Step 1: Deploy Multi-Node Environment
 
 ```bash
 ./scripts/deploy-multi-node.sh
@@ -47,7 +44,7 @@ This creates:
 - StatefulSet with 4 pods
 - Hostfile for DeepSpeed
 
-### Step 3: Wait for All Pods
+### Step 2: Wait for All Pods
 
 ```bash
 # Watch pods come up
@@ -60,7 +57,7 @@ oc get pods -n nccl-test -l app=ml-dev-env-multi -w
 # ml-dev-env-3   1/1     Running   0          2m
 ```
 
-### Step 4: Sync Your Code to All Nodes
+### Step 3: Sync Your Code to All Nodes
 
 ```bash
 ./scripts/sync-multi-node.sh
@@ -68,7 +65,7 @@ oc get pods -n nccl-test -l app=ml-dev-env-multi -w
 
 This syncs `./workspace/` to all 4 pods.
 
-### Step 5: Run Multi-Node Training
+### Step 4: Run Multi-Node Training
 
 ```bash
 # Shell into master node (pod-0)
@@ -85,17 +82,17 @@ Training runs across all 16 GPUs! 🎉
 
 ### Deploy and Setup
 
-```bash
-# 1. Build image (one time)
-make build
+> **Note:** The container image should already be built by your administrator.
+> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
-# 2. Deploy multi-node StatefulSet
+```bash
+# 1. Deploy multi-node StatefulSet
 make deploy-multi-node
 
-# 3. Check all pods are running
+# 2. Check all pods are running
 oc get pods -n nccl-test -l app=ml-dev-env-multi
 
-# 4. Check GPU allocation per pod
+# 3. Check GPU allocation per pod
 for i in {0..3}; do
   echo "=== ml-dev-env-$i ==="
   oc exec ml-dev-env-$i -n nccl-test -- nvidia-smi --query-gpu=name --format=csv,noheader

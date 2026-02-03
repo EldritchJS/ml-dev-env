@@ -104,26 +104,10 @@ cp .env.example .env
 source .env
 ```
 
-### 1. Build the Container Image
+> **Note:** The container image should already be built by your administrator.
+> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
-```bash
-# Using Makefile (recommended)
-make build
-
-# Or manually with custom namespace:
-NAMESPACE=my-namespace make build
-
-# Or using deploy script:
-./deploy.sh build
-
-# Wait for build to complete (takes ~15-20 minutes)
-oc logs -f bc/ml-dev-env -n ${NAMESPACE:-nccl-test}
-
-# Verify build
-oc get builds -n ${NAMESPACE:-nccl-test}
-```
-
-### 2. Create Persistent Storage
+### 1. Create Persistent Storage
 
 ```bash
 # Create PVCs for workspace and datasets
@@ -133,7 +117,7 @@ oc apply -f pvcs.yaml
 oc get pvc
 ```
 
-### 3. Deploy the Development Environment
+### 2. Deploy the Development Environment
 
 ```bash
 # Deploy the pod
@@ -146,7 +130,7 @@ oc wait --for=condition=Ready pod/ml-dev-env --timeout=300s
 oc logs ml-dev-env
 ```
 
-### 4. Create Services and Routes
+### 3. Create Services and Routes
 
 ```bash
 # Create service and routes for VSCode, Jupyter, TensorBoard
@@ -156,7 +140,7 @@ oc apply -f service.yaml
 oc get routes
 ```
 
-### 5. Access Development Environment
+### 4. Access Development Environment
 
 **VSCode (Browser-based IDE):**
 ```bash

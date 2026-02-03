@@ -4,21 +4,21 @@ Train on **16 H100 GPUs** (4 nodes × 4 GPUs) in 5 minutes.
 
 ## 🚀 5-Minute Setup
 
-```bash
-# 1. Build image (if not done)
-make build
+> **Note:** The container image should already be built by your administrator.
+> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
 
-# 2. Deploy 4-node cluster
+```bash
+# 1. Deploy 4-node cluster
 make deploy-multi-node
 
-# 3. Wait for pods (2-3 minutes)
+# 2. Wait for pods (2-3 minutes)
 oc get pods -n nccl-test -l app=ml-dev-env-multi -w
 # Wait until all show: 1/1 Running
 
-# 4. Sync code to all nodes
+# 3. Sync code to all nodes
 make sync-multi-node
 
-# 5. Run distributed training
+# 4. Run distributed training
 oc exec -it ml-dev-env-0 -n nccl-test -- bash -c "cd /workspace && ./launch_deepspeed.sh"
 ```
 
