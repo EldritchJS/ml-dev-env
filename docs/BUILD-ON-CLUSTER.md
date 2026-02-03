@@ -18,7 +18,7 @@ The ML development environment is designed to build **entirely on your OpenShift
 │  Your Local Machine                             │
 │                                                 │
 │  $ make build                                   │
-│  $ oc apply -f buildconfig.yaml                 │
+│  $ oc apply -f k8s/buildconfig.yaml             │
 │      │                                           │
 │      └─────────────────┐                        │
 └────────────────────────┼────────────────────────┘
@@ -117,10 +117,10 @@ NAMESPACE=my-namespace ./scripts/deploy.sh build
 
 ```bash
 # Create ImageStream
-oc apply -f imagestream.yaml
+oc apply -f k8s/imagestream.yaml
 
 # Start build
-oc apply -f buildconfig.yaml
+oc apply -f k8s/buildconfig.yaml
 
 # Or start a new build manually
 oc start-build ml-dev-env -n nccl-test

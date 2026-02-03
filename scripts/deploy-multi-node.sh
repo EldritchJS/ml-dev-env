@@ -16,7 +16,7 @@ echo ""
 echo "📦 Checking PVCs..."
 if ! oc get pvc ml-dev-workspace -n "$NAMESPACE" &>/dev/null; then
     echo "⚠️  PVC ml-dev-workspace not found. Creating..."
-    oc apply -f pvcs.yaml -n "$NAMESPACE"
+    oc apply -f k8s/pvcs.yaml -n "$NAMESPACE"
     echo "Waiting for PVCs to be bound..."
     sleep 5
 fi
@@ -40,7 +40,7 @@ echo "✅ Using image: $IMAGE_TAG"
 # Deploy StatefulSet
 echo ""
 echo "🚢 Deploying StatefulSet..."
-cat statefulset-multi-node.yaml | sed "s|namespace: nccl-test|namespace: $NAMESPACE|g" | oc apply -f -
+cat k8s/statefulset-multi-node.yaml | sed "s|namespace: nccl-test|namespace: $NAMESPACE|g" | oc apply -f -
 
 echo ""
 echo "⏳ Waiting for pods to be created..."

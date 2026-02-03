@@ -461,7 +461,7 @@ oc exec ml-dev-env-0 -n nccl-test -- ibstat
 
 ### Custom Node Selection
 
-Edit `statefulset-multi-node.yaml`:
+Edit `k8s/statefulset-multi-node.yaml`:
 
 ```yaml
 spec:
@@ -482,7 +482,7 @@ spec:
 
 ### Different Number of Nodes
 
-Change `replicas` in `statefulset-multi-node.yaml`:
+Change `replicas` in `k8s/statefulset-multi-node.yaml`:
 
 ```yaml
 spec:

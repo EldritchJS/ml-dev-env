@@ -111,7 +111,7 @@ source .env
 
 ```bash
 # Create PVCs for workspace and datasets
-oc apply -f pvcs.yaml
+oc apply -f k8s/pvcs.yaml
 
 # Verify PVCs
 oc get pvc
@@ -121,7 +121,7 @@ oc get pvc
 
 ```bash
 # Deploy the pod
-oc apply -f pod-multi-gpu.yaml
+oc apply -f k8s/pod-multi-gpu.yaml
 
 # Wait for pod to be ready
 oc wait --for=condition=Ready pod/ml-dev-env --timeout=300s
@@ -134,7 +134,7 @@ oc logs ml-dev-env
 
 ```bash
 # Create service and routes for VSCode, Jupyter, TensorBoard
-oc apply -f service.yaml
+oc apply -f k8s/service.yaml
 
 # Get the URLs
 oc get routes
@@ -171,7 +171,7 @@ oc rsh ml-dev-env
 
 The pod is configured to use **4 GPUs** by default. To change:
 
-Edit `pod-multi-gpu.yaml`:
+Edit `k8s/pod-multi-gpu.yaml`:
 ```yaml
 resources:
   requests:
@@ -192,7 +192,7 @@ NCCL_IB_GID_INDEX=3              # RoCE v2
 NCCL_NET_GDR_LEVEL=5             # GPUDirect RDMA
 ```
 
-To adjust, edit the `env` section in `pod-multi-gpu.yaml`.
+To adjust, edit the `env` section in `k8s/pod-multi-gpu.yaml`.
 
 ### Storage Configuration
 
@@ -200,7 +200,7 @@ Two PVCs are created:
 - **ml-dev-workspace** (100GB): Your code, models, checkpoints
 - **ml-datasets** (500GB): Training datasets
 
-To adjust sizes, edit `pvcs.yaml`.
+To adjust sizes, edit `k8s/pvcs.yaml`.
 
 ## VSCode Debugging
 
@@ -455,19 +455,42 @@ volumes:
 
 ```
 ml-dev-env/
-├── Dockerfile                 # Container image definition
-├── buildconfig.yaml           # OpenShift build configuration
-├── imagestream.yaml           # Image registry
-├── pod-multi-gpu.yaml         # Multi-GPU pod specification
-├── pvcs.yaml                  # Persistent storage
-├── service.yaml               # Services and routes
-├── vscode-config/
-│   ├── launch.json           # Debug configurations
-│   └── settings.json         # VSCode settings
-├── examples/
-│   ├── test_multi_gpu.py     # Multi-GPU test
-│   └── test_deepspeed.py     # DeepSpeed test
-└── README.md                  # This file
+├── README.md                  # This file
+├── Makefile                   # Build and deployment automation
+│
+├── k8s/                       # Kubernetes/OpenShift manifests
+│   ├── buildconfig.yaml       # OpenShift build configuration
+│   ├── imagestream.yaml       # Image registry
+│   ├── pod-multi-gpu.yaml     # Single-node pod (4 GPUs)
+│   ├── pvcs.yaml              # Persistent storage
+│   ├── service.yaml           # Services and routes
+│   └── statefulset-multi-node.yaml  # Multi-node (16 GPUs)
+│
+├── docs/                      # Documentation
+│   ├── QUICKSTART.md
+│   ├── MULTI-NODE-QUICKSTART.md
+│   ├── AUTOMATION-GUIDE.md
+│   └── ... (12 documentation files)
+│
+├── scripts/                   # Automation scripts
+│   ├── deploy.sh
+│   ├── deploy-multi-node.sh
+│   ├── dev-session.sh
+│   └── ...
+│
+├── examples/                  # Example code
+│   ├── test_multi_gpu.py
+│   ├── test_deepspeed.py
+│   └── test_flash_attn.py
+│
+├── workspace/                 # Development workspace (syncs to pod)
+│   ├── ds_config.json
+│   ├── launch_deepspeed.sh
+│   ├── test_debug.py
+│   └── train_multi_node.py
+│
+└── .vscode/                   # VSCode configuration
+    └── launch.json            # Debug configurations
 ```
 
 ## Resource Requirements

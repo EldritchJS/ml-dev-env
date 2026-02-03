@@ -24,8 +24,8 @@ apply_with_namespace() {
 case "${1:-deploy}" in
     build)
         echo "Building container image..."
-        apply_with_namespace imagestream.yaml
-        apply_with_namespace buildconfig.yaml
+        apply_with_namespace k8s/imagestream.yaml
+        apply_with_namespace k8s/buildconfig.yaml
         echo "Build started. Follow logs with:"
         echo "  oc logs -f bc/$POD_NAME -n $NAMESPACE"
         ;;
@@ -34,17 +34,17 @@ case "${1:-deploy}" in
         echo "Deploying full environment..."
 
         # Build
-        apply_with_namespace imagestream.yaml
-        apply_with_namespace buildconfig.yaml
+        apply_with_namespace k8s/imagestream.yaml
+        apply_with_namespace k8s/buildconfig.yaml
 
         # Storage
-        apply_with_namespace pvcs.yaml
+        apply_with_namespace k8s/pvcs.yaml
 
         # Pod
-        apply_with_namespace pod-multi-gpu.yaml
+        apply_with_namespace k8s/pod-multi-gpu.yaml
 
         # Services
-        apply_with_namespace service.yaml
+        apply_with_namespace k8s/service.yaml
 
         echo ""
         echo "Waiting for pod to be ready..."

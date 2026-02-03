@@ -8,8 +8,8 @@ REMOTE_DIR ?= /workspace
 DEBUG_PORT ?= 5678
 
 # Build configuration
-BUILD_CONFIG := buildconfig.yaml
-POD_CONFIG := pod-multi-gpu.yaml
+BUILD_CONFIG := k8s/buildconfig.yaml
+POD_CONFIG := k8s/pod-multi-gpu.yaml
 IMAGE_TAG := latest
 
 help:
@@ -75,7 +75,7 @@ build:
 	@echo "  Config:     $(BUILD_CONFIG)"
 	@echo ""
 	@echo "Creating ImageStream..."
-	cat imagestream.yaml | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/' | oc apply -f -
+	cat k8s/imagestream.yaml | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/' | oc apply -f -
 	@echo "Starting build (this will take 15-20 minutes)..."
 	cat $(BUILD_CONFIG) | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/' | oc apply -f -
 	@echo "Waiting for build to start..."
@@ -89,11 +89,11 @@ deploy: build
 	@echo "  Pod config: $(POD_CONFIG)"
 	@echo ""
 	@echo "Creating PVCs..."
-	cat pvcs.yaml | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/g' | oc apply -f -
+	cat k8s/pvcs.yaml | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/g' | oc apply -f -
 	@echo "Deploying pod..."
 	cat $(POD_CONFIG) | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/' | oc apply -f -
 	@echo "Creating services and routes..."
-	cat service.yaml | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/g' | oc apply -f -
+	cat k8s/service.yaml | sed 's/namespace: nccl-test/namespace: $(NAMESPACE)/g' | oc apply -f -
 	@echo "Waiting for pod to be ready..."
 	oc wait --for=condition=Ready pod/$(POD_NAME) -n $(NAMESPACE) --timeout=300s || true
 	@echo ""
