@@ -353,7 +353,7 @@ oc describe build ml-dev-env-1 -n nccl-test
 
 ## Advanced: Multi-Stage Builds
 
-The Dockerfile uses multi-stage builds for optimization:
+The inline Dockerfile in the BuildConfig uses multi-stage builds for optimization:
 
 ```dockerfile
 FROM nvcr.io/nvidia/cuda:12.1.0-devel-ubuntu22.04 AS base

@@ -253,7 +253,7 @@ oc logs -f bc/ml-dev-env
 # Retry build:
 oc start-build ml-dev-env
 
-# If flash-attn fails, you can remove it from Dockerfile
+# If flash-attn fails, you can remove it from the BuildConfig
 ```
 
 ## VSCode Debugging Setup

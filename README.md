@@ -478,10 +478,13 @@ ml-dev-env/
 │   ├── dev-session.sh
 │   └── ...
 │
-├── examples/                  # Example code
+├── examples/                  # Example code and configs
 │   ├── test_multi_gpu.py
 │   ├── test_deepspeed.py
-│   └── test_flash_attn.py
+│   ├── test_flash_attn.py
+│   └── vscode/               # VSCode configs for pod
+│       ├── launch.json
+│       └── settings.json
 │
 ├── workspace/                 # Development workspace (syncs to pod)
 │   ├── ds_config.json
