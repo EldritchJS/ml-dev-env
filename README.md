@@ -10,7 +10,7 @@ Development and testing on one node with 4x H100 GPUs.
 ### **Multi-Node (16 GPUs) - NEW!**
 Distributed training across **4 nodes × 4 GPUs = 16 H100s** using DeepSpeed.
 
-See **[MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md)** to train on 16 GPUs in 5 minutes!
+See **[MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)** to train on 16 GPUs in 5 minutes!
 
 ## Features
 
@@ -105,7 +105,7 @@ source .env
 ```
 
 > **Note:** The container image should already be built by your administrator.
-> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](BUILD-ON-CLUSTER.md).
+> If you need to build it yourself, see [BUILD-ON-CLUSTER.md](docs/BUILD-ON-CLUSTER.md).
 
 ### 1. Create Persistent Storage
 
