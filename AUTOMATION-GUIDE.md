@@ -403,28 +403,6 @@ oc exec ml-dev-env -n nccl-test -- python -c "import sys; sys.dont_write_bytecod
 # Repeat!
 ```
 
-## 🚀 Next Level: Makefile Integration
-
-Add to `Makefile`:
-
-```makefile
-.PHONY: dev-session sync-code debug-remote
-
-dev-session:
-	@./scripts/dev-session.sh
-
-sync-code:
-	@./scripts/sync-code.sh
-
-debug-remote:
-	@./scripts/debug-remote.sh $(FILE)
-
-# Usage:
-# make dev-session
-# make sync-code
-# make debug-remote FILE=my_script.py
-```
-
 ## Summary
 
 **For quick testing:** `./scripts/dev-session.sh`
