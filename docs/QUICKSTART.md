@@ -270,8 +270,8 @@ oc start-build ml-dev-env
 
 ```bash
 # Copy debug configs
-oc cp vscode-config/launch.json nccl-test/ml-dev-env:/workspace/.vscode/
-oc cp vscode-config/settings.json nccl-test/ml-dev-env:/workspace/.vscode/
+oc cp examples/vscode/launch.json nccl-test/ml-dev-env:/workspace/.vscode/
+oc cp examples/vscode/settings.json nccl-test/ml-dev-env:/workspace/.vscode/
 ```
 
 ### 3. Debug Your Code

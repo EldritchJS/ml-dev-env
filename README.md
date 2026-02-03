@@ -216,8 +216,8 @@ Once VSCode is open in browser, install:
 Copy VSCode configuration:
 ```bash
 # From your local machine
-oc cp vscode-config/launch.json ml-dev-env:/workspace/.vscode/launch.json
-oc cp vscode-config/settings.json ml-dev-env:/workspace/.vscode/settings.json
+oc cp examples/vscode/launch.json ml-dev-env:/workspace/.vscode/launch.json
+oc cp examples/vscode/settings.json ml-dev-env:/workspace/.vscode/settings.json
 ```
 
 ### 3. Debugging Configurations
