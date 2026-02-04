@@ -2,8 +2,8 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Remote Attach to Cluster",
-            "type": "python",
+            "name": "Debug Deepti (Remote - NERC Production)",
+            "type": "debugpy",
             "request": "attach",
             "connect": {
                 "host": "localhost",
@@ -11,7 +11,7 @@
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/workspace",
+                    "localRoot": "${workspaceFolder}",
                     "remoteRoot": "/workspace"
                 }
             ],
