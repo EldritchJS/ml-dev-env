@@ -321,6 +321,6 @@ Common issues:
 - **GPUs:** 4x H100
 - **RDMA Devices:** mlx5_6, mlx5_7, mlx5_10, mlx5_11
 - **Network Interfaces:** net1, net2, net3, net4
-- **PyTorch:** 2.5.0 (CUDA 12.6)
-- **Python:** 3.10
+- **PyTorch:** 2.8.0a0 (NVIDIA 25.08, CUDA 12.8)
+- **Python:** 3.12
 - **Workspace:** /workspace (persistent PVC)

@@ -16,9 +16,9 @@ Development and testing on one node with 4x H100 GPUs.
 ## ✨ Features
 
 ### ML Frameworks & Libraries
-- ✅ **PyTorch 2.5.0** with CUDA 12.6 support
+- ✅ **PyTorch 2.8.0a0** (NVIDIA 25.08) with CUDA 12.8 support
 - ✅ **DeepSpeed** - Distributed training optimization (ZeRO-2/3)
-- ✅ **Flash Attention 2.8.3** - Efficient attention computation
+- ✅ **Flash Attention 2.7.4.post1** - Efficient attention computation (NVIDIA pre-built)
 - ✅ **Transformers** - Hugging Face library
 - ✅ **LLaMAFactory** - Efficient LLM fine-tuning
 - ✅ **VideoLLaMA2** - Video understanding with LLMs
@@ -374,12 +374,12 @@ See [CONFIGURATION-GUIDE.md](docs/CONFIGURATION-GUIDE.md) for all options.
 │  └─────────┘  └─────────┘  └────────────┘ │
 │                                             │
 │  ┌─────────────────────────────────────┐   │
-│  │   Python 3.10 + ML Frameworks       │   │
+│  │   Python 3.12 + ML Frameworks       │   │
 │  │   PyTorch, DeepSpeed, Flash Attn    │   │
 │  └─────────────────────────────────────┘   │
 │                                             │
 │  ┌─────────────────────────────────────┐   │
-│  │   4x H100 GPUs + CUDA 12.6          │   │
+│  │   4x H100 GPUs + CUDA 12.8          │   │
 │  └─────────────────────────────────────┘   │
 │                                             │
 │  ┌──────────────┐  ┌──────────────────┐   │
