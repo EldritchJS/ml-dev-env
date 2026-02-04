@@ -16,9 +16,10 @@ spec:
     dockerfile: |
       # ML Development Environment - NVIDIA PyTorch Base
       # Uses NVIDIA's official PyTorch container for guaranteed CUDA compatibility
-      # Using 24.10 for flash-attn compatibility
+      # Using 25.08 which includes PyTorch 2.8 (fixes CVE-2025-32434)
+      # flash-attn 2.7.4.post1 is pre-installed and tested by NVIDIA
 
-      FROM nvcr.io/nvidia/pytorch:24.10-py3 AS base
+      FROM nvcr.io/nvidia/pytorch:25.08-py3 AS base
 
       # Set environment variables
       ENV PYTHONUNBUFFERED=1 \
@@ -62,24 +63,30 @@ spec:
           NCCL_SOCKET_IFNAME=net1,net2,net3,net4 \
           NCCL_NET_GDR_LEVEL=5
 
-      # Install flash-attention (compile from source for PyTorch compatibility)
-      RUN pip install --no-cache-dir packaging ninja && \
-          pip install --no-cache-dir flash-attn --upgrade --no-build-isolation
+      # Install build tools (may be needed by other packages)
+      RUN pip install --no-cache-dir packaging ninja wheel
 
       # Install transformers and related libraries
+      # NOTE: transformers must be installed alone to avoid PyTorch upgrades
+      RUN pip install --no-cache-dir transformers>=4.37.0
+
       RUN pip install --no-cache-dir \
-          transformers>=4.37.0 \
           accelerate \
           datasets \
           tokenizers \
           sentencepiece \
           protobuf
 
-      # Install deepspeed
-      RUN pip install --no-cache-dir deepspeed
+      # CRITICAL: Pin PyTorch before installing packages that might upgrade it
+      # Create constraints file to prevent PyTorch upgrades
+      RUN python -c "import torch; print(f'torch=={torch.__version__}')" > /tmp/constraints.txt && \
+          cat /tmp/constraints.txt
 
-      # Install LLaMAFactory and its dependencies
-      RUN pip install --no-cache-dir \
+      # Install deepspeed with PyTorch pinned
+      RUN pip install --no-cache-dir --constraint /tmp/constraints.txt deepspeed
+
+      # Install LLaMAFactory and its dependencies with PyTorch pinned
+      RUN pip install --no-cache-dir --constraint /tmp/constraints.txt \
           llamafactory \
           peft \
           trl \
@@ -92,6 +99,10 @@ spec:
           av \
           opencv-python \
           decord
+
+      # Install Qwen2.5-Omni utilities
+      RUN pip install --no-cache-dir qwen-omni-utils || \
+          pip install --no-cache-dir qwen-omni-utils[decord]
 
       # Install EasyR1 and additional ML tools
       RUN pip install --no-cache-dir \
@@ -116,6 +127,10 @@ spec:
       # This prevents NumPy 2.x compatibility warnings from packages compiled against 1.x
       # Using --force-reinstall --no-deps to override any numpy 2.x without checking dependencies
       RUN pip install --no-cache-dir --force-reinstall --no-deps "numpy<2.0"
+
+      # NOTE: Using pre-installed flash-attn 2.7.4.post1 from NVIDIA PyTorch 25.08 base image
+      # The base image includes flash-attn built specifically for NVIDIA's PyTorch 2.8
+      # This version is tested by NVIDIA and avoids symbol mismatches
 
       # Install code-server (VSCode in browser)
       RUN curl -fsSL https://code-server.dev/install.sh | sh
