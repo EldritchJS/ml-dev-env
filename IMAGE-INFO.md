@@ -172,10 +172,10 @@ code-server --bind-addr 0.0.0.0:8080 --auth none
 
 ## Available Tags
 
-- **`pytorch-2.9-numpy2`** ⭐ **Default/Recommended** - PyTorch 2.9 + NumPy 2.2.6 (latest, fully tested)
+- **`latest`** ⭐ **Default** - Points to pytorch-2.9-numpy2 (PyTorch 2.9 + NumPy 2.2.6)
+- **`pytorch-2.9-numpy2`** - PyTorch 2.9 + NumPy 2.2.6 (recommended, fully tested)
 - **`pytorch-2.9`** - Alias for pytorch-2.9-numpy2
 - **`pytorch-2.8-numpy1`** - PyTorch 2.8 + NumPy 1.26.4 (legacy - only use if you specifically need PyTorch 2.8)
-- **`latest`** - Currently points to pytorch-2.8-numpy1 (use explicit tags instead)
 
 ## Key Design Decisions
 
