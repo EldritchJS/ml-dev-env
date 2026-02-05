@@ -127,8 +127,8 @@ podman pull quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2
 # or
 docker pull quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2
 
-# Legacy: PyTorch 2.8 with NumPy 1.26.4
-podman pull quay.io/jschless/ml-dev-env:latest
+# Legacy: PyTorch 2.8 with NumPy 1.26.4 (required for PyTorch 2.8 compatibility)
+podman pull quay.io/jschless/ml-dev-env:pytorch-2.8-numpy1
 ```
 
 ### Run Interactive Container
@@ -175,10 +175,10 @@ code-server --bind-addr 0.0.0.0:8080 --auth none
 
 ## Available Tags
 
-- **`latest`** - PyTorch 2.8 with NumPy 1.26.4 (legacy)
-- **`pytorch-2.8`** - PyTorch 2.8 with NumPy 1.26.4
-- **`pytorch-2.9`** - PyTorch 2.9 with NumPy 2.2.6 (recommended)
-- **`pytorch-2.9-numpy2`** - Same as pytorch-2.9, explicit NumPy 2.x tag
+- **`pytorch-2.9-numpy2`** - PyTorch 2.9 with NumPy 2.2.6 (recommended)
+- **`pytorch-2.9`** - Same as pytorch-2.9-numpy2
+- **`pytorch-2.8-numpy1`** - PyTorch 2.8 with NumPy 1.26.4 (required for PyTorch 2.8 binary compatibility)
+- **`latest`** - Points to pytorch-2.8-numpy1 (legacy, use specific tags instead)
 
 ## Key Design Decisions
 
@@ -188,7 +188,7 @@ code-server --bind-addr 0.0.0.0:8080 --auth none
 
 3. **Constraint-based Installation** - All packages installed with PyTorch version constraints to prevent accidental upgrades during dependency resolution
 
-4. **NumPy 2.2.6** - Upgraded from 1.x after comprehensive testing. All packages (LLaMAFactory, TRL, Flash-Attention, Qwen2.5-Omni) work correctly with NumPy 2.x despite pip warnings during build
+4. **NumPy Compatibility** - PyTorch 2.9 uses NumPy 2.2.6 (fully tested and compatible). PyTorch 2.8 MUST use NumPy 1.26.4 due to binary incompatibility - NVIDIA's PyTorch 2.8 was compiled against NumPy 1.x and cannot run with NumPy 2.x
 
 5. **General-Purpose ML** - Includes packages for various ML workloads (LLM fine-tuning, multimodal models, computer vision, etc.) not just Qwen2.5-Omni
 

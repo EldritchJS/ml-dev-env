@@ -1,16 +1,17 @@
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  name: ml-dev-env
+  name: ml-dev-env-pytorch28
   namespace: nccl-test
   labels:
     app: ml-dev-env
-    base: ubuntu
+    pytorch-version: "2.8"
+    numpy-version: "1.26.4"
 spec:
   output:
     to:
       kind: ImageStreamTag
-      name: ml-dev-env:latest
+      name: ml-dev-env:pytorch-2.8-numpy1
   source:
     type: Dockerfile
     dockerfile: |
@@ -123,9 +124,12 @@ spec:
           tensorboard \
           wandb
 
-      # Fix NumPy compatibility: Force downgrade to 1.x after all packages installed
-      # This prevents NumPy 2.x compatibility warnings from packages compiled against 1.x
-      # Using --force-reinstall --no-deps to override any numpy 2.x without checking dependencies
+      # NumPy 1.x Required: PyTorch 2.8 has binary incompatibility with NumPy 2.x
+      # NVIDIA's PyTorch 2.8 (from image 25.08) was compiled against NumPy 1.x
+      # Attempting to use NumPy 2.x causes: "A module that was compiled using NumPy 1.x cannot be run in NumPy 2.x"
+      # qwen-omni-utils downgrades to NumPy 1.26.4, but opencv-python upgrades to NumPy 2.x
+      # This final downgrade ensures NumPy 1.26.4 for PyTorch 2.8 compatibility
+      # Note: PyTorch 2.9 (image 25.09) is compatible with NumPy 2.x - use pytorch-2.9-numpy2 tag for that
       RUN pip install --no-cache-dir --force-reinstall --no-deps "numpy<2.0"
 
       # NOTE: Using pre-installed flash-attn 2.7.4.post1 from NVIDIA PyTorch 25.08 base image
@@ -154,7 +158,7 @@ spec:
       # Create entrypoint script
       RUN echo '#!/bin/bash' > /entrypoint.sh && \
           echo 'echo "=========================================="' >> /entrypoint.sh && \
-          echo 'echo "ML Development Environment (Ubuntu Base)"' >> /entrypoint.sh && \
+          echo 'echo "ML Development Environment (PyTorch 2.8 + NumPy 1.x)"' >> /entrypoint.sh && \
           echo 'echo "=========================================="' >> /entrypoint.sh && \
           echo 'echo ""' >> /entrypoint.sh && \
           echo 'echo "GPU Information:"' >> /entrypoint.sh && \

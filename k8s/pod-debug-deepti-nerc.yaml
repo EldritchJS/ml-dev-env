@@ -5,6 +5,8 @@ metadata:
   namespace: mllm-interpretation-and-failure-investigation-c8fa7f
   labels:
     app: deepti-debug
+    pytorch-version: "2.8"
+    numpy-version: "1.26.4"
 spec:
   restartPolicy: Never
   tolerations:
@@ -14,7 +16,7 @@ spec:
     effect: "NoSchedule"
   containers:
   - name: qwen-omni
-    image: quay.io/jschless/ml-dev-env:latest
+    image: quay.io/jschless/ml-dev-env:pytorch-2.8-numpy1
     command:
     - /bin/bash
     - -c
