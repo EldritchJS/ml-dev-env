@@ -16,15 +16,19 @@ Development and testing on one node with 4x H100 GPUs.
 ## ✨ Features
 
 ### ML Frameworks & Libraries
-- ✅ **PyTorch 2.8.0a0** (NVIDIA 25.08) with CUDA 12.8 support
+- ✅ **PyTorch 2.9.0a0** (NVIDIA 25.09) with CUDA 13.0 support
 - ✅ **DeepSpeed** - Distributed training optimization (ZeRO-2/3)
 - ✅ **Flash Attention 2.7.4.post1** - Efficient attention computation (NVIDIA pre-built)
 - ✅ **Transformers** - Hugging Face library
 - ✅ **LLaMAFactory** - Efficient LLM fine-tuning
 - ✅ **VideoLLaMA2** - Video understanding with LLMs
 - ✅ **EasyR1** - Reinforcement learning tools
-- ✅ **NumPy 1.26.4** - Pinned to 1.x for compatibility
+- ✅ **NumPy 2.2.6** - Latest version, fully compatible with all packages
 - ✅ **ffmpeg** - Video/audio processing
+
+**Available Images:**
+- **PyTorch 2.9 + NumPy 2.x** (default, recommended) - `pytorch-2.9-numpy2`
+- **PyTorch 2.8 + NumPy 1.x** (legacy) - `pytorch-2.8-numpy1`
 
 ### Development Tools
 - ✅ **VSCode Server** - Browser-based IDE with debugging
@@ -379,7 +383,7 @@ See [CONFIGURATION-GUIDE.md](docs/CONFIGURATION-GUIDE.md) for all options.
 │  └─────────────────────────────────────┘   │
 │                                             │
 │  ┌─────────────────────────────────────┐   │
-│  │   4x H100 GPUs + CUDA 12.8          │   │
+│  │   4x H100 GPUs + CUDA 13.0          │   │
 │  └─────────────────────────────────────┘   │
 │                                             │
 │  ┌──────────────┐  ┌──────────────────┐   │
