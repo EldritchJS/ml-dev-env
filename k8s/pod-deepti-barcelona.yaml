@@ -6,6 +6,8 @@ metadata:
   labels:
     app: deepti-test
     workload: qwen-omni
+    pytorch-version: "2.9"
+    numpy-version: "2.2.6"
 spec:
   restartPolicy: Never
 
@@ -22,7 +24,7 @@ spec:
 
   containers:
   - name: qwen-omni
-    image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:latest
+    image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
     imagePullPolicy: Always
 
     # Request 4 GPUs (single node)

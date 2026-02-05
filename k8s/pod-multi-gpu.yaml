@@ -5,9 +5,10 @@ metadata:
   namespace: nccl-test
   labels:
     app: ml-dev-env
-    base: ubuntu
+    pytorch-version: "2.9"
+    numpy-version: "2.2.6"
   annotations:
-    description: "Multi-GPU ML development environment with RDMA support - Ubuntu base"
+    description: "Multi-GPU ML development environment with RDMA support - PyTorch 2.9 + NumPy 2.x"
 spec:
   # Use host network for RDMA/InfiniBand access (disabled for now to fix CUDA libraries)
   # hostNetwork: true
@@ -38,7 +39,7 @@ spec:
 
   containers:
   - name: ml-dev
-    image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:latest
+    image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
     imagePullPolicy: Always
 
     # CUSTOMIZE: Change GPU count

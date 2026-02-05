@@ -39,7 +39,8 @@ spec:
     metadata:
       labels:
         app: ml-dev-env-multi
-        base: ubuntu
+        pytorch-version: "2.9"
+        numpy-version: "2.2.6"
 
     spec:
       restartPolicy: Always
@@ -81,7 +82,7 @@ spec:
 
       containers:
       - name: ml-dev
-        image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:latest
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
         imagePullPolicy: Always
 
         # CUSTOMIZE: Change GPU count per pod
