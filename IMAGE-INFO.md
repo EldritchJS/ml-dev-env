@@ -22,6 +22,7 @@
 | **Python** | 3.12 | |
 | **CUDA** | 12.8 | |
 | **Transformers** | 4.52.4 | |
+| **NumPy** | 2.2.6 | Upgraded from 1.x - fully compatible with all packages |
 
 ## ML Training & Fine-tuning
 
@@ -48,7 +49,7 @@
 
 ## Data & Scientific Computing
 
-- **NumPy** < 2.0 (for compatibility)
+- **NumPy** 2.2.6 - Latest version, fully tested
 - **SciPy** - Scientific computing
 - **scikit-learn** - Machine learning utilities
 - **Matplotlib** - Plotting and visualization
@@ -109,20 +110,25 @@ NCCL_NET_GDR_LEVEL=5  # GPUDirect RDMA enabled
 
 ## Verified Functionality
 
-✅ **PyTorch 2.8 + Flash-Attention 2.7.4.post1** - No symbol mismatch errors
+✅ **PyTorch 2.9 + Flash-Attention 2.7.4.post1** - No symbol mismatch errors
+✅ **NumPy 2.2.6 Compatibility** - All packages tested and working (LLaMAFactory, TRL, Flash-Attention, Qwen2.5-Omni)
 ✅ **CVE-2025-32434 Fix** - PyTorch >= 2.6 security requirement met
-✅ **Qwen2.5-Omni Model** - Loading and inference tested successfully
+✅ **Qwen2.5-Omni Model** - Loading and inference tested successfully with NumPy 2.x
 ✅ **4x NVIDIA H100 GPUs** - Multi-GPU support with NVLink verified
 ✅ **InfiniBand/RDMA** - Network configuration for distributed training
-✅ **Flash-Attention** - Optimized attention for transformers
+✅ **Flash-Attention** - Optimized attention for transformers, compatible with NumPy 2.x
 
 ## Usage Examples
 
 ### Pull Image
 ```bash
-podman pull quay.io/jschless/ml-dev-env:latest
+# Recommended: PyTorch 2.9 with NumPy 2.2.6
+podman pull quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2
 # or
-docker pull quay.io/jschless/ml-dev-env:latest
+docker pull quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2
+
+# Legacy: PyTorch 2.8 with NumPy 1.26.4
+podman pull quay.io/jschless/ml-dev-env:latest
 ```
 
 ### Run Interactive Container
@@ -143,7 +149,7 @@ metadata:
 spec:
   containers:
   - name: ml-dev
-    image: quay.io/jschless/ml-dev-env:latest
+    image: quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2
     resources:
       limits:
         nvidia.com/gpu: 4  # Request 4 GPUs
@@ -167,15 +173,22 @@ code-server --bind-addr 0.0.0.0:8080 --auth none
 - **Base:** NVIDIA PyTorch 25.08-py3
 - **Strategy:** PyTorch version pinning via constraints to prevent upgrades during package installation
 
+## Available Tags
+
+- **`latest`** - PyTorch 2.8 with NumPy 1.26.4 (legacy)
+- **`pytorch-2.8`** - PyTorch 2.8 with NumPy 1.26.4
+- **`pytorch-2.9`** - PyTorch 2.9 with NumPy 2.2.6 (recommended)
+- **`pytorch-2.9-numpy2`** - Same as pytorch-2.9, explicit NumPy 2.x tag
+
 ## Key Design Decisions
 
 1. **Pre-installed Flash-Attention** - Using NVIDIA's pre-built flash-attn 2.7.4.post1 instead of compiling from source to avoid symbol mismatch issues with NVIDIA's custom PyTorch build
 
-2. **PyTorch 2.8** - Chosen for CVE-2025-32434 fix and compatibility with flash-attention 2.7.4.post1
+2. **PyTorch 2.9** - Latest NVIDIA build with CVE-2025-32434 fix and full NumPy 2.x compatibility
 
 3. **Constraint-based Installation** - All packages installed with PyTorch version constraints to prevent accidental upgrades during dependency resolution
 
-4. **NumPy < 2.0** - Force-reinstalled to prevent compatibility warnings from packages compiled against NumPy 1.x
+4. **NumPy 2.2.6** - Upgraded from 1.x after comprehensive testing. All packages (LLaMAFactory, TRL, Flash-Attention, Qwen2.5-Omni) work correctly with NumPy 2.x despite pip warnings during build
 
 5. **General-Purpose ML** - Includes packages for various ML workloads (LLM fine-tuning, multimodal models, computer vision, etc.) not just Qwen2.5-Omni
 

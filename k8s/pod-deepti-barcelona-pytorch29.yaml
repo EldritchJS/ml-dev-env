@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: deepti-test-pytorch29
+  namespace: nccl-test
+  labels:
+    app: deepti-qwen-test
+    pytorch-version: "2.9"
+    numpy-version: "2.2.6"
+spec:
+  restartPolicy: Never
+  containers:
+  - name: qwen-omni
+    image: quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2
+    command:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+      echo "=========================================="
+      echo "Qwen2.5-Omni Test (PyTorch 2.9 - Barcelona)"
+      echo "=========================================="
+      echo ""
+      echo "Namespace: nccl-test"
+      echo "Cluster: Barcelona"
+      echo ""
+
+      echo "GPU Information:"
+      nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader
+      echo ""
+
+      echo "GPU Topology:"
+      nvidia-smi topo -m
+      echo ""
+
+      echo "Verifying Python environment:"
+      python -c "import torch; print(f'PyTorch {torch.__version__}, CUDA available: {torch.cuda.is_available()}, GPUs: {torch.cuda.device_count()}')"
+      python -c "import transformers; print(f'Transformers {transformers.__version__}')"
+      python -c "import qwen_omni_utils; print('qwen-omni-utils: installed')" 2>/dev/null || echo "qwen-omni-utils: error"
+      python -c "import flash_attn; print(f'flash-attn: {flash_attn.__version__}')"
+      echo ""
+
+      cp /scripts/deepti.py /workspace/deepti.py
+      echo "Copied deepti.py to workspace"
+
+      echo "=========================================="
+      echo "Running deepti.py..."
+      echo "=========================================="
+      cd /workspace
+      python deepti.py
+
+      echo ""
+      echo "Test completed successfully!"
+    resources:
+      requests:
+        nvidia.com/gpu: 4
+        memory: 8Gi
+        cpu: 4
+      limits:
+        nvidia.com/gpu: 4
+        memory: 10Gi
+        cpu: 8
+    env:
+    - name: CUDA_VISIBLE_DEVICES
+      value: "0,1,2,3"
+    - name: TRANSFORMERS_CACHE
+      value: /workspace/.cache/transformers
+    - name: HF_HOME
+      value: /workspace/.cache/huggingface
+    - name: TRITON_CACHE_DIR
+      value: /workspace/.triton
+    - name: NCCL_IB_DISABLE
+      value: "1"
+    - name: NCCL_DEBUG
+      value: "INFO"
+    - name: NCCL_P2P_LEVEL
+      value: "NVL"
+    volumeMounts:
+    - name: deepti-script
+      mountPath: /scripts
+    - name: workspace
+      mountPath: /workspace
+  volumes:
+  - name: deepti-script
+    configMap:
+      name: deepti-script
+  - name: workspace
+    emptyDir: {}

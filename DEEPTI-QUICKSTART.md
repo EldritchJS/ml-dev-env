@@ -7,8 +7,9 @@ Welcome! This guide will help you run and debug the Qwen2.5-Omni multimodal mode
 - **Cluster:** NERC Production (shift.nerc.mghpcc.org)
 - **Namespace:** `mllm-interpretation-and-failure-investigation-c8fa7f`
 - **GPUs:** 4x NVIDIA H100 80GB HBM3 per pod
-- **Image:** `quay.io/jschless/ml-dev-env:latest` (12.1 GB)
-  - PyTorch 2.8 with Flash-Attention 2.7.4.post1
+- **Image:** `quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2` (12.1 GB)
+  - PyTorch 2.9 with Flash-Attention 2.7.4.post1
+  - NumPy 2.2.6 (fully tested and compatible)
   - All necessary ML libraries pre-installed
 
 ## Prerequisites
