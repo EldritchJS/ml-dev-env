@@ -73,8 +73,8 @@ for i in {0..3}; do
 
     # Check if pod exists and is ready
     for retry in {1..30}; do
-        if kubectl get pod "$POD" -n nccl-test &>/dev/null 2>&1; then
-            STATUS=$(kubectl get pod "$POD" -n nccl-test -o jsonpath='{.status.phase}')
+        if oc get pod "$POD" -n nccl-test &>/dev/null 2>&1; then
+            STATUS=$(oc get pod "$POD" -n nccl-test -o jsonpath='{.status.phase}')
             if [ "$STATUS" = "Running" ]; then
                 echo "✅ Ready"
                 break
