@@ -223,28 +223,49 @@ oc exec h-kim-0 -n nccl-test -- \
 
 ## ⚠️ Running in Different Namespaces
 
-If deploying to a namespace other than `nccl-test`, use the deployment script to automatically configure everything:
+The deployment script handles namespace configuration automatically:
+
+### RDMA Mode (Recommended - High Performance)
 
 ```bash
-# Automatic configuration for any namespace
-./scripts/deploy-h-kim.sh --namespace b-efficient-memory-offloading-765cab --mode rdma
+./scripts/deploy-h-kim.sh --namespace my-namespace --mode rdma
 ```
 
-**Common Issues:**
-- **NCCL Error: "Bootstrap: no socket interface found"**
-  - Cause: RDMA interfaces (net1-4) not available
-  - Fix: Use `--mode tcp` instead of `--mode rdma`
+**Prerequisites for RDMA mode:**
+1. Service account with IPC_LOCK capability
+2. Network attachment definitions for RDMA interfaces
+3. Nodes with RDMA-capable NICs (ConnectX-7)
 
-**Manual deployment to different namespace:**
+See [docs/H-KIM-RDMA-SETUP.md](docs/H-KIM-RDMA-SETUP.md) for complete RDMA setup instructions.
+
+### TCP Mode (Fallback - Works Anywhere)
+
 ```bash
-# Use TCP mode if RDMA unavailable
-NAMESPACE="my-namespace"
-sed "s/nccl-test/$NAMESPACE/g" k8s/statefulset-h-kim.yaml | \
-  sed 's|image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest|quay.io/jschless/ml-dev-env:h-kim|' | \
-  sed 's/NCCL_SOCKET_IFNAME.*net1.*/NCCL_SOCKET_IFNAME: "eth0"/' | \
-  sed 's/NCCL_IB_DISABLE.*0.*/NCCL_IB_DISABLE: "1"/' | \
-  oc apply -f -
+./scripts/deploy-h-kim.sh --namespace my-namespace --mode tcp
 ```
+
+Use TCP mode when:
+- RDMA network attachments are not available
+- Testing in namespaces without RDMA setup
+- You encounter "Bootstrap: no socket interface found" errors
+
+**Performance difference:**
+- RDMA: ~12,000 tokens/sec (8 H100s)
+- TCP: ~8,000 tokens/sec (8 H100s)
+
+### Common Issues
+
+**NCCL Error: "Bootstrap: no socket interface found"**
+- Cause: RDMA interfaces (net1-4) not available in namespace
+- Fix: Use `--mode tcp` or complete RDMA setup (see [docs/H-KIM-RDMA-SETUP.md](docs/H-KIM-RDMA-SETUP.md))
+
+**Pods Stuck in Pending: "Insufficient openshift.io/eno5np0rdma"**
+- Cause: Network attachment definitions missing or misconfigured
+- Fix: Create network attachments (see RDMA setup guide)
+
+**IPC_LOCK Capability Error**
+- Cause: Service account lacks nccl-scc permissions
+- Fix: `oc adm policy add-scc-to-user nccl-scc -z h-kim-sa -n <namespace>`
 
 ---
 
