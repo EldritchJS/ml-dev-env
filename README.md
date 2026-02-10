@@ -62,7 +62,7 @@ Example output:
 ```
 Available cluster configurations:
   - cairo      (NERC Cairo - RDMA + RWX storage)
-  - barcelona  (NERC Barcelona - TCP + per-pod storage)
+  - barcelona  (NERC Barcelona - RDMA + per-pod storage)
 ```
 
 ### 2. Deploy to a Cluster
@@ -72,7 +72,12 @@ Available cluster configurations:
 make deploy-cluster CLUSTER=cairo MODE=rdma
 ```
 
-**Multi-Node with TCP (Universal):**
+**Multi-Node with RDMA (Barcelona):**
+```bash
+make deploy-cluster CLUSTER=barcelona MODE=rdma
+```
+
+**Multi-Node with TCP (Fallback):**
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=tcp
 ```
@@ -190,10 +195,11 @@ Cluster config approach:
 # List clusters
 make list-clusters
 
-# Deploy with RDMA
+# Deploy with RDMA (both clusters support RDMA)
 make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 
-# Deploy with TCP
+# Deploy with TCP fallback (if RDMA unavailable)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
 
 # Dry run (preview)

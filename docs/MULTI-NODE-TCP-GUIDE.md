@@ -35,11 +35,13 @@ The cluster configuration system supports **two networking modes** for multi-nod
 # List available clusters
 make list-clusters
 
-# TCP Mode (universal compatibility)
-make deploy-cluster CLUSTER=barcelona MODE=tcp
-
-# RDMA Mode (high performance)
+# RDMA Mode (high performance - both clusters support it)
 make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
+
+# TCP Mode (fallback - if RDMA unavailable)
+make deploy-cluster CLUSTER=barcelona MODE=tcp
+make deploy-cluster CLUSTER=cairo MODE=tcp
 ```
 
 ### What the Cluster Config Handles

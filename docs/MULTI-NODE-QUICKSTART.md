@@ -56,14 +56,15 @@ make list-clusters
 
 Example clusters:
 - **cairo** - NERC Cairo cluster with RDMA and RWX storage
-- **barcelona** - NERC Barcelona cluster with per-pod storage
+- **barcelona** - NERC Barcelona cluster with RDMA and per-pod storage
 
 ## 📊 Deployment Modes
 
-### RDMA Mode (High Performance)
-Best for production training with InfiniBand hardware:
+### RDMA Mode (High Performance - Recommended)
+Best for production training with InfiniBand hardware (both clusters support it):
 ```bash
 make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 **Features**:
@@ -71,10 +72,11 @@ make deploy-cluster CLUSTER=cairo MODE=rdma
 - Higher bandwidth, lower latency
 - Requires InfiniBand adapters (mlx5_*)
 
-### TCP Mode (Universal Compatibility)
-Works on any cluster with standard Ethernet:
+### TCP Mode (Fallback)
+Use only if RDMA is unavailable or troubleshooting:
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=tcp
+make deploy-cluster CLUSTER=cairo MODE=tcp
 ```
 
 **Features**:

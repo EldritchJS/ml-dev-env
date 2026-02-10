@@ -28,16 +28,18 @@ make list-clusters
 
 Example clusters:
 - **cairo** - NERC Cairo cluster (RDMA + RWX storage)
-- **barcelona** - NERC Barcelona cluster (TCP + per-pod storage)
+- **barcelona** - NERC Barcelona cluster (RDMA + per-pod storage)
 
 ### Step 2: Deploy Multi-Node Environment
 
-**Option A: Use RDMA (High Performance)**
+**Option A: Use RDMA (High Performance - Both Clusters)**
 ```bash
 make deploy-cluster CLUSTER=cairo MODE=rdma
+# or
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
-**Option B: Use TCP (Universal)**
+**Option B: Use TCP (Fallback - If RDMA Unavailable)**
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=tcp
 ```
@@ -146,11 +148,12 @@ network:
 make deploy-cluster CLUSTER=cairo MODE=rdma
 ```
 
-### TCP Mode (Universal Compatibility)
+### TCP Mode (Fallback Option)
 
-**Requirements:**
-- Standard Ethernet networking
-- Works on any cluster
+**Use when:**
+- RDMA is unavailable or not configured
+- Standard Ethernet networking only
+- Troubleshooting RDMA issues
 
 **Features:**
 - No special hardware needed
@@ -167,7 +170,9 @@ network:
 
 **Deploy:**
 ```bash
+# TCP fallback (works on any cluster)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
+make deploy-cluster CLUSTER=cairo MODE=tcp
 ```
 
 ## 💾 Storage Modes
