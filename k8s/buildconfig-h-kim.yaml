@@ -1,0 +1,86 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: h-kim
+  namespace: nccl-test
+  labels:
+    app: h-kim
+    pytorch-version: "2.9"
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: h-kim:latest
+  source:
+    type: Dockerfile
+    dockerfile: |
+      # H-Kim Image - Minimal PyTorch Environment
+      # Based on NVIDIA PyTorch 26.01 (latest stable) with focused package set
+
+      FROM nvcr.io/nvidia/pytorch:26.01-py3 AS base
+
+      # Set environment variables
+      ENV PYTHONUNBUFFERED=1 \
+          DEBIAN_FRONTEND=noninteractive
+
+      # Install system dependencies
+      RUN apt-get update && apt-get install -y \
+          git \
+          wget \
+          vim \
+          curl \
+          && rm -rf /var/lib/apt/lists/*
+
+      # Install RDMA/InfiniBand tools for multi-node training
+      RUN apt-get update && apt-get install -y \
+          libibverbs-dev \
+          librdmacm-dev \
+          rdma-core \
+          infiniband-diags \
+          pciutils \
+          numactl \
+          && rm -rf /var/lib/apt/lists/*
+
+      # Upgrade pip and install base build tools
+      RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+      # Set NCCL environment variables for RDMA/GPUDirect
+      ENV NCCL_DEBUG=INFO \
+          NCCL_IB_DISABLE=0 \
+          NCCL_IB_HCA=mlx5_6,mlx5_7,mlx5_10,mlx5_11 \
+          NCCL_IB_GID_INDEX=3 \
+          NCCL_SOCKET_IFNAME=net1,net2,net3,net4 \
+          NCCL_NET_GDR_LEVEL=5
+
+      # Install Python packages
+      # Note: PyTorch is already installed in base image
+      RUN pip install --no-cache-dir \
+          torchtitan \
+          transformers \
+          tokenizers \
+          datasets \
+          accelerate \
+          safetensors \
+          hydra-core \
+          omegaconf \
+          pyyaml \
+          einops \
+          tqdm \
+          rich \
+          tensorboard \
+          fsspec \
+          wandb
+
+      # Set working directory
+      WORKDIR /workspace
+
+      # Default command
+      CMD ["/bin/bash"]
+
+  strategy:
+    type: Docker
+    dockerStrategy:
+      noCache: false
+
+  triggers:
+  - type: ConfigChange

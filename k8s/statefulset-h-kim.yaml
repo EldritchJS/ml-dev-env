@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: h-kim-headless
+  namespace: nccl-test
+  labels:
+    app: h-kim-multi
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: h-kim-multi
+  ports:
+  - port: 29500
+    name: master
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: h-kim
+  namespace: nccl-test
+  labels:
+    app: h-kim-multi
+spec:
+  serviceName: h-kim-headless
+  replicas: 2  # 2 nodes = 8 GPUs total
+  podManagementPolicy: Parallel
+
+  selector:
+    matchLabels:
+      app: h-kim-multi
+
+  template:
+    metadata:
+      labels:
+        app: h-kim-multi
+
+    spec:
+      restartPolicy: Always
+
+      # Spread pods across different nodes
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - h-kim-multi
+            topologyKey: kubernetes.io/hostname
+
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      containers:
+      - name: h-kim
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
+        imagePullPolicy: Always
+
+        resources:
+          requests:
+            nvidia.com/gpu: 4
+            memory: 128Gi
+            cpu: 32
+          limits:
+            nvidia.com/gpu: 4
+            memory: 256Gi
+            cpu: 64
+
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+
+        # NCCL configuration for RDMA
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_IB_DISABLE
+          value: "0"
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+        - name: NCCL_IB_GID_INDEX
+          value: "3"
+        - name: NCCL_NET_GDR_LEVEL
+          value: "5"
+        - name: NCCL_SOCKET_IFNAME
+          value: "net1,net2,net3,net4"
+
+        # Pod identity
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # Distributed training settings
+        - name: MASTER_ADDR
+          value: "h-kim-0.h-kim-headless.nccl-test.svc.cluster.local"
+        - name: MASTER_PORT
+          value: "29500"
+        - name: WORLD_SIZE
+          value: "8"  # 2 nodes × 4 GPUs
+        - name: GPUS_PER_NODE
+          value: "4"
+
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: dshm
+          mountPath: /dev/shm
+
+        ports:
+        - containerPort: 29500
+          name: master
+          protocol: TCP
+
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+
+          # Calculate node rank from pod ordinal
+          POD_ORDINAL=${HOSTNAME##*-}
+          export NODE_RANK=$POD_ORDINAL
+
+          echo "=========================================="
+          echo "H-Kim Multi-Node Environment"
+          echo "=========================================="
+          echo "Pod: $POD_NAME"
+          echo "Node Rank: $NODE_RANK"
+          echo "World Size: $WORLD_SIZE"
+          echo "Master: $MASTER_ADDR:$MASTER_PORT"
+          echo ""
+
+          # Show GPU info
+          nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
+          echo ""
+
+          echo "Environment ready. Waiting for training job..."
+          sleep infinity
+
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
+
+  # Each pod gets its own workspace PVC
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: ocs-external-storagecluster-ceph-rbd

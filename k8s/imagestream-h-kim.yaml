@@ -1,0 +1,10 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: h-kim
+  namespace: nccl-test
+  labels:
+    app: h-kim
+spec:
+  lookupPolicy:
+    local: true
