@@ -27,7 +27,11 @@ Development and testing on one node with 4x H100 GPUs.
 - ✅ **ffmpeg** - Video/audio processing
 
 **Available Images:**
-- **PyTorch 2.9 + NumPy 2.x** (default, recommended) - `pytorch-2.9-numpy2`
+- **ml-dev-env (PyTorch 2.9)** (default, full dev environment) - `pytorch-2.9-numpy2`
+  - VSCode, Jupyter, DeepSpeed, Flash Attention, LLaMAFactory
+- **h-kim (PyTorch 26.01)** (minimal training) - `h-kim`
+  - TorchTitan, minimal packages, ~9GB vs 12GB
+  - See [H-KIM-QUICKSTART.md](H-KIM-QUICKSTART.md)
 - **PyTorch 2.8 + NumPy 1.x** (legacy) - `pytorch-2.8-numpy1`
 
 ### Development Tools
