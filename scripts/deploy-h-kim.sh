@@ -207,15 +207,30 @@ if [[ "$MODE" == "rdma" ]]; then
     NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"
     NCCL_IB_GID_INDEX="3"
     NCCL_NET_GDR_LEVEL="5"
+    NETWORK_ANNOTATIONS="      annotations:
+        k8s.v1.cni.cncf.io/networks: ${NAMESPACE}/eno5np0-network, ${NAMESPACE}/eno6np0-network, ${NAMESPACE}/eno7np0-network, ${NAMESPACE}/eno8np0-network"
+    SRIOV_RESOURCES="            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1"
+    SECURITY_CONTEXT="        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK"
+    SERVICE_ACCOUNT="      serviceAccountName: h-kim-sa"
 else
     NCCL_SOCKET_IFNAME="eth0"
     NCCL_IB_DISABLE="1"
     NCCL_IB_HCA=""
     NCCL_IB_GID_INDEX="0"
     NCCL_NET_GDR_LEVEL="0"
+    NETWORK_ANNOTATIONS=""
+    SRIOV_RESOURCES=""
+    SECURITY_CONTEXT=""
+    SERVICE_ACCOUNT=""
 fi
 
-# Build node affinity YAML
+# Build node affinity YAML (just the nodeAffinity part, not the wrapper)
 build_node_affinity() {
     if [[ ${#NODE_ARRAY[@]} -eq 0 ]]; then
         echo ""
@@ -223,7 +238,6 @@ build_node_affinity() {
     fi
 
     cat << EOF
-      affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
@@ -251,8 +265,10 @@ metadata:
   namespace: $NAMESPACE
   labels:
     app: h-kim
+$NETWORK_ANNOTATIONS
 spec:
   restartPolicy: Always
+$SERVICE_ACCOUNT
 
 $NODE_AFFINITY
 
@@ -269,15 +285,19 @@ $NODE_AFFINITY
     image: $IMAGE
     imagePullPolicy: Always
 
+$SECURITY_CONTEXT
+
     resources:
       requests:
         nvidia.com/gpu: 4
         memory: 128Gi
         cpu: 32
+$SRIOV_RESOURCES
       limits:
         nvidia.com/gpu: 4
         memory: 256Gi
         cpu: 64
+$SRIOV_RESOURCES
 
     env:
     - name: NVIDIA_VISIBLE_DEVICES
@@ -365,10 +385,13 @@ spec:
     metadata:
       labels:
         app: h-kim-multi
+$NETWORK_ANNOTATIONS
 
     spec:
       restartPolicy: Always
+$SERVICE_ACCOUNT
 
+      affinity:
 $NODE_AFFINITY
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -393,15 +416,19 @@ $NODE_AFFINITY
         image: $IMAGE
         imagePullPolicy: Always
 
+$SECURITY_CONTEXT
+
         resources:
           requests:
             nvidia.com/gpu: 4
             memory: 128Gi
             cpu: 32
+$SRIOV_RESOURCES
           limits:
             nvidia.com/gpu: 4
             memory: 256Gi
             cpu: 64
+$SRIOV_RESOURCES
 
         env:
         - name: NVIDIA_VISIBLE_DEVICES
