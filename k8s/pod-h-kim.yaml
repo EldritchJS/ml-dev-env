@@ -8,6 +8,17 @@ metadata:
 spec:
   restartPolicy: Always
 
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+            - moc-r4pcc04u23-nairr
+            - moc-r4pcc04u25-nairr
+
   nodeSelector:
     nvidia.com/gpu.present: "true"
 

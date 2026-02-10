@@ -125,6 +125,15 @@ spec:
 
       # Spread pods across different nodes
       affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - moc-r4pcc04u23-nairr
+                - moc-r4pcc04u25-nairr
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
