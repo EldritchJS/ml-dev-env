@@ -202,7 +202,7 @@ fi
 
 # Configure network settings based on mode
 if [[ "$MODE" == "rdma" ]]; then
-    NCCL_SOCKET_IFNAME="net1,net2,net3,net4"
+    NCCL_SOCKET_IFNAME="eth0"  # Use eth0 for bootstrap, IB devices for RDMA data
     NCCL_IB_DISABLE="0"
     NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"
     NCCL_IB_GID_INDEX="3"
