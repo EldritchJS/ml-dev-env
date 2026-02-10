@@ -2,21 +2,38 @@
 
 Minimal PyTorch 26.01 environment with TorchTitan and essential ML packages.
 
-## 🚀 Quick Start (2 Options)
+## 🚀 Quick Start (3 Options)
 
-### Option A: Use Pre-Built Image from Quay
+### Option A: Use Deployment Script (Recommended)
+
+Automatically handles namespace, network mode, and configuration:
+
+```bash
+# Deploy to any namespace with RDMA
+./scripts/deploy-h-kim.sh --namespace my-namespace --mode rdma
+
+# Deploy with TCP fallback
+./scripts/deploy-h-kim.sh --namespace my-namespace --mode tcp
+
+# Preview without deploying
+./scripts/deploy-h-kim.sh --namespace my-namespace --dry-run
+```
+
+See `./scripts/deploy-h-kim.sh --help` for all options.
+
+### Option B: Use Pre-Built Image from Quay
 
 ```bash
 # Pull the image
 podman pull quay.io/jschless/ml-dev-env:h-kim
 
-# Or deploy directly on OpenShift
+# Or deploy directly on OpenShift (nccl-test namespace)
 oc apply -f k8s/statefulset-h-kim.yaml
 ```
 
 The image is ~9.2 GB and ready to use.
 
-### Option B: Build from Source (~10-15 minutes)
+### Option C: Build from Source (~10-15 minutes)
 
 ```bash
 # Create ImageStream and BuildConfig
@@ -201,6 +218,33 @@ oc exec h-kim-0 -n nccl-test -- \
 
 **Choose h-kim** for focused training workloads.
 **Choose ml-dev-env** for full development environment.
+
+---
+
+## ⚠️ Running in Different Namespaces
+
+If deploying to a namespace other than `nccl-test`, use the deployment script to automatically configure everything:
+
+```bash
+# Automatic configuration for any namespace
+./scripts/deploy-h-kim.sh --namespace b-efficient-memory-offloading-765cab --mode rdma
+```
+
+**Common Issues:**
+- **NCCL Error: "Bootstrap: no socket interface found"**
+  - Cause: RDMA interfaces (net1-4) not available
+  - Fix: Use `--mode tcp` instead of `--mode rdma`
+
+**Manual deployment to different namespace:**
+```bash
+# Use TCP mode if RDMA unavailable
+NAMESPACE="my-namespace"
+sed "s/nccl-test/$NAMESPACE/g" k8s/statefulset-h-kim.yaml | \
+  sed 's|image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest|quay.io/jschless/ml-dev-env:h-kim|' | \
+  sed 's/NCCL_SOCKET_IFNAME.*net1.*/NCCL_SOCKET_IFNAME: "eth0"/' | \
+  sed 's/NCCL_IB_DISABLE.*0.*/NCCL_IB_DISABLE: "1"/' | \
+  oc apply -f -
+```
 
 ---
 
