@@ -284,6 +284,152 @@ The test script does the following:
 
 ---
 
+## Managing Data with Shared Storage
+
+For working with your own videos or sharing datasets across multiple test runs, you can use a shared PersistentVolumeClaim (PVC).
+
+### When You Need Shared Storage
+
+- Testing with your own video files
+- Sharing datasets across multiple pods
+- Storing model checkpoints for fine-tuning
+- Managing large video collections
+
+### Creating a Data Pod
+
+Create a temporary pod to upload/download data:
+
+```bash
+# Create data-pod.yaml
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: deepti-data
+  namespace: mllm-interpretation-and-failure-investigation-c8fa7f
+spec:
+  restartPolicy: Never
+  containers:
+  - name: data
+    image: registry.access.redhat.com/ubi9/ubi:latest
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - name: shared-data
+      mountPath: /data
+  volumes:
+  - name: shared-data
+    persistentVolumeClaim:
+      claimName: deepti-videos  # Your PVC name
+EOF
+
+# Wait for pod to start
+oc wait --for=condition=Ready pod/deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f --timeout=60s
+```
+
+### Upload Your Videos
+
+**Single video:**
+```bash
+oc cp /local/path/video.mp4 deepti-data:/data/videos/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+**Multiple videos (directory):**
+```bash
+oc cp /local/videos/ deepti-data:/data/videos/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+**Large dataset (compressed):**
+```bash
+# Compress locally
+tar -czf videos.tar.gz videos/
+
+# Upload
+oc cp videos.tar.gz deepti-data:/data/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Extract in pod
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  tar -xzf /data/videos.tar.gz -C /data/
+```
+
+### Verify Upload
+
+```bash
+# List files
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- ls -lh /data/videos/
+
+# Check disk space
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- df -h /data
+```
+
+### Using Shared Data in Test Pods
+
+Update your pod YAML to mount the PVC:
+
+```yaml
+# In k8s/pod-deepti-nerc.yaml, add:
+volumes:
+- name: shared-data
+  persistentVolumeClaim:
+    claimName: deepti-videos
+
+# And in containers volumeMounts:
+volumeMounts:
+- name: shared-data
+  mountPath: /data
+```
+
+Then update `deepti.py` to use the shared video:
+
+```python
+# Use video from shared storage
+VIDEO_PATH = "/data/videos/my-test-video.mp4"
+
+# Comment out the ffmpeg generation section
+```
+
+### Download Results
+
+**Download checkpoints or outputs:**
+```bash
+# Download single file
+oc cp deepti-data:/data/checkpoints/model.pt /local/path/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Download directory
+oc cp deepti-data:/data/outputs/ /local/outputs/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+### Cleanup
+
+```bash
+# Delete data pod (PVC data persists)
+oc delete pod deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Delete specific files
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  rm -rf /data/old-videos/
+```
+
+### Quick Reference
+
+```bash
+# Upload video
+oc cp video.mp4 deepti-data:/data/videos/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# List contents
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- ls -lh /data/
+
+# Check space
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- df -h /data
+
+# Download results
+oc cp deepti-data:/data/outputs/ /local/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Delete pod
+oc delete pod deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+---
+
 ## Advanced: Customizing the Test
 
 ### Use Your Own Video
