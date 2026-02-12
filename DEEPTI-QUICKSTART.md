@@ -351,6 +351,103 @@ oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
   tar -xzf /data/videos.tar.gz -C /data/
 ```
 
+### Download Data from URLs
+
+Download datasets or videos directly from the internet to the PVC (faster than downloading locally then uploading):
+
+**Using wget:**
+```bash
+# Download single file
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  wget -P /data/videos/ https://example.com/video.mp4
+
+# Download with progress and resume support
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  wget -c --progress=bar:force https://example.com/large-dataset.tar.gz -O /data/dataset.tar.gz
+```
+
+**Using curl:**
+```bash
+# Download file
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  curl -L -o /data/videos/video.mp4 https://example.com/video.mp4
+
+# Download with progress bar
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  curl -# -L -o /data/dataset.tar.gz https://example.com/dataset.tar.gz
+```
+
+**Using Python (for complex downloads):**
+```bash
+# Install Python packages if needed
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  pip install requests tqdm
+
+# Download with progress bar
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  python3 -c "
+import requests
+from tqdm import tqdm
+
+url = 'https://example.com/large-file.mp4'
+output = '/data/videos/video.mp4'
+
+response = requests.get(url, stream=True)
+total_size = int(response.headers.get('content-length', 0))
+
+with open(output, 'wb') as f, tqdm(total=total_size, unit='B', unit_scale=True) as pbar:
+    for chunk in response.iter_content(chunk_size=8192):
+        f.write(chunk)
+        pbar.update(len(chunk))
+"
+```
+
+**Download and extract in one step:**
+```bash
+# Download and extract tar.gz
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  bash -c "wget -O- https://example.com/dataset.tar.gz | tar -xzf - -C /data/"
+
+# Download and extract zip
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  bash -c "curl -L https://example.com/dataset.zip -o /tmp/dataset.zip && \
+           unzip /tmp/dataset.zip -d /data/ && \
+           rm /tmp/dataset.zip"
+```
+
+**Download from Google Drive (public files):**
+```bash
+# Install gdown
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  pip install gdown
+
+# Download file (replace FILE_ID with your Google Drive file ID)
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  gdown https://drive.google.com/uc?id=FILE_ID -O /data/videos/video.mp4
+
+# Download entire folder
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  gdown --folder https://drive.google.com/drive/folders/FOLDER_ID -O /data/datasets/
+```
+
+**Download Hugging Face datasets:**
+```bash
+# Install huggingface-hub
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  pip install huggingface-hub
+
+# Download model or dataset
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  python3 -c "
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id='username/dataset-name',
+    repo_type='dataset',
+    local_dir='/data/datasets/my-dataset'
+)
+"
+```
+
 ### Verify Upload
 
 ```bash
