@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tsfm-headless
+  labels:
+    app: tsfm-ddp
+spec:
+  ports:
+  - port: 29500
+    name: master-port
+  clusterIP: None  # This makes it a Headless Service
+  selector:
+    app: tsfm-ddp
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tsfm-node
+spec:
+  serviceName: "tsfm-headless"
+  replicas: 2
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: tsfm-ddp
+  template:
+    metadata:
+      labels:
+        app: tsfm-ddp
+      annotations:
+        k8s.v1.cni.cncf.io/networks: b-ts-data-agent-0a0cee/eno5np0-network, b-ts-data-agent-0a0cee/eno6np0-network, b-ts-data-agent-0a0cee/eno7np0-network, b-ts-data-agent-0a0cee/eno8np0-network
+    spec:
+      restartPolicy: Always
+      serviceAccountName: h-kim-sa
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+              - moc-r4pcc02u15-yunshi
+              - moc-r4pcc02u16-yunshi
+
+      containers:
+      - name: pytorch-ddp
+        # image: nvcr.io/nvidia/pytorch:25.06-py3
+        image: nvcr.io/nvidia/pytorch:25.12-py3
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+        env:
+        # NCCL Environment Variables
+        - name: NCCL_IB_DISABLE
+          value: "0"
+        - name: NCCL_P2P_DISABLE
+          value: "0"
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+        - name: NCCL_SOCKET_IFNAME
+          value: "eth0"
+        - name: OMP_NUM_THREADS
+          value: "8"
+        - name: NCCL_IB_GID_INDEX
+          value: "3"
+        - name: NCCL_NET_GDR_LEVEL
+          value: "5"
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0,1,2,3"
+        # Project Environment Variables
+        - name: PROJECT_ROOT
+          value: "/mnt/tsfm/hybrid_tsfm"
+        - name: GIFT_EVAL
+          value: "/mnt/tsfm/data/GiftEval"
+        - name: GIFT_EVAL_PRETRAIN
+          value: "/mnt/tsfm/data/GiftPretrain"
+        - name: KERNEL_SYNTH
+          value: "/mnt/tsfm/data/kernel_synth_10M"
+        - name: TSMIXUP
+          value: "/mnt/tsfm/data/tsmixup"
+        - name: TSMIXUP_ZERO
+          value: "/mnt/tsfm/data/tsmixup_v01"
+          
+        command:
+          - /bin/bash
+          - -c
+        args:
+          - |
+            echo "--- CONFIGURING MULTI-NODE ---"
+            export NODE_RANK=${HOSTNAME##*-}
+            export MASTER_ADDR=tsfm-node-0.tsfm-headless
+            export MASTER_PORT=29500
+            export WORLD_SIZE=2
+
+            echo "I am Node Rank: $NODE_RANK"
+            echo "Master Addr: $MASTER_ADDR"
+
+            export HOME=/mnt/tsfm
+            export PATH=$HOME/.local/bin:$PATH
+            pip install --user transformers[torch] datasets python-dotenv
+
+            echo "Starting DDP Training..."
+
+            ROOT_DIR=$(echo $PROJECT_ROOT)
+            torchrun \
+              --rdzv_backend c10d \
+              --nproc_per_node=4 \
+              --nnodes=$WORLD_SIZE \
+              --node_rank=$NODE_RANK \
+              --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
+              $ROOT_DIR/pretrain_hybrid.py \
+              --project_name "HybridTSFM" \
+              --run_name "hybrid_zero_shot_test" \
+              --data_root "$ROOT_DIR/data" \
+              --save_dir "$ROOT_DIR/checkpoints" \
+              --log_dir "$ROOT_DIR/logs" \
+              --context_length 8192 \
+              --d_patch 16 \
+              --d_model 1024 \
+              --n_head 16 \
+              --n_layer 20 \
+              --scales_str "1_4_8_12_20_32_48_72_128" \
+              --codebook_d 32 \
+              --codebook_n 512 \
+              --codebook_n_head 4 \
+              --head_d_bottleneck 256 \
+              --decoder_n_layer 6 \
+              --decoder_n_quantile 99 \
+              --p_patch 0.2 \
+              --p_prompt 0.4 \
+              --p_both 0.4 \
+              --lambda_distill 1.0 \
+              --lambda_recon 1.0 \
+              --ema_start 0.996 \
+              --ema_end 0.999 \
+              --student_temperature 0.1 \
+              --teacher_temperature 0.07 \
+              --student_temperature_start 1.0 \
+              --teacher_temperature_start 0.04 \
+              --warmup_step 10000 \
+              --pretrain_mask_ratio 0.4 \
+              --pretrain_mask_cont 8 \
+              --datasets "zero_shot" \
+              --lr 3e-4 \
+              --min_lr 1e-5 \
+              --gradient_clip 1.0 \
+              --weight_decay 0.1 \
+              --max_train_step 100000 \
+              --val_frequency 5000 \
+              --batch_size 64 \
+              --accumulate_grad_batches 4 \
+              --samples_per_read 1 \
+              --precision "bf16" \
+              --logging_steps 100 \
+              --save_steps 10000 \
+              --save_total_limit 10 \
+              --num_workers 8 \
+              --seed 42 \
+              --no_pbar \
+              --torch_compile
+
+            if [ $? -eq 0 ]; then
+              echo "Training Finished Successfully. Sleeping..."
+              sleep infinity
+            else
+              echo "Training Failed."
+              sleep infinity
+            fi
+
+        # 3. RESOURCES
+        resources:
+          limits:
+            nvidia.com/gpu: 4
+            memory: 1000Gi
+            cpu: 32
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+          requests:
+            nvidia.com/gpu: 4
+            memory: 1000Gi
+            cpu: 32
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+
+        # 4. VOLUMES MOUNTS
+        volumeMounts:
+          # Mount the requested PVC
+          - name: tsfm-storage
+            mountPath: /mnt/tsfm
+          # Mount shared memory (Required for DDP)
+          - name: dshm
+            mountPath: /dev/shm
+
+      # 5. VOLUME DEFINITIONS
+      volumes:
+        - name: tsfm-storage
+          persistentVolumeClaim:
+            claimName: tsfm
+        # Create a shared memory volume backed by RAM
+        - name: dshm
+          emptyDir:
+            medium: Memory
+
