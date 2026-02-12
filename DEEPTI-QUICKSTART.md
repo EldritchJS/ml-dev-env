@@ -228,7 +228,79 @@ oc delete pod <pod-name> -n mllm-interpretation-and-failure-investigation-c8fa7f
 
 ### Code Changes Not Showing
 
-The pod uses a copy of the code from the ConfigMap. To update:
+#### Option 1: Automated Sync with Makefile (Recommended)
+
+For faster iteration, use the Makefile to automatically sync code changes:
+
+**Setup (one-time):**
+```bash
+# Configure for Deepti project
+export NAMESPACE=mllm-interpretation-and-failure-investigation-c8fa7f
+export POD_NAME=deepti-debug
+export LOCAL_DIR=.
+export REMOTE_DIR=/workspace
+export DEBUG_PORT=5678
+
+# Or create a .env file for persistence
+cat > .env.deepti <<EOF
+NAMESPACE=mllm-interpretation-and-failure-investigation-c8fa7f
+POD_NAME=deepti-debug
+LOCAL_DIR=.
+REMOTE_DIR=/workspace
+DEBUG_PORT=5678
+EOF
+
+# Load it
+source .env.deepti
+```
+
+**Sync code once:**
+```bash
+# One-time sync of current code
+make sync-once
+```
+
+**Auto-sync on file changes:**
+```bash
+# Watch for changes and auto-sync (runs continuously)
+make sync-code
+```
+
+This watches your local files and automatically syncs changes to the pod every 2 seconds. Leave it running in a separate terminal while you code!
+
+**Full dev session (sync + port-forward):**
+```bash
+# Start everything in one command
+make dev-session
+```
+
+This will:
+1. Sync code to the pod
+2. Start port forwarding on port 5678
+3. Keep watching for file changes
+
+**Port forwarding only:**
+```bash
+# Just port-forward (if already synced)
+make port-forward
+```
+
+**Quick reference:**
+```bash
+# Terminal 1: Start auto-sync
+source .env.deepti
+make sync-code
+
+# Terminal 2: Port-forward for debugging
+source .env.deepti
+make port-forward
+
+# Then connect VSCode debugger (F5)
+```
+
+#### Option 2: Manual ConfigMap Update
+
+If you prefer the ConfigMap approach:
 
 ```bash
 # 1. Edit deepti.py locally
@@ -244,6 +316,16 @@ oc apply -f k8s/pod-debug-deepti-nerc.yaml
 # 4. Restart port forwarding
 oc port-forward deepti-debug 5678:5678 -n mllm-interpretation-and-failure-investigation-c8fa7f
 ```
+
+**Comparison:**
+
+| Feature | Makefile Sync | ConfigMap |
+|---------|--------------|-----------|
+| Speed | Fast (2 sec sync) | Slow (requires pod restart) |
+| Auto-sync | ✅ Yes | ❌ No |
+| Setup | One-time env vars | None |
+| Downtime | None | Pod restart required |
+| Best for | Active development | One-off tests |
 
 ### Out of Memory
 
@@ -611,20 +693,71 @@ oc describe quota -n mllm-interpretation-and-failure-investigation-c8fa7f
 
 ## Summary - Common Commands
 
+### Using Makefile (Recommended for Development)
+
 ```bash
-# Quick test run
+# One-time setup
+cat > .env.deepti <<EOF
+NAMESPACE=mllm-interpretation-and-failure-investigation-c8fa7f
+POD_NAME=deepti-debug
+LOCAL_DIR=.
+REMOTE_DIR=/workspace
+DEBUG_PORT=5678
+EOF
+source .env.deepti
+
+# Deploy debug pod
+oc apply -f k8s/pod-debug-deepti-nerc.yaml
+
+# Option 1: Full dev session (auto-sync + port-forward)
+make dev-session
+
+# Option 2: Manual control
+# Terminal 1: Auto-sync code changes
+make sync-code
+
+# Terminal 2: Port-forward
+make port-forward
+
+# Then connect VSCode debugger (F5)
+```
+
+### Using Direct Commands
+
+```bash
+# Quick test run (one-time execution)
 oc create configmap deepti-script --from-file=deepti.py=./deepti.py -n mllm-interpretation-and-failure-investigation-c8fa7f
 oc apply -f k8s/pod-deepti-nerc.yaml
 oc logs -f deepti-test -n mllm-interpretation-and-failure-investigation-c8fa7f
 
-# Debug session
+# Debug session (manual sync)
 oc apply -f k8s/pod-debug-deepti-nerc.yaml
 oc port-forward deepti-debug 5678:5678 -n mllm-interpretation-and-failure-investigation-c8fa7f
 # Then connect VSCode debugger (F5)
 
+# Update code (manual)
+oc delete configmap deepti-script -n mllm-interpretation-and-failure-investigation-c8fa7f
+oc create configmap deepti-script --from-file=deepti.py=./deepti.py -n mllm-interpretation-and-failure-investigation-c8fa7f
+oc delete pod deepti-debug -n mllm-interpretation-and-failure-investigation-c8fa7f
+oc apply -f k8s/pod-debug-deepti-nerc.yaml
+
 # Cleanup
 oc delete pod deepti-test -n mllm-interpretation-and-failure-investigation-c8fa7f
 oc delete pod deepti-debug -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+### Data Management
+
+```bash
+# Upload video
+oc cp video.mp4 deepti-data:/data/videos/ -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Download from URL
+oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- \
+  wget -P /data/videos/ https://example.com/video.mp4
+
+# Download results
+oc cp deepti-data:/data/outputs/ /local/ -n mllm-interpretation-and-failure-investigation-c8fa7f
 ```
 
 Happy testing! 🚀
