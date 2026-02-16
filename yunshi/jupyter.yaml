@@ -1,0 +1,87 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: interactive-jupyter
+  labels:
+    app: interactive-jupyter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: interactive-jupyter
+  template:
+    metadata:
+      labels:
+        app: interactive-jupyter
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - moc-r4pcc02u15-yunshi
+                - moc-r4pcc02u16-yunshi
+      containers:
+      - name: jupyter
+        image: quay.io/jupyter/pytorch-notebook:latest
+        ports:
+        - containerPort: 8888
+        env:
+        - name: JUPYTER_TOKEN
+          value: "weny2"
+        
+        # --- FIX STARTS HERE ---
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "echo 'export PATH=/home/jovyan/.local/bin:$PATH' >> /home/jovyan/.bashrc"]
+        # --- FIX ENDS HERE ---
+
+        volumeMounts:
+        - name: home-temp
+          mountPath: /home/jovyan
+        - name: workspace-data
+          mountPath: /home/jovyan/tsfm-pvc
+        resources:
+          limits:
+            memory: "32Gi"
+            cpu: "4"
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: home-temp
+        emptyDir: {}
+      - name: workspace-data
+        persistentVolumeClaim:
+          claimName: tsfm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: interactive-jupyter-svc
+spec:
+  selector:
+    app: interactive-jupyter
+  ports:
+    - protocol: TCP
+      port: 8888
+      targetPort: 8888
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: interactive-jupyter-route
+spec:
+  to:
+    kind: Service
+    name: interactive-jupyter-svc
+  port:
+    targetPort: 8888
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
