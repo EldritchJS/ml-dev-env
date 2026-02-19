@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pvc-filebrowser
+  labels:
+    app: pvc-filebrowser
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pvc-filebrowser
+  template:
+    metadata:
+      labels:
+        app: pvc-filebrowser
+    spec:
+      containers:
+      - name: python-server
+        image: registry.access.redhat.com/ubi9/python-39
+        command: ["/bin/sh", "-c"]
+        args:
+          - cd /data && python3 -m http.server 8080
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: YOUR-PVC-NAME  # Replace with your PVC name
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pvc-filebrowser
+spec:
+  selector:
+    app: pvc-filebrowser
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pvc-browser
+spec:
+  to:
+    kind: Service
+    name: pvc-filebrowser
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

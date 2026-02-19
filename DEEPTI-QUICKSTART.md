@@ -540,6 +540,8 @@ oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- l
 oc exec deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f -- df -h /data
 ```
 
+**💡 Tip:** For easier browsing, consider deploying the [Visual File Browser](#visual-file-browser-for-pvcs) to view PVC contents in your web browser instead of using terminal commands.
+
 ### Using Shared Data in Test Pods
 
 Update your pod YAML to mount the PVC:
@@ -605,6 +607,122 @@ oc cp deepti-data:/data/outputs/ /local/ -n mllm-interpretation-and-failure-inve
 
 # Delete pod
 oc delete pod deepti-data -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+---
+
+## Visual File Browser for PVCs
+
+For easier browsing and downloading of files from your PVCs, you can deploy a web-based file browser.
+
+### Why Use a File Browser?
+
+Instead of using `oc exec` and `ls` commands repeatedly, a file browser provides:
+- Web-based interface to browse directories
+- Click to download individual files
+- View file sizes and modification times
+- No terminal commands needed
+
+### Deploy File Browser
+
+**1. Edit the configuration:**
+
+```bash
+# Edit k8s/pvc-filebrowser.yaml
+# Replace YOUR-PVC-NAME with your actual PVC name (e.g., dahye-test)
+sed 's/YOUR-PVC-NAME/dahye-test/' k8s/pvc-filebrowser.yaml > /tmp/pvc-filebrowser-dahye.yaml
+```
+
+**2. Deploy to your namespace:**
+
+```bash
+oc apply -f /tmp/pvc-filebrowser-dahye.yaml -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+**3. Wait for it to start:**
+
+```bash
+# Check pod status
+oc get pods -l app=pvc-filebrowser -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Wait until STATUS shows "Running"
+```
+
+**4. Get the URL:**
+
+```bash
+oc get route pvc-browser -n mllm-interpretation-and-failure-investigation-c8fa7f -o jsonpath='https://{.spec.host}' && echo
+```
+
+**5. Open in your browser:**
+
+Copy the URL from step 4 and open it in your web browser. You'll see a directory listing of your PVC contents.
+
+### Using the File Browser
+
+- **Browse directories:** Click on folder names to navigate
+- **Download files:** Click on any file name to download it
+- **View details:** See file sizes and modification times in the listing
+- **Go up:** Use the parent directory link to navigate up
+
+**Note:** This is a read-only browser - you can view and download files, but not upload or modify them through the web interface.
+
+### Browse Multiple PVCs
+
+To browse multiple PVCs at once, edit the deployment to add more volume mounts:
+
+```yaml
+# In k8s/pvc-filebrowser.yaml
+volumeMounts:
+- name: pvc1
+  mountPath: /data/pvc1
+- name: pvc2
+  mountPath: /data/pvc2
+
+volumes:
+- name: pvc1
+  persistentVolumeClaim:
+    claimName: dahye-test
+- name: pvc2
+  persistentVolumeClaim:
+    claimName: deepti-videos
+```
+
+Then access `/data/pvc1/` and `/data/pvc2/` in the browser.
+
+### Cleanup
+
+When you're done browsing:
+
+```bash
+oc delete deployment pvc-filebrowser -n mllm-interpretation-and-failure-investigation-c8fa7f
+oc delete service pvc-filebrowser -n mllm-interpretation-and-failure-investigation-c8fa7f
+oc delete route pvc-browser -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+Or simply delete everything with the label:
+
+```bash
+oc delete all -l app=pvc-filebrowser -n mllm-interpretation-and-failure-investigation-c8fa7f
+oc delete route pvc-browser -n mllm-interpretation-and-failure-investigation-c8fa7f
+```
+
+### Quick Reference
+
+```bash
+# Deploy (replace PVC name first!)
+sed 's/YOUR-PVC-NAME/dahye-test/' k8s/pvc-filebrowser.yaml > /tmp/pvc-filebrowser-dahye.yaml
+oc apply -f /tmp/pvc-filebrowser-dahye.yaml -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Get URL
+oc get route pvc-browser -n mllm-interpretation-and-failure-investigation-c8fa7f -o jsonpath='https://{.spec.host}' && echo
+
+# Check status
+oc get pods -l app=pvc-filebrowser -n mllm-interpretation-and-failure-investigation-c8fa7f
+
+# Cleanup
+oc delete all -l app=pvc-filebrowser -n mllm-interpretation-and-failure-investigation-c8fa7f
+oc delete route pvc-browser -n mllm-interpretation-and-failure-investigation-c8fa7f
 ```
 
 ---
