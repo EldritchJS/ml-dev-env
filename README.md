@@ -52,6 +52,26 @@ Development and testing on one node with 4x H100 GPUs.
 
 ## 🚀 Quick Start
 
+### Option 1: Interactive Wizard (Recommended for New Users)
+
+The deployment wizard guides you through cluster selection, feature configuration, and deployment:
+
+```bash
+# Run the interactive wizard
+make wizard
+
+# Follow the prompts to:
+# 1. Select your cluster
+# 2. Choose single-node or multi-node
+# 3. Select features (VSCode, Jupyter, file browser, etc.)
+# 4. Configure resources (GPUs, storage)
+# 5. Generate deployment commands
+```
+
+See [DEPLOYMENT-WIZARD-GUIDE.md](docs/DEPLOYMENT-WIZARD-GUIDE.md) for details.
+
+### Option 2: Manual Deployment
+
 ### 1. List Available Clusters
 
 ```bash
@@ -114,6 +134,7 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
 ## 📖 Documentation
 
 ### Getting Started
+- **[DEPLOYMENT-WIZARD-GUIDE.md](docs/DEPLOYMENT-WIZARD-GUIDE.md)** - Interactive deployment wizard (recommended)
 - **[QUICKSTART.md](docs/QUICKSTART.md)** - Single-node deployment basics
 - **[MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)** - Multi-node in 5 minutes
 - **[BUILD-ON-CLUSTER.md](docs/BUILD-ON-CLUSTER.md)** - Building container images
@@ -442,6 +463,7 @@ ml-dev-env/
 │   └── statefulset-multi-node-tcp.yaml   # Multi-node TCP
 │
 ├── scripts/                   # Automation scripts
+│   ├── deployment-wizard.py   # Interactive deployment wizard
 │   ├── discover-cluster.py    # Auto-discover cluster config
 │   ├── deploy-cluster.py      # Cluster-based deployment
 │   ├── deploy-multi-node-rdma.sh
@@ -452,6 +474,7 @@ ml-dev-env/
 │   └── debug-remote.sh
 │
 ├── docs/                      # Documentation
+│   ├── DEPLOYMENT-WIZARD-GUIDE.md
 │   ├── CLUSTER-DISCOVERY-GUIDE.md
 │   ├── CLUSTER-CONFIG-GUIDE.md
 │   ├── MULTI-NODE-QUICKSTART.md
@@ -678,6 +701,9 @@ See [CLUSTER-CONFIG-GUIDE.md](docs/CLUSTER-CONFIG-GUIDE.md) for details.
 **Quick Commands:**
 
 ```bash
+# Interactive deployment wizard (recommended)
+make wizard
+
 # List clusters
 make list-clusters
 

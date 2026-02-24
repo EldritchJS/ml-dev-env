@@ -52,6 +52,7 @@ help:
 	@echo "  make clean-multi-node   - Remove multi-node deployment"
 	@echo ""
 	@echo "Cluster-based deployment (centralized configuration):"
+	@echo "  make wizard                                         - Interactive deployment wizard"
 	@echo "  make list-clusters                                  - List available cluster configs"
 	@echo "  make discover-cluster NAME=<name>                   - Auto-discover cluster config"
 	@echo "  make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>  - Deploy to cluster"
@@ -342,3 +343,15 @@ discover-cluster:
 	else \
 		python3 scripts/discover-cluster.py --name $(NAME); \
 	fi
+
+wizard:
+	@echo "🚀 Starting deployment wizard..."
+	@python3 scripts/deployment-wizard.py
+
+wizard-load:
+	@if [ -z "$(CONFIG)" ]; then \
+		echo "Error: CONFIG not specified."; \
+		echo "Usage: make wizard-load CONFIG=<config-file.yaml>"; \
+		exit 1; \
+	fi
+	@python3 scripts/deployment-wizard.py --config $(CONFIG)
