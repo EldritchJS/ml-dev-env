@@ -39,6 +39,7 @@ code --install-extension ms-python.python
 After installing, verify it's working:
 
 1. Open VSCode in the ml-dev-env directory:
+
    ```bash
    cd /Users/jschless/taj/cairo/ml-dev-env
    code .
@@ -76,6 +77,7 @@ For better performance, the extension may prompt you to install Pylance:
 **Problem:** When you try to debug, you get an error about the debug type.
 
 **Solution:**
+
 1. The Python extension isn't installed or is disabled
 2. Install it using the methods above
 3. Restart VSCode after installation
@@ -86,6 +88,7 @@ For better performance, the extension may prompt you to install Pylance:
 **Problem:** The launch configuration doesn't appear.
 
 **Solution:**
+
 1. Make sure `.vscode/launch.json` exists in your workspace
 2. Make sure you have the Python extension installed
 3. Try reloading VSCode: `Cmd+Shift+P` → "Developer: Reload Window"
@@ -93,6 +96,7 @@ For better performance, the extension may prompt you to install Pylance:
 ### Extension is installed but debugging doesn't work
 
 **Solution:**
+
 1. Update the Python extension to the latest version
 2. Check VSCode is up to date: `Code → Check for Updates`
 3. Verify launch.json uses `"type": "python"` (not other values)
@@ -116,13 +120,16 @@ If it connects and you can debug, you're all set! 🎉
 ## Summary
 
 **Required:**
+
 - ✅ Python extension (ms-python.python)
 
 **Optional but recommended:**
+
 - Pylance extension (ms-python.vscode-pylance) - Better IntelliSense
 - GitLens - Git integration
 - Docker - If working with containers locally
 
 **Not required:**
+
 - Remote-SSH extension (only needed for Method 2)
 - Jupyter extension (only needed for Method 4)

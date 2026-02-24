@@ -9,6 +9,7 @@ Train ML models on **multiple H100 GPUs across nodes** using DeepSpeed with RDMA
 This guide covers multi-node distributed training using the **cluster configuration system** for easy deployment.
 
 **Key Features:**
+
 - ✅ Cluster-based deployment (all settings in one file)
 - ✅ RDMA mode for high-performance NCCL communication
 - ✅ TCP mode for universal compatibility
@@ -27,17 +28,20 @@ make list-clusters
 ```
 
 Example clusters:
+
 - **barcelona** - NERC Barcelona cluster (RDMA + per-pod storage)
 - **nerc-production** - NERC Production cluster (TCP + RWX storage)
 
 ### Step 2: Deploy Multi-Node Environment
 
 **Option A: Use RDMA (High Performance - Barcelona only)**
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 **Option B: Use TCP (Universal Compatibility)**
+
 ```bash
 # Barcelona with TCP
 make deploy-cluster CLUSTER=barcelona MODE=tcp
@@ -79,6 +83,7 @@ cd /workspace
 ### With Cluster Configuration System
 
 The cluster config defines:
+
 - **Nodes**: Which GPU nodes to use
 - **Storage**: RWX shared storage or per-pod volumes
 - **Network**: RDMA devices or TCP interfaces
@@ -86,6 +91,7 @@ The cluster config defines:
 - **Resources**: GPU count, memory, CPU per pod
 
 Example architecture (Barcelona cluster, 2 nodes):
+
 ```
 ml-dev-env-0  (moc-r4pcc04u25-nairr)  - Rank 0-3   (Master)
 ml-dev-env-1  (moc-r4pcc04u23-nairr)  - Rank 4-7
@@ -125,16 +131,19 @@ Total: 8 H100 GPUs with RDMA over mlx5_6,7,10,11
 ### RDMA Mode (Recommended for Performance)
 
 **Requirements:**
+
 - InfiniBand adapters (mlx5_*)
 - RDMA-capable network
 - Cluster config with RDMA devices specified
 
 **Features:**
+
 - GPUDirect RDMA for GPU-to-GPU transfers
 - Lower latency, higher bandwidth
 - NCCL over InfiniBand
 
 **Configuration** (in cluster YAML):
+
 ```yaml
 network:
   rdma:
@@ -146,6 +155,7 @@ network:
 ```
 
 **Deploy:**
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
@@ -153,16 +163,19 @@ make deploy-cluster CLUSTER=barcelona MODE=rdma
 ### TCP Mode (Fallback Option)
 
 **Use when:**
+
 - RDMA is unavailable or not configured
 - Standard Ethernet networking only
 - Troubleshooting RDMA issues
 
 **Features:**
+
 - No special hardware needed
 - TCP/IP for inter-node communication
 - Slightly lower performance than RDMA
 
 **Configuration** (in cluster YAML):
+
 ```yaml
 network:
   tcp:
@@ -171,6 +184,7 @@ network:
 ```
 
 **Deploy:**
+
 ```bash
 # TCP fallback (works on any cluster)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
@@ -182,12 +196,14 @@ make deploy-cluster CLUSTER=barcelona MODE=tcp
 ### Shared RWX Storage (Preferred)
 
 **When available:**
+
 - Uses ReadWriteMany PVC
 - All pods share `/workspace` and `/datasets`
 - Files immediately visible across nodes
 - Ideal for collaborative workloads
 
 **Configuration** (in cluster YAML):
+
 ```yaml
 storage:
   mode: rwx
@@ -199,11 +215,13 @@ storage:
 ### Per-Pod Storage (Fallback)
 
 **When RWX unavailable:**
+
 - Each pod gets own volume via volumeClaimTemplates
 - Manual file sync required between pods
 - Works on any cluster
 
 **Configuration** (in cluster YAML):
+
 ```yaml
 storage:
   mode: volumeClaimTemplates
@@ -546,11 +564,13 @@ oc delete pvc -l app=ml-dev-env-multi -n nccl-test
 ## 📚 Additional Resources
 
 ### Documentation
+
 - [MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md) - Quick 5-minute setup
 - [MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md) - TCP mode details
 - [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) - Cluster configuration
 
 ### External Resources
+
 - [DeepSpeed Documentation](https://www.deepspeed.ai/)
 - [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/)
 - [PyTorch Distributed Training](https://pytorch.org/tutorials/beginner/dist_overview.html)
@@ -558,27 +578,32 @@ oc delete pvc -l app=ml-dev-env-multi -n nccl-test
 ## ✅ Summary
 
 **Deploy:**
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 **Sync Code:**
+
 ```bash
 make sync-multi-node
 ```
 
 **Run Training:**
+
 ```bash
 make shell-multi-node
 cd /workspace && ./launch_deepspeed.sh
 ```
 
 **Monitor:**
+
 ```bash
 oc logs -f ml-dev-env-0 -n nccl-test
 ```
 
 **Cleanup:**
+
 ```bash
 make clean-cluster CLUSTER=barcelona
 ```

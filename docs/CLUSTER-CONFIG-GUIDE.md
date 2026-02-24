@@ -62,9 +62,11 @@ make clean-cluster CLUSTER=barcelona
 | **Best For** | High-performance RDMA training | Large-scale TCP training, shared storage |
 
 ### Barcelona
+
 **Location**: NERC Barcelona cluster (barcelona.nerc.mghpcc.org)
 
 **Configuration Highlights**:
+
 - **Storage**: Per-pod storage (volumeClaimTemplates) - no RWX available
 - **RDMA Devices**: mlx5_6, mlx5_7, mlx5_10, mlx5_11
 - **Security**: No privileged SCC required, no IPC_LOCK
@@ -72,20 +74,24 @@ make clean-cluster CLUSTER=barcelona
 - **GPUs**: 4x H100 per node
 
 **Setup Required**:
+
 ```bash
 # Service account (no privileged SCC)
 oc create serviceaccount ml-dev-sa -n nccl-test
 ```
 
 **Deploy**:
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 ### NERC Production
+
 **Location**: NERC Production cluster (api.shift.nerc.mghpcc.org)
 
 **Configuration Highlights**:
+
 - **Storage**: RWX shared storage via NFS (nfs-csi)
 - **RDMA**: Not available - TCP only
 - **Security**: No privileged SCC required, no IPC_LOCK
@@ -93,6 +99,7 @@ make deploy-cluster CLUSTER=barcelona MODE=rdma
 - **GPUs**: 4x H100 80GB HBM3 per node
 
 **Setup Required**:
+
 ```bash
 # Service account (no privileged SCC)
 oc create serviceaccount ml-dev-sa -n coops-767192
@@ -102,6 +109,7 @@ oc get pods -n nfs
 ```
 
 **Deploy**:
+
 ```bash
 make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
@@ -264,6 +272,7 @@ nodes:
 ```
 
 **Finding GPU nodes**:
+
 ```bash
 oc get nodes -l nvidia.com/gpu.present=true
 ```
@@ -280,6 +289,7 @@ storage:
 ```
 
 **Storage Modes**:
+
 - **`rwx`**: Shared storage across all pods (requires NFS or CephFS)
   - ✅ Files visible across all pods
   - ✅ Ideal for collaborative workloads
@@ -290,6 +300,7 @@ storage:
   - ❌ No file sharing between pods
 
 **Finding storage classes**:
+
 ```bash
 oc get storageclass
 ```
@@ -319,6 +330,7 @@ network:
 ```
 
 **RDMA Enabled Flag**:
+
 - **`enabled: true`**: Cluster has InfiniBand/RoCE hardware
   - RDMA mode will use InfiniBand devices
   - TCP mode available as fallback
@@ -328,6 +340,7 @@ network:
   - Deployment script will warn about fallback
 
 **Finding RDMA devices** (if `enabled: true`):
+
 ```bash
 # SSH to a GPU node
 ibstat
@@ -337,6 +350,7 @@ ibstat
 ```
 
 **For Ethernet-only clusters** (if `enabled: false`):
+
 ```yaml
 network:
   rdma:
@@ -359,6 +373,7 @@ security:
 ```
 
 **IPC_LOCK and Privileged SCC**:
+
 - **IPC_LOCK**: Required for shared memory operations in distributed training
 - **Privileged SCC**: Required to grant IPC_LOCK capability in OpenShift
 - Check with cluster admin if privileged SCC is available
@@ -413,11 +428,13 @@ The `scripts/deploy-cluster.py` script:
 5. Applies configurations to cluster (unless `--dry-run`)
 
 **Usage**:
+
 ```bash
 python3 scripts/deploy-cluster.py <cluster-name> [--mode tcp|rdma] [--dry-run] [--output-dir /tmp]
 ```
 
 **Examples**:
+
 ```bash
 # Deploy Barcelona with RDMA
 python3 scripts/deploy-cluster.py barcelona --mode rdma
@@ -502,11 +519,13 @@ gpus:
 When deploying to a cluster with `enabled: false`:
 
 **RDMA mode requested**:
+
 ```bash
 make deploy-cluster CLUSTER=ethernet-cluster MODE=rdma
 ```
 
 Output:
+
 ```
 ⚠️  WARNING: RDMA mode requested but cluster 'ethernet-cluster' has RDMA disabled
     Deployment will use TCP mode instead
@@ -519,11 +538,13 @@ RDMA: Disabled
 Result: Uses TCP template automatically, RDMA settings ignored.
 
 **TCP mode (recommended for Ethernet-only clusters)**:
+
 ```bash
 make deploy-cluster CLUSTER=ethernet-cluster MODE=tcp
 ```
 
 Output:
+
 ```
 Mode: TCP
 RDMA: Disabled
@@ -534,12 +555,14 @@ Result: Uses TCP template, no warnings.
 ### When to Use enabled: false
 
 Set `network.rdma.enabled: false` when:
+
 - ✅ Cluster only has standard Ethernet (no InfiniBand adapters)
 - ✅ InfiniBand hardware exists but is not configured/accessible
 - ✅ Running on cloud VMs without specialized networking
 - ✅ Testing on development clusters
 
 Set `network.rdma.enabled: true` when:
+
 - ✅ Cluster has InfiniBand or RoCE adapters
 - ✅ Adapters are configured and showing "State: Active" in `ibstat`
 - ✅ Host network access is available
@@ -548,18 +571,21 @@ Set `network.rdma.enabled: true` when:
 ### Performance Impact
 
 **RDMA Disabled (TCP mode)**:
+
 - Bandwidth: 10-40 GB/s (Ethernet)
 - Latency: 10-100 microseconds
 - GPU transfers: Via CPU memory
 - Best for: Small-medium models, moderate communication
 
 **RDMA Enabled**:
+
 - Bandwidth: 50-100 GB/s (InfiniBand)
 - Latency: <1 microsecond
 - GPU transfers: Direct GPU-to-GPU (GPUDirect)
 - Best for: Large models, heavy communication workloads
 
 For most training workloads, TCP mode is sufficient. Use RDMA when:
+
 - Training very large models (100B+ parameters)
 - High gradient synchronization overhead
 - Performance benchmarking
@@ -622,6 +648,7 @@ oc get scc privileged
 ## Examples
 
 See the following files for complete examples:
+
 - `clusters/barcelona.yaml` - Per-pod storage, RDMA, no privileged SCC
 - `clusters/nerc-production.yaml` - RWX storage, TCP only, no privileged SCC
 - `clusters/template.yaml` - Fully documented template

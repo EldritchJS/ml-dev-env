@@ -68,4 +68,3 @@ exec torchrun \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${RDZV_ENDPOINT}" \
   -m torchtitan.train --job.config_file "${CONFIG_FILE}" "$@"
-

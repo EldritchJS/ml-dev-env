@@ -3,14 +3,17 @@
 Test DeepSpeed distributed training with multi-GPU
 Run with: deepspeed --num_gpus=4 test_deepspeed.py
 """
+import argparse
+
+import deepspeed
 import torch
 import torch.nn as nn
-import deepspeed
-import argparse
 from torch.utils.data import DataLoader, TensorDataset
+
 
 class SimpleModel(nn.Module):
     """Simple neural network for testing"""
+
     def __init__(self, input_size=1024, hidden_size=2048, output_size=10):
         super().__init__()
         self.layers = nn.Sequential(
@@ -18,11 +21,12 @@ class SimpleModel(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, output_size)
+            nn.Linear(hidden_size, output_size),
         )
 
     def forward(self, x):
         return self.layers(x)
+
 
 def create_dataset(num_samples=1000, input_size=1024, output_size=10):
     """Create dummy dataset"""
@@ -30,24 +34,25 @@ def create_dataset(num_samples=1000, input_size=1024, output_size=10):
     y = torch.randint(0, output_size, (num_samples,))
     return TensorDataset(X, y)
 
+
 def add_argument():
-    parser = argparse.ArgumentParser(description='DeepSpeed Test')
+    parser = argparse.ArgumentParser(description="DeepSpeed Test")
 
     # DeepSpeed arguments
-    parser.add_argument('--local_rank',
-                       type=int,
-                       default=-1,
-                       help='local rank passed from distributed launcher')
+    parser.add_argument(
+        "--local_rank", type=int, default=-1, help="local rank passed from distributed launcher"
+    )
 
     # Training arguments
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--epochs", type=int, default=5)
 
     # Include DeepSpeed configuration arguments
     parser = deepspeed.add_config_arguments(parser)
 
     args = parser.parse_args()
     return args
+
 
 def main():
     args = add_argument()
@@ -63,18 +68,9 @@ def main():
     ds_config = {
         "train_batch_size": args.batch_size,
         "gradient_accumulation_steps": 1,
-        "optimizer": {
-            "type": "Adam",
-            "params": {
-                "lr": 0.001
-            }
-        },
-        "fp16": {
-            "enabled": True
-        },
-        "zero_optimization": {
-            "stage": 2
-        }
+        "optimizer": {"type": "Adam", "params": {"lr": 0.001}},
+        "fp16": {"enabled": True},
+        "zero_optimization": {"stage": 2},
     }
 
     # Initialize DeepSpeed
@@ -83,7 +79,7 @@ def main():
         model=model,
         model_parameters=model.parameters(),
         training_data=train_dataset,
-        config=ds_config
+        config=ds_config,
     )
 
     criterion = nn.CrossEntropyLoss()
@@ -111,14 +107,15 @@ def main():
             num_batches += 1
 
             if batch_idx % 10 == 0 and model_engine.local_rank == 0:
-                print(f'Epoch {epoch}, Batch {batch_idx}, Loss: {loss.item():.4f}')
+                print(f"Epoch {epoch}, Batch {batch_idx}, Loss: {loss.item():.4f}")
 
         avg_loss = total_loss / num_batches
         if model_engine.local_rank == 0:
-            print(f'Epoch {epoch} completed. Average Loss: {avg_loss:.4f}')
+            print(f"Epoch {epoch} completed. Average Loss: {avg_loss:.4f}")
 
     if model_engine.local_rank == 0:
         print("Training completed successfully!")
+
 
 if __name__ == "__main__":
     main()

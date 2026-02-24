@@ -33,7 +33,7 @@ spec:
         env:
         - name: JUPYTER_TOKEN
           value: "weny2"
-        
+
         # --- FIX STARTS HERE ---
         lifecycle:
           postStart:

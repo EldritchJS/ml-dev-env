@@ -5,17 +5,21 @@ A comprehensive GPU-accelerated machine learning development environment with **
 ## 🚀 Deployment Options
 
 ### Multi-Node Distributed Training (Recommended)
+
 Train across **multiple GPU nodes** using DeepSpeed with cluster-based configuration:
+
 - **RDMA/InfiniBand** - High performance for production (requires InfiniBand hardware)
 - **TCP/Ethernet** - Universal compatibility (works on any cluster)
 - **Cluster configs** - All settings in one YAML file per cluster
 
 ### Single-Node Development
+
 Development and testing on one node with 4x H100 GPUs.
 
 ## ✨ Features
 
 ### ML Frameworks & Libraries
+
 - ✅ **PyTorch 2.9.0a0** (NVIDIA 25.09) with CUDA 13.0 support
 - ✅ **DeepSpeed** - Distributed training optimization (ZeRO-2/3)
 - ✅ **Flash Attention 2.7.4.post1** - Efficient attention computation (NVIDIA pre-built)
@@ -27,6 +31,7 @@ Development and testing on one node with 4x H100 GPUs.
 - ✅ **ffmpeg** - Video/audio processing
 
 **Available Images:**
+
 - **ml-dev-env (PyTorch 2.9)** (default, full dev environment) - `pytorch-2.9-numpy2`
   - VSCode, Jupyter, DeepSpeed, Flash Attention, LLaMAFactory
 - **h-kim (PyTorch 26.01)** (minimal training) - `h-kim`
@@ -35,6 +40,7 @@ Development and testing on one node with 4x H100 GPUs.
 - **PyTorch 2.8 + NumPy 1.x** (legacy) - `pytorch-2.8-numpy1`
 
 ### Development Tools
+
 - ✅ **VSCode Server** - Browser-based IDE with debugging
 - ✅ **Jupyter Notebook** - Interactive development
 - ✅ **TensorBoard** - Training visualization
@@ -42,6 +48,7 @@ Development and testing on one node with 4x H100 GPUs.
 - ✅ **wandb** - Experiment tracking
 
 ### Multi-Node Capabilities
+
 - ✅ **Cluster-based deployment** - All settings in YAML configs
 - ✅ **RDMA or TCP networking** - Choose based on hardware
 - ✅ **RWX shared storage** - Shared workspace across pods (when available)
@@ -79,6 +86,7 @@ make list-clusters
 ```
 
 Example output:
+
 ```
 Available cluster configurations:
   - barcelona       (NERC Barcelona - RDMA + per-pod storage)
@@ -88,16 +96,19 @@ Available cluster configurations:
 ### 2. Deploy to a Cluster
 
 **Multi-Node with RDMA (High Performance - Barcelona):**
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 **Multi-Node with TCP (Production cluster):**
+
 ```bash
 make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
 
 **Preview before deploying:**
+
 ```bash
 make deploy-cluster-dry-run CLUSTER=barcelona MODE=rdma
 ```
@@ -134,12 +145,14 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
 ## 📖 Documentation
 
 ### Getting Started
+
 - **[DEPLOYMENT-WIZARD-GUIDE.md](docs/DEPLOYMENT-WIZARD-GUIDE.md)** - Interactive deployment wizard (recommended)
 - **[QUICKSTART.md](docs/QUICKSTART.md)** - Single-node deployment basics
 - **[MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md)** - Multi-node in 5 minutes
 - **[BUILD-ON-CLUSTER.md](docs/BUILD-ON-CLUSTER.md)** - Building container images
 
 ### Cluster Configuration
+
 - **[CLUSTER-DISCOVERY-GUIDE.md](docs/CLUSTER-DISCOVERY-GUIDE.md)** - Auto-discover cluster config
   - Automatic cluster detection
   - GPU and RDMA discovery
@@ -152,6 +165,7 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
   - Manual configuration
 
 ### Multi-Node Training
+
 - **[MULTI-NODE-GUIDE.md](docs/MULTI-NODE-GUIDE.md)** - Detailed multi-node guide
   - Architecture and components
   - DeepSpeed training
@@ -164,17 +178,20 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
   - Benchmarking
 
 ### Development Workflows
+
 - **[QUICK-DEV-GUIDE.md](docs/QUICK-DEV-GUIDE.md)** - Fast development workflow
 - **[AUTOMATION-GUIDE.md](docs/AUTOMATION-GUIDE.md)** - Dev automation overview
 - **[CONFIGURATION-GUIDE.md](docs/CONFIGURATION-GUIDE.md)** - Script configuration
 
 ### VSCode & Debugging
+
 - **[VSCODE-SETUP.md](docs/VSCODE-SETUP.md)** - VSCode setup
 - **[VSCODE-DEBUG-GUIDE.md](docs/VSCODE-DEBUG-GUIDE.md)** - Debugging guide
 - **[VSCODE-DEBUG-TROUBLESHOOTING.md](docs/VSCODE-DEBUG-TROUBLESHOOTING.md)** - Debug troubleshooting
 - **[REMOTE-DEBUG-WALKTHROUGH.md](docs/REMOTE-DEBUG-WALKTHROUGH.md)** - Remote debugging
 
 ### Test Results
+
 - Test results documented in multi-node guides above
 
 ## 🔧 Cluster-Based Deployment
@@ -182,12 +199,14 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
 ### Why Use Cluster Configs?
 
 Traditional approach (manual editing):
+
 - ❌ Edit multiple YAML files for each cluster
 - ❌ Easy to make mistakes with device names
 - ❌ Hard to track cluster-specific settings
 - ❌ Manual updates when switching clusters
 
 Cluster config approach:
+
 - ✅ All settings in one YAML file per cluster
 - ✅ Automatic substitution of cluster-specific values
 - ✅ Version control cluster configurations
@@ -199,12 +218,14 @@ Cluster config approach:
 ### Available Clusters
 
 **Barcelona** - NERC Barcelona cluster:
+
 - Per-pod storage (volumeClaimTemplates)
 - RDMA: mlx5_6,7,10,11
 - No privileged SCC required
 - Nodes: moc-r4pcc04u25-nairr, moc-r4pcc04u23-nairr
 
 **NERC Production** - NERC Production cluster (shift.nerc.mghpcc.org):
+
 - RWX storage via NFS (nfs-csi)
 - TCP only (no RDMA/InfiniBand)
 - No privileged SCC required
@@ -236,6 +257,7 @@ make clean-cluster CLUSTER=barcelona
 ### Create a New Cluster Config
 
 **Option 1: Auto-Discovery (Recommended)**
+
 ```bash
 # Login to your cluster
 oc login https://api.your-cluster.com:6443
@@ -252,6 +274,7 @@ make deploy-cluster CLUSTER=my-cluster MODE=rdma
 ```
 
 **Option 2: Manual Configuration**
+
 ```bash
 # 1. Copy template
 cp clusters/template.yaml clusters/my-cluster.yaml
@@ -264,6 +287,7 @@ make deploy-cluster CLUSTER=my-cluster MODE=rdma
 ```
 
 Example configuration:
+
 ```yaml
 cluster:
   name: my-cluster
@@ -349,6 +373,7 @@ make dev-session
 ```
 
 This automatically:
+
 1. Syncs your local code to the pod
 2. Watches for changes and auto-syncs
 3. Sets up port-forwarding for debugging
@@ -588,18 +613,21 @@ echo "TensorBoard: https://$TENSORBOARD_URL"
 ### Common Issues
 
 **GPUs not detected:**
+
 ```bash
 oc describe pod ml-dev-env | grep -A 5 "Limits"
 oc exec ml-dev-env -- nvidia-smi
 ```
 
 **Multi-node pods not starting:**
+
 ```bash
 make status-cluster CLUSTER=barcelona
 oc describe pod ml-dev-env-0 -n nccl-test
 ```
 
 **NCCL hangs:**
+
 ```bash
 # Check DNS resolution
 oc exec ml-dev-env-0 -n nccl-test -- ping -c 3 ml-dev-env-1.ml-dev-env-headless
@@ -609,6 +637,7 @@ oc exec ml-dev-env-0 -n nccl-test -- ibstat
 ```
 
 **Storage issues:**
+
 ```bash
 oc get pvc -n nccl-test
 oc describe pvc ml-dev-workspace -n nccl-test
@@ -619,11 +648,13 @@ See individual documentation files for detailed troubleshooting.
 ## 📦 Resource Requirements
 
 ### Minimum (Single-Node)
+
 - 1x NVIDIA GPU (Compute Capability >= 7.0)
 - 32 GB RAM
 - 50 GB storage
 
 ### Recommended (Multi-Node)
+
 - 4x NVIDIA H100 GPUs per node
 - 128 GB RAM per node
 - 500 GB+ shared storage
@@ -638,6 +669,7 @@ Multi-node deployments may require elevated privileges:
 - **Service Account**: Created automatically by cluster config
 
 Best practices:
+
 1. Use dedicated GPU nodes with node selectors
 2. Apply appropriate RBAC policies
 3. Use network policies to restrict access
@@ -647,12 +679,14 @@ Best practices:
 ## 🚀 Next Steps
 
 ### For Single-Node Development
+
 1. Deploy with `make deploy`
 2. Access VSCode with `make vscode`
 3. Clone your code to `/workspace`
 4. Start training with 4 GPUs
 
 ### For Multi-Node Training
+
 1. Choose cluster: `make list-clusters`
 2. Deploy: `make deploy-cluster CLUSTER=barcelona MODE=rdma`
 3. Sync code: `make sync-multi-node`
@@ -660,6 +694,7 @@ Best practices:
 5. Run training: `./launch_deepspeed.sh`
 
 ### General Setup
+
 1. **Download datasets**: Use `/datasets` for large datasets
 2. **Configure wandb**: `wandb login` for experiment tracking
 3. **Set up Git**: Clone your repositories to `/workspace`
@@ -669,16 +704,19 @@ Best practices:
 ## 📚 Additional Resources
 
 ### Official Documentation
+
 - [PyTorch Distributed Training](https://pytorch.org/tutorials/beginner/dist_overview.html)
 - [DeepSpeed Documentation](https://www.deepspeed.ai/)
 - [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/)
 - [Flash Attention](https://github.com/Dao-AILab/flash-attention)
 
 ### Project-Specific
+
 - [LLaMAFactory](https://github.com/hiyouga/LLaMA-Factory)
 - [VideoLLaMA2](https://github.com/DAMO-NLP-SG/VideoLLaMA2)
 
 ### OpenShift/Kubernetes
+
 - [OpenShift Documentation](https://docs.openshift.com/)
 - [Kubernetes StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
 

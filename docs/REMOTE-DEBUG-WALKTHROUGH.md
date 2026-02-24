@@ -67,6 +67,7 @@ The file `.vscode/launch.json` has been created with this configuration:
 ```
 
 **Key settings explained:**
+
 - `"type": "python"` - Uses the Python debugger (debugpy protocol)
 - `"port": 5678` - Debug server port (we'll forward this from the cluster)
 - `"pathMappings"` - Maps local files to remote files so breakpoints work
@@ -83,6 +84,7 @@ This file exists both locally and on the cluster. They're identical, so breakpoi
 In `workspace/test_debug.py`, click in the left margin (gutter) to set breakpoints:
 
 **Recommended breakpoints:**
+
 - Line 11: `print(f"CUDA available: {torch.cuda.is_available()}")`
 - Line 16: `print(f"GPU {i}: {device_name}")`
 - Line 20: `z = torch.matmul(x, y)`
@@ -98,6 +100,7 @@ oc port-forward -n nccl-test ml-dev-env 5678:5678
 ```
 
 **Expected output:**
+
 ```
 Forwarding from 127.0.0.1:5678 -> 5678
 Forwarding from [::1]:5678 -> 5678
@@ -114,6 +117,7 @@ oc exec -it ml-dev-env -n nccl-test -- python /workspace/test_debug.py
 ```
 
 **Expected output:**
+
 ```
 Waiting for debugger to attach...
 ```
@@ -129,15 +133,17 @@ In VSCode:
 3. **Press the green "Start Debugging" button** (or press `F5`)
 
 **What happens:**
+
 - VSCode connects to localhost:5678 (which is forwarded to the pod)
 - The script resumes and hits your first breakpoint
 - VSCode opens the file and highlights the current line
 
-### Step 8: Debug!
+### Step 8: Debug
 
 Now you can use all VSCode debugging features:
 
 **Controls:**
+
 - **Continue** (F5) - Run until next breakpoint
 - **Step Over** (F10) - Execute current line, don't step into functions
 - **Step Into** (F11) - Step into function calls
@@ -146,12 +152,14 @@ Now you can use all VSCode debugging features:
 - **Stop** - Stop debugging
 
 **Panels:**
+
 - **Variables** - Inspect local variables, GPU tensors, etc.
 - **Watch** - Add expressions to monitor (e.g., `x.shape`, `torch.cuda.memory_allocated()`)
 - **Call Stack** - See the function call stack
 - **Debug Console** - Run Python expressions in the current context
 
 **Try this:**
+
 1. When stopped at line 20 (`z = torch.matmul(x, y)`), open the Debug Console
 2. Type: `x.device`
 3. You'll see: `device(type='cuda', index=0)`
@@ -166,11 +174,13 @@ When stopped at a breakpoint after the matrix multiplication (line 21), hover ov
 - Hover over `z` - See the result tensor
 
 In the Variables panel, expand `z` to see:
+
 - `shape: (1000, 1000)`
 - `device: cuda:0`
 - `dtype: torch.float32`
 
 You can even see tensor values! Click the expression icon and type:
+
 ```python
 z[0, 0:5]  # First 5 elements of first row
 ```
@@ -245,9 +255,11 @@ For true multi-GPU debugging, you'd:
 
 1. **Run 4 processes** (one per GPU), each listening on ports 5678, 5679, 5680, 5681
 2. **Port-forward all 4 ports:**
+
    ```bash
    oc port-forward ml-dev-env -n nccl-test 5678:5678 5679:5679 5680:5680 5681:5681
    ```
+
 3. **Create 4 launch configurations** (one per rank)
 4. **Attach to each rank separately** to debug distributed training
 
@@ -256,6 +268,7 @@ For true multi-GPU debugging, you'd:
 ### Conditional Breakpoints
 
 Right-click a breakpoint → "Edit Breakpoint" → Add condition:
+
 ```python
 i == 2  # Only break when loop variable i is 2
 ```
@@ -263,14 +276,17 @@ i == 2  # Only break when loop variable i is 2
 ### Logpoints
 
 Right-click in gutter → "Add Logpoint" → Enter message:
+
 ```
 GPU {i}: {device_name}
 ```
+
 Prints to Debug Console without stopping execution.
 
 ### Watch Expressions
 
 Add to Watch panel:
+
 - `torch.cuda.memory_allocated() / 1e9` - GPU memory in GB
 - `x.is_cuda` - Check if tensor is on GPU
 - `x.shape` - Tensor dimensions
@@ -278,6 +294,7 @@ Add to Watch panel:
 ### Debug Console Commands
 
 While paused at a breakpoint, run any Python code:
+
 ```python
 # Check all GPUs
 [torch.cuda.get_device_name(i) for i in range(4)]
@@ -296,6 +313,7 @@ x_gpu2 = x.to('cuda:2')
 **Problem:** VSCode can't connect to localhost:5678
 
 **Solutions:**
+
 1. Check port-forward is running: Look for "Forwarding from 127.0.0.1:5678"
 2. Verify script is running: Terminal 2 should show "Waiting for debugger to attach..."
 3. Check firewall isn't blocking localhost connections
@@ -305,6 +323,7 @@ x_gpu2 = x.to('cuda:2')
 **Problem:** Red breakpoint turns gray, never hits
 
 **Solutions:**
+
 1. Verify `pathMappings` in launch.json are correct
 2. Make sure local and remote files are identical
 3. Try setting breakpoint on a different line with actual code (not comments/blank lines)
@@ -314,6 +333,7 @@ x_gpu2 = x.to('cuda:2')
 **Problem:** Can't inspect variables
 
 **Solutions:**
+
 1. Set `"justMyCode": false` in launch.json
 2. Step into the code, don't just continue
 3. Some optimized code may not expose all variables
@@ -323,6 +343,7 @@ x_gpu2 = x.to('cuda:2')
 **Problem:** Port-forward exits after a few minutes
 
 **Solution:** Use a loop:
+
 ```bash
 while true; do
     oc port-forward -n nccl-test ml-dev-env 5678:5678
@@ -356,6 +377,7 @@ done
 | Method 4 (Jupyter) | Great for exploration | Not ideal for debugging scripts |
 
 **Use Method 3 when:**
+
 - You have complex debugging needs
 - You're debugging distributed/multi-GPU code
 - You want to use your local VSCode setup

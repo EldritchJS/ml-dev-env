@@ -25,6 +25,7 @@ make shell
 ### 1. Prerequisites
 
 Ensure you have:
+
 - [ ] OpenShift CLI (`oc`) installed
 - [ ] Logged into your OpenShift cluster
 - [ ] Access to target namespace (default: `nccl-test`)
@@ -47,11 +48,13 @@ oc get nodes -l 'node.kubernetes.io/instance-type'
 The default namespace is `nccl-test`, but you can use any namespace:
 
 **Option A: Environment variable (one-time)**
+
 ```bash
 NAMESPACE=my-ml-project make deploy
 ```
 
 **Option B: Export (persistent in session)**
+
 ```bash
 export NAMESPACE=my-ml-project
 make deploy
@@ -60,11 +63,13 @@ make shell
 ```
 
 **Option C: Use deploy script**
+
 ```bash
 NAMESPACE=my-ml-project ./scripts/deploy.sh deploy
 ```
 
 **Option D: Create .env file**
+
 ```bash
 cp .env.example .env
 # Edit .env and change NAMESPACE=my-namespace
@@ -104,6 +109,7 @@ make status
 ### 4. Access Development Environment
 
 **Option A: VSCode in Browser**
+
 ```bash
 make vscode
 # Opens browser-based VSCode
@@ -111,6 +117,7 @@ make vscode
 ```
 
 **Option B: Shell Access**
+
 ```bash
 make shell
 # Direct terminal access
@@ -118,6 +125,7 @@ make shell
 ```
 
 **Option C: Jupyter Notebook**
+
 ```bash
 make jupyter
 # Starts Jupyter server
@@ -342,6 +350,7 @@ if __name__ == "__main__":
 ```
 
 Run:
+
 ```bash
 torchrun --nproc_per_node=4 train.py
 ```

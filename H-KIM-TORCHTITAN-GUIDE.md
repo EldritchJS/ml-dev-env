@@ -42,6 +42,7 @@ oc exec h-kim-0 -n nccl-test -- bash -c "CONFIG_FILE=/workspace/torchtitan/train
 ```
 
 The script will:
+
 - Clone TorchTitan repo to `/workspace/torchtitan` (first run only)
 - Detect it's running on h-kim-0 (node rank 0)
 - Connect to h-kim-1 via the headless service

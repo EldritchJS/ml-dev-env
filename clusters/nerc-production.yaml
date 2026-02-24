@@ -12,7 +12,7 @@ nodes:
   # Specific GPU nodes to use (leave empty for auto-selection)
   gpu_nodes:
   # Optional: Add more nodes as needed
-  # - 
+  # -
   # -
 
 # Storage configuration

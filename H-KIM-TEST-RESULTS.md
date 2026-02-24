@@ -11,17 +11,20 @@ Successfully adapted h-kim's TorchTitan training script (`h-kim.sh`) to run on O
 ## What Works
 
 ✅ **Script Adaptation**
+
 - Converted h-kim's SLURM-based script to OpenShift/Kubernetes
 - Configured for RDMA/InfiniBand networking (OpenShift NERC cluster)
 - Auto-clones TorchTitan repository on first run
 - Uses PYTHONPATH to prioritize repo code over pip-installed package
 
 ✅ **Distributed Setup**
+
 - Torchrun successfully launches across multiple pods
 - Proper rendezvous between nodes via headless service
 - Detects all 8 GPUs (2 nodes × 4 GPUs)
 
 ✅ **Training Execution**
+
 - Model loading works (tested with 6M parameter debug model)
 - Dataloader initialization successful
 - **Training step completed** with loss 8.00372
@@ -29,17 +32,20 @@ Successfully adapted h-kim's TorchTitan training script (`h-kim.sh`) to run on O
 ## Test Configuration
 
 **Environment:**
+
 - Image: `quay.io/jschless/ml-dev-env:h-kim`
 - PyTorch: 2.10.0a0 (NVIDIA 26.01)
 - CUDA: 13.1
 - GPUs: 4× NVIDIA H100 80GB HBM3 per pod
 
 **Test Run:**
+
 - Mode: Single-node, single-GPU (NNODES=1, NPROC_PER_NODE=1)
 - Config: `/workspace/torchtitan/tests/integration_tests/base_config.toml`
 - Model: Llama3 debug model (6M parameters)
 
 **Training Metrics (Step 1):**
+
 ```
 loss: 8.00372
 grad_norm: 1.4094
@@ -98,6 +104,7 @@ NCCL WARN Bootstrap : no socket interface found
 **Cause:** NCCL is looking for net1-4 interfaces but doesn't need them for single-GPU training.
 
 **Fix:** For single-GPU testing, override the network interface:
+
 ```bash
 NCCL_SOCKET_IFNAME=eth0 NNODES=1 NPROC_PER_NODE=1 ./h-kim-openshift.sh
 ```
@@ -115,18 +122,21 @@ NCCL_SOCKET_IFNAME=eth0 NNODES=1 NPROC_PER_NODE=1 ./h-kim-openshift.sh
 ### Production Use
 
 1. **Download Model Assets:**
+
    ```bash
    # From HuggingFace (requires authentication)
    huggingface-cli download meta-llama/Llama-3.1-8B --local-dir /workspace/assets/hf/Llama-3.1-8B
    ```
 
 2. **Run Full Training:**
+
    ```bash
    # Multi-node, full GPUs
    NNODES=2 NPROC_PER_NODE=4 CONFIG_FILE=/workspace/torchtitan/torchtitan/models/llama3/train_configs/llama3_8b.toml ./h-kim-openshift.sh
    ```
 
 3. **Monitor Training:**
+
    ```bash
    oc logs -f h-kim-0 -n nccl-test
    oc logs -f h-kim-1 -n nccl-test
@@ -151,11 +161,13 @@ NCCL_SOCKET_IFNAME=eth0 NNODES=1 NPROC_PER_NODE=1 ./h-kim-openshift.sh
 ## Performance Notes
 
 **Single-GPU (H100 80GB):**
+
 - Tokens/sec: 9,792
 - Memory usage: 1.40GiB (1.76%)
 - Model: 6M parameters (debug)
 
 **Expected Multi-GPU (8× H100):**
+
 - Should achieve near-linear scaling for data parallelism
 - RDMA/InfiniBand enables low-latency communication
 - NVLink within nodes for fast GPU-to-GPU transfer

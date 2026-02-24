@@ -13,12 +13,14 @@ Thank you for contributing to the ML Development Environment project!
 ### Initial Setup
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/EldritchJS/ml-dev-env.git
    cd ml-dev-env
    ```
 
 2. **Install Python dependencies:**
+
    ```bash
    # Install runtime dependencies
    pip install -r requirements.txt
@@ -28,6 +30,7 @@ Thank you for contributing to the ML Development Environment project!
    ```
 
 3. **Install pre-commit hooks:**
+
    ```bash
    pre-commit install
    ```
@@ -80,6 +83,7 @@ pre-commit autoupdate
 ### Skipping Hooks (Not Recommended)
 
 If you absolutely need to skip hooks:
+
 ```bash
 git commit --no-verify -m "Your message"
 ```
@@ -97,6 +101,7 @@ git commit --no-verify -m "Your message"
 - **Docstrings:** Google style
 
 Example:
+
 ```python
 #!/usr/bin/env python3
 """
@@ -170,6 +175,7 @@ When modifying scripts:
 ### Workflow
 
 1. **Create a branch:**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -180,6 +186,7 @@ When modifying scripts:
    - Ensure pre-commit hooks pass
 
 3. **Commit changes:**
+
    ```bash
    git add <files>
    git commit -m "Description of changes"
@@ -188,6 +195,7 @@ When modifying scripts:
    Pre-commit hooks will run automatically.
 
 4. **Push changes:**
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -211,6 +219,7 @@ Follow conventional commits format:
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -220,6 +229,7 @@ Follow conventional commits format:
 - `chore`: Maintenance tasks
 
 **Examples:**
+
 ```
 feat: add cluster auto-discovery tool
 
@@ -284,6 +294,7 @@ Add more usage examples and troubleshooting section.
 ## Code Review
 
 Pull requests should:
+
 - Pass all pre-commit hooks
 - Include relevant documentation
 - Have clear commit messages

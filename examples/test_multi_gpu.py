@@ -2,9 +2,11 @@
 """
 Test multi-GPU setup and NCCL communication
 """
+from datetime import datetime
+
 import torch
 import torch.distributed as dist
-from datetime import datetime
+
 
 def test_gpu_availability():
     """Test basic GPU availability"""
@@ -27,6 +29,7 @@ def test_gpu_availability():
             print(f"  Multi-Processor Count: {props.multi_processor_count}")
     print()
 
+
 def test_nccl():
     """Test NCCL backend availability"""
     print("=" * 60)
@@ -39,13 +42,14 @@ def test_nccl():
     if torch.cuda.is_available():
         # Test peer-to-peer access
         num_gpus = torch.cuda.device_count()
-        print(f"\nPeer-to-Peer Access Matrix:")
+        print("\nPeer-to-Peer Access Matrix:")
         for i in range(num_gpus):
             for j in range(num_gpus):
                 if i != j:
                     can_access = torch.cuda.can_device_access_peer(i, j)
                     print(f"  GPU {i} -> GPU {j}: {'Yes' if can_access else 'No'}")
     print()
+
 
 def test_data_transfer():
     """Test GPU-to-GPU data transfer"""
@@ -62,7 +66,7 @@ def test_data_transfer():
 
     for gpu_id in range(num_gpus):
         # Create tensor on GPU
-        device = f'cuda:{gpu_id}'
+        device = f"cuda:{gpu_id}"
         start = datetime.now()
         tensor = torch.randn(size, device=device)
         torch.cuda.synchronize(gpu_id)
@@ -78,6 +82,7 @@ def test_data_transfer():
 
         print(f"GPU {gpu_id}: Matrix multiply in {elapsed:.2f} ms")
     print()
+
 
 def test_multi_gpu_model():
     """Test simple multi-GPU model"""
@@ -96,9 +101,7 @@ def test_multi_gpu_model():
 
     # Simple model
     model = torch.nn.Sequential(
-        torch.nn.Linear(1024, 2048),
-        torch.nn.ReLU(),
-        torch.nn.Linear(2048, 1024)
+        torch.nn.Linear(1024, 2048), torch.nn.ReLU(), torch.nn.Linear(2048, 1024)
     )
 
     # Wrap with DataParallel
@@ -120,6 +123,7 @@ def test_multi_gpu_model():
     print(f"Forward pass: {elapsed:.2f} ms")
     print(f"Output shape: {y.shape}")
     print()
+
 
 if __name__ == "__main__":
     test_gpu_availability()

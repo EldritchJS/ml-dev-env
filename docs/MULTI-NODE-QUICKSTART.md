@@ -50,29 +50,36 @@ The cluster configuration system automatically:
 ## 🌍 Available Clusters
 
 Check configured clusters:
+
 ```bash
 make list-clusters
 ```
 
 Example clusters:
+
 - **barcelona** - NERC Barcelona cluster with RDMA and per-pod storage
 - **nerc-production** - NERC Production cluster with TCP and RWX storage
 
 ## 📊 Deployment Modes
 
 ### RDMA Mode (High Performance - Recommended)
+
 Best for production training with InfiniBand hardware:
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 **Features**:
+
 - GPUDirect RDMA for optimal GPU-to-GPU communication
 - Higher bandwidth, lower latency
 - Requires InfiniBand adapters (mlx5_*)
 
 ### TCP Mode (Universal Compatibility)
+
 Use for clusters without RDMA or for wider compatibility:
+
 ```bash
 # Barcelona with TCP fallback
 make deploy-cluster CLUSTER=barcelona MODE=tcp
@@ -82,6 +89,7 @@ make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
 
 **Features**:
+
 - Standard TCP/IP networking
 - No special hardware required
 - Slightly lower performance than RDMA
@@ -195,11 +203,13 @@ make clean-cluster CLUSTER=barcelona
 ## 🐛 Quick Debug
 
 **Pods not starting?**
+
 ```bash
 oc describe pod ml-dev-env-0 -n nccl-test | tail -20
 ```
 
 **Training hangs?**
+
 ```bash
 # Test NCCL from master
 oc exec ml-dev-env-0 -n nccl-test -- bash -c '
@@ -213,6 +223,7 @@ print(\"NCCL working!\")
 ```
 
 **Code not syncing?**
+
 ```bash
 # Manual sync
 oc rsync ./workspace/ ml-dev-env-0:/workspace/ -n nccl-test

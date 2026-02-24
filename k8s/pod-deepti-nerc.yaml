@@ -28,31 +28,31 @@ spec:
       echo ""
       echo "Namespace: mllm-interpretation-and-failure-investigation-c8fa7f"
       echo ""
-      
+
       echo "GPU Information:"
       nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader
       echo ""
-      
+
       echo "GPU Topology:"
       nvidia-smi topo -m
       echo ""
-      
+
       echo "Verifying Python environment:"
       python -c "import torch; print(f'PyTorch {torch.__version__}, CUDA available: {torch.cuda.is_available()}, GPUs: {torch.cuda.device_count()}')"
       python -c "import transformers; print(f'Transformers {transformers.__version__}')"
       python -c "import qwen_omni_utils; print('qwen-omni-utils: installed')" 2>/dev/null || echo "qwen-omni-utils: error"
       python -c "import flash_attn; print(f'flash-attn: {flash_attn.__version__}')"
       echo ""
-      
+
       cp /scripts/deepti.py /workspace/deepti.py
       echo "Copied deepti.py to workspace"
-      
+
       echo "=========================================="
       echo "Running deepti.py..."
       echo "=========================================="
       cd /workspace
       python deepti.py
-      
+
       echo ""
       echo "Test completed successfully!"
     resources:

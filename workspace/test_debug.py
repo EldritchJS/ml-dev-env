@@ -16,8 +16,8 @@ for i in range(torch.cuda.device_count()):
     print(f"GPU {i}: {device_name}")
 
 # Test some GPU operations
-x = torch.randn(1000, 1000, device='cuda:0')
-y = torch.randn(1000, 1000, device='cuda:0')
+x = torch.randn(1000, 1000, device="cuda:0")
+y = torch.randn(1000, 1000, device="cuda:0")
 z = torch.matmul(x, y)
 print(f"Matrix multiplication result shape: {z.shape}")
 print(f"Result sum: {z.sum().item():.2f}")

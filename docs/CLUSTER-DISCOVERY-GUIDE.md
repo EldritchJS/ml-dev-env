@@ -19,11 +19,13 @@ The `discover-cluster.py` script connects to your cluster and automatically dete
 ### Prerequisites
 
 1. **Login to your cluster:**
+
    ```bash
    oc login https://api.your-cluster.com:6443
    ```
 
 2. **Switch to your namespace:**
+
    ```bash
    oc project my-ml-namespace
    ```
@@ -31,11 +33,13 @@ The `discover-cluster.py` script connects to your cluster and automatically dete
 ### Discover Configuration
 
 **Using Makefile (recommended):**
+
 ```bash
 make discover-cluster NAME=my-cluster
 ```
 
 **Using script directly:**
+
 ```bash
 ./scripts/discover-cluster.py --name my-cluster
 ```
@@ -67,6 +71,7 @@ make discover-cluster NAME=nerc-shift
 ```
 
 **Output:**
+
 ```
 🔍 Discovering cluster configuration for: nerc-shift
 
@@ -121,6 +126,7 @@ cluster:
 ```
 
 **How it works:**
+
 - API endpoint from `oc whoami --show-server`
 - Namespace from current context or `--namespace` flag
 
@@ -141,6 +147,7 @@ gpus:
 ```
 
 **How it works:**
+
 - Finds nodes with `nvidia.com/gpu.present=true` label
 - Reads GPU count from node capacity
 - Detects GPU type from node labels or description
@@ -159,6 +166,7 @@ network:
 ```
 
 **How it works:**
+
 - Checks for RDMA network attachments
 - Looks for Mellanox device hints in node labels/annotations
 - Falls back to TCP if no RDMA detected
@@ -175,6 +183,7 @@ storage:
 ```
 
 **How it works:**
+
 - Lists all storage classes
 - Identifies RWX classes (nfs, cephfs, rwx in name)
 - Identifies RWO classes (rbd, ceph, rwo in name)
@@ -190,6 +199,7 @@ security:
 ```
 
 **How it works:**
+
 - Checks if privileged SCC exists
 - Automatically sets privileged requirements if RDMA detected
 - Conservative default (no privileges) for TCP-only clusters
@@ -199,12 +209,14 @@ security:
 ### No GPU Nodes Found
 
 **Issue:**
+
 ```
 ⚠️  No GPU nodes found with label nvidia.com/gpu.present=true
 ```
 
 **Solution:**
 Check node labels:
+
 ```bash
 # List all nodes
 oc get nodes
@@ -217,6 +229,7 @@ oc describe node <node-name> | grep -i gpu
 ```
 
 If nodes have GPUs but no label, manually add the label:
+
 ```bash
 oc label node <node-name> nvidia.com/gpu.present=true
 ```
@@ -224,12 +237,14 @@ oc label node <node-name> nvidia.com/gpu.present=true
 ### RDMA Not Detected
 
 **Issue:**
+
 ```
 ℹ️  No RDMA/InfiniBand detected - will use TCP
 ```
 
 **Solution:**
 Check for InfiniBand manually:
+
 ```bash
 # Debug node
 oc debug node/<gpu-node>
@@ -245,6 +260,7 @@ oc get network-attachment-definitions -A
 ```
 
 If RDMA exists but wasn't detected:
+
 1. Edit the generated config file
 2. Set `network.rdma.enabled: true`
 3. Add correct device names from `ibstat`
@@ -252,11 +268,13 @@ If RDMA exists but wasn't detected:
 ### Storage Classes Not Found
 
 **Issue:**
+
 ```
 ⚠️  No storage classes found
 ```
 
 **Solution:**
+
 ```bash
 # List storage classes
 oc get storageclass
@@ -268,6 +286,7 @@ oc get storageclass
 ### Permission Errors
 
 **Issue:**
+
 ```
 Error running command: oc get nodes
 Error: Forbidden
@@ -275,6 +294,7 @@ Error: Forbidden
 
 **Solution:**
 Ensure you have sufficient permissions:
+
 ```bash
 # Check current permissions
 oc auth can-i list nodes
@@ -371,6 +391,7 @@ make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>
 ### Environment Variables
 
 The script uses `oc` commands and inherits your current cluster context:
+
 - Current cluster from `~/.kube/config`
 - Current namespace from `oc project`
 - Authentication from `oc login`

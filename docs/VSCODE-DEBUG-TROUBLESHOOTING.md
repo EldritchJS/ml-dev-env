@@ -3,9 +3,11 @@
 ## Quick Fix Steps
 
 ### Step 1: Completely Close VSCode
+
 Close all VSCode windows completely (Cmd+Q)
 
 ### Step 2: Open the Workspace Folder (Not Just a File!)
+
 ```bash
 cd /Users/jschless/taj/cairo/ml-dev-env
 /usr/local/bin/code .
@@ -14,6 +16,7 @@ cd /Users/jschless/taj/cairo/ml-dev-env
 **Important:** You must open the folder `/Users/jschless/taj/cairo/ml-dev-env`, not just open a Python file.
 
 ### Step 3: Open a Python File
+
 In VSCode, open: `workspace/test_debug.py`
 
 This triggers the Python extension to activate.
@@ -107,6 +110,7 @@ If the dropdown doesn't appear, you can still debug:
 If nothing works, try recreating the configuration:
 
 1. **Delete** `.vscode/launch.json`:
+
    ```bash
    rm /Users/jschless/taj/cairo/ml-dev-env/.vscode/launch.json
    ```
@@ -121,6 +125,7 @@ If nothing works, try recreating the configuration:
    - Enter port: `5678`
 
 3. **Modify** the created file to add path mappings:
+
    ```json
    {
        "version": "0.2.0",
@@ -175,11 +180,13 @@ In VSCode:
 Try using the Command Palette directly:
 
 1. Make sure port-forward is running:
+
    ```bash
    oc port-forward -n nccl-test ml-dev-env 5678:5678
    ```
 
 2. Make sure script is running:
+
    ```bash
    oc exec -it ml-dev-env -n nccl-test -- python /workspace/test_debug.py
    ```
@@ -219,6 +226,7 @@ Enable VSCode debug logging:
 5. Look for error messages in the console
 
 Common errors:
+
 - "Cannot find module 'debugpy'" → Python extension not loaded
 - "Cannot connect to localhost:5678" → Port-forward not running
 - "No configuration found" → launch.json not recognized
@@ -228,6 +236,7 @@ Common errors:
 **Most common issue:** Opening a single file instead of the folder.
 
 **Solution:**
+
 ```bash
 # Close VSCode completely
 # Then:

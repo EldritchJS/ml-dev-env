@@ -13,21 +13,26 @@ ml-dev-env is a **cluster-based GPU machine learning development environment** f
 ## 🧩 OpenShift Components Used
 
 ### 1. **BuildConfig** (`k8s/buildconfig.yaml`)
+
 - Builds container images directly on the cluster using OpenShift's S2I (Source-to-Image)
 - Base image: NVIDIA PyTorch container (`nvcr.io/nvidia/pytorch:25.09-py3`)
 - Includes: PyTorch 2.9, CUDA 13.0, Flash Attention 2.7.4, DeepSpeed, RDMA tools
 - Creates tagged images: `pytorch-2.9-numpy2`, `pytorch-2.8-numpy1`
 
 ### 2. **ImageStream** (`k8s/imagestream.yaml`)
+
 - Tracks container image versions in OpenShift's internal registry
 - Location: `image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env`
 
 ### 3. **StatefulSet** (Multi-Node)
+
 Two variants based on network mode:
+
 - **`statefulset-multi-node-rdma.yaml`**: RDMA/InfiniBand mode (high performance)
 - **`statefulset-multi-node-tcp.yaml`**: TCP/Ethernet mode (universal compatibility)
 
 Key features:
+
 - **Headless Service** (`ml-dev-env-headless`): Provides stable DNS for pod-to-pod communication
   - Pods accessible as: `ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local`
 - **Pod Anti-Affinity**: Ensures one pod per physical node
@@ -35,14 +40,17 @@ Key features:
 - **Ordered Naming**: Pods numbered 0, 1, 2, 3... (pod-0 is always the master)
 
 ### 4. **Pod** (Single-Node)
+
 - **`pod-multi-gpu.yaml`**: Standalone pod for 4-GPU development
 - Used for testing and development before scaling to multi-node
 
 ### 5. **PersistentVolumeClaims** (`k8s/pvcs.yaml`)
+
 - **`ml-dev-workspace`**: 100GB for code and models
 - **`ml-dev-datasets`**: 500GB for training data
 
 ### 6. **Services & Routes** (`k8s/service.yaml`)
+
 - **VSCode Server**: Port 8080
 - **Jupyter Notebook**: Port 8888
 - **TensorBoard**: Port 6006
@@ -50,6 +58,7 @@ Key features:
 - **Master Port**: 29500 (NCCL communication)
 
 ### 7. **Service Accounts & Security**
+
 - **Service Account**: `ml-dev-sa`
 - **Privileged SCC**: Required for RDMA mode (IPC_LOCK capability)
 - **Capabilities**: IPC_LOCK (for pinning memory for RDMA)
@@ -59,6 +68,7 @@ Key features:
 ## 🎯 Cluster-Based Configuration System
 
 ### Configuration Files (`clusters/*.yaml`)
+
 Each cluster has a YAML config defining all infrastructure-specific settings:
 
 ```yaml
@@ -93,6 +103,7 @@ gpus:
 ```
 
 ### Deployment Script (`scripts/deploy-cluster.py`)
+
 1. **Loads cluster config** from `clusters/<name>.yaml`
 2. **Validates** RDMA availability (auto-falls back to TCP if not supported)
 3. **Template substitution**: Replaces placeholders in StatefulSet YAML
@@ -104,6 +115,7 @@ gpus:
 4. **Generates final manifests** and applies to OpenShift
 
 **Workflow:**
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
   ↓
@@ -160,17 +172,20 @@ Applies to OpenShift
 Each pod runs this startup script (from `statefulset-multi-node-rdma.yaml`):
 
 1. **Calculate Node Rank**: Extract from hostname
+
    ```bash
    POD_ORDINAL=${HOSTNAME##*-}  # ml-dev-env-0 → 0
    export NODE_RANK=$POD_ORDINAL
    ```
 
 2. **Start VSCode Server** (background)
+
    ```bash
    code-server --bind-addr 0.0.0.0:8080 --auth none /workspace &
    ```
 
 3. **Generate DeepSpeed Hostfile**
+
    ```bash
    > /workspace/.deepspeed/hostfile
    for i in $(seq 0 $((NUM_NODES - 1))); do
@@ -183,12 +198,14 @@ Each pod runs this startup script (from `statefulset-multi-node-rdma.yaml`):
 ### NCCL Communication
 
 **RDMA Mode** (InfiniBand):
+
 ```
 GPU 0 → PCIe → mlx5_6 NIC → InfiniBand → mlx5_6 NIC → PCIe → GPU 4
      (GPUDirect RDMA - direct GPU-to-NIC transfer)
 ```
 
 Environment variables set:
+
 ```bash
 NCCL_IB_DISABLE=0                    # Enable InfiniBand
 NCCL_IB_HCA=mlx5_2,mlx5_3,mlx5_4,mlx5_5  # Active NICs
@@ -198,6 +215,7 @@ NCCL_SOCKET_IFNAME=net1,net2,net3,net4  # SR-IOV interfaces
 ```
 
 **TCP Mode** (Ethernet):
+
 ```
 GPU 0 → PCIe → System Memory → Ethernet → System Memory → PCIe → GPU 4
      (Slower but works everywhere)
@@ -208,6 +226,7 @@ GPU 0 → PCIe → System Memory → Ethernet → System Memory → PCIe → GPU
 ## 💾 Storage Architecture
 
 ### Option 1: ReadWriteMany (RWX) - Shared Storage
+
 ```
 ┌────────────────────────────┐
 │  NFS Server (nfs-csi)      │
@@ -227,6 +246,7 @@ GPU 0 → PCIe → System Memory → Ethernet → System Memory → PCIe → GPU
 **Cons**: Requires NFS server, potential performance bottleneck
 
 ### Option 2: VolumeClaimTemplates - Per-Pod Storage
+
 ```
 ┌──────────────┐  ┌──────────────┐
 │  PVC-pod-0   │  │  PVC-pod-1   │
@@ -248,33 +268,41 @@ GPU 0 → PCIe → System Memory → Ethernet → System Memory → PCIe → GPU
 ## 🚀 Training Workflow
 
 ### 1. Deploy
+
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
+
 → Creates StatefulSet with 2 pods (8 GPUs total)
 
 ### 2. Sync Code
+
 ```bash
 make sync-multi-node
 ```
+
 → Copies `workspace/` to `/workspace` on all pods
 
 ### 3. SSH into Master
+
 ```bash
 make shell-multi-node  # Opens shell in ml-dev-env-0
 ```
 
 ### 4. Launch Training
+
 ```bash
 ./launch_deepspeed.sh train_multi_node.py
 ```
 
 What happens:
+
 1. **Validates** running on pod-0 (master)
 2. **Checks** hostfile exists
 3. **Tests** connectivity to workers (ping)
 4. **Waits** for all pods ready
 5. **Launches DeepSpeed**:
+
    ```bash
    deepspeed \
      --hostfile=/workspace/.deepspeed/hostfile \
@@ -286,6 +314,7 @@ What happens:
    ```
 
 DeepSpeed then:
+
 - **SSH** to each worker node listed in hostfile
 - **Launches** python processes with appropriate ranks
 - **Initializes** NCCL for GPU communication
@@ -322,6 +351,7 @@ Tagged as: ml-dev-env:pytorch-2.9-numpy2
 ```
 
 ### Build Process
+
 ```bash
 make build
   ↓
@@ -346,15 +376,18 @@ ImageStream tracks the new image
 ## 🔧 Development Workflow
 
 ### Automated Session
+
 ```bash
 make dev-session
 ```
+
 1. Starts file watcher on `./workspace`
 2. Auto-syncs changes to pod via `oc rsync`
 3. Port-forwards debug port (5678)
 4. Waits for you to run script
 
 ### Manual Steps
+
 ```bash
 make sync-once          # One-time code sync
 make shell              # SSH into pod
@@ -367,21 +400,27 @@ make vscode             # Get VSCode URL
 ## 🎛️ Key Design Decisions
 
 ### 1. StatefulSet vs Deployment
+
 **Why StatefulSet?**
+
 - **Stable network identities**: Predictable pod names (ml-dev-env-0, ml-dev-env-1, ...)
 - **Ordered pod numbering**: Always starts from 0, essential for DeepSpeed master/worker roles
 - **Persistent storage**: Each pod gets its own PVC with VolumeClaimTemplates
 - **Ordered startup/shutdown**: Can control pod initialization order if needed
 
 ### 2. Headless Service
+
 **Why headless?**
+
 - Required for pod-to-pod DNS resolution
 - Normal service would load-balance requests across pods
 - Headless service returns all pod IPs individually
 - Each pod gets stable DNS: `ml-dev-env-{0..N}.ml-dev-env-headless.nccl-test.svc.cluster.local`
 
 ### 3. Cluster-based Configuration
+
 **Advantages:**
+
 - Centralized infrastructure settings per cluster
 - Avoids manual YAML editing and copy-paste errors
 - Version control for cluster-specific differences
@@ -389,7 +428,9 @@ make vscode             # Get VSCode URL
 - Single command deployment: `make deploy-cluster CLUSTER=barcelona MODE=rdma`
 
 ### 4. NVIDIA Base Image
+
 **Benefits:**
+
 - Guaranteed CUDA/PyTorch compatibility (no version conflicts)
 - Pre-built Flash Attention (avoids 30-minute compile)
 - Tested NCCL integration with CUDA
@@ -397,14 +438,18 @@ make vscode             # Get VSCode URL
 - Includes CUDA toolkit and cuDNN
 
 ### 5. Pod-0 as Master
+
 **DeepSpeed convention:**
+
 - Master node coordinates distributed training
 - Workers connect to master's IP:port
 - VSCode/Jupyter only on master (saves resources on workers)
 - Simplified monitoring (logs from one pod)
 
 ### 6. Two Storage Modes
+
 **Why support both RWX and per-pod?**
+
 - **RWX (NFS)**: Easier for users, sync once
 - **Per-pod (Ceph)**: Better I/O performance, no NFS dependency
 - Different clusters have different storage capabilities
@@ -415,6 +460,7 @@ make vscode             # Get VSCode URL
 ## 🔐 Security Model
 
 ### RDMA Mode Requirements
+
 ```yaml
 securityContext:
   capabilities:
@@ -423,11 +469,13 @@ securityContext:
 ```
 
 **Why IPC_LOCK?**
+
 - RDMA requires pinning memory pages to prevent swapping
 - GPU memory must be locked for GPUDirect RDMA
 - Requires privileged SCC in OpenShift
 
 ### Service Account Setup
+
 ```bash
 # Create service account
 oc create serviceaccount ml-dev-sa -n nccl-test
@@ -437,6 +485,7 @@ oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
 ```
 
 ### Pod Security Context
+
 - **RDMA mode**: Privileged (requires SCC)
 - **TCP mode**: Non-privileged (works with restricted SCC)
 - **Node selectors**: Constrain to GPU nodes
@@ -449,6 +498,7 @@ oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
 ### Training Step with DeepSpeed ZeRO-2
 
 1. **Forward Pass**
+
    ```
    Each GPU: Computes forward pass on its batch shard
    GPU 0: batch[0:8]  → activations[0:8]
@@ -456,6 +506,7 @@ oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
    ```
 
 2. **Backward Pass**
+
    ```
    Each GPU: Computes gradients locally
    GPU 0: ∂L/∂W[0:8]
@@ -463,6 +514,7 @@ oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
    ```
 
 3. **Gradient AllReduce** (via NCCL over InfiniBand)
+
    ```
    Ring AllReduce:
    GPU 0 ←→ GPU 1 ←→ GPU 2 ←→ ... ←→ GPU 7 ←→ GPU 0
@@ -475,6 +527,7 @@ oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
    ```
 
 4. **Optimizer Step**
+
    ```
    Each GPU: Updates its shard of optimizer states
    GPU 0: Updates Adam states for weights[0:N/8]
@@ -482,12 +535,14 @@ oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
    ```
 
 5. **Broadcast Updated Weights** (if needed)
+
    ```
    Each GPU broadcasts its weight shard to others
    Result: All GPUs have full model weights
    ```
 
 ### Network Path (RDMA Mode)
+
 ```
 ┌──────────┐      ┌──────┐      ┌──────────┐      ┌──────┐      ┌──────────┐
 │  GPU 0   │─PCIe─│ CPU  │─PCIe─│  mlx5_6  │─IB───│mlx5_6│─PCIe─│  GPU 4   │
@@ -512,6 +567,7 @@ Based on actual testing (see `infiniband_bandwidth_results.md`):
 | GPU↔Host (PCIe) | 28.7 GB/s | PCIe 4.0 x16 | 91% of theoretical |
 
 **Key Insights:**
+
 - NVLink is 18x faster than InfiniBand for GPU-to-GPU
 - InfiniBand underutilized due to PCIe 4.0 bottleneck
 - NCCL automatically uses NVLink for intra-node, RDMA for inter-node
@@ -521,6 +577,7 @@ Based on actual testing (see `infiniband_bandwidth_results.md`):
 ## 🔧 Troubleshooting Flow
 
 ### Pod Won't Start
+
 ```bash
 1. Check pod events
    oc describe pod ml-dev-env-0 -n nccl-test
@@ -538,6 +595,7 @@ Based on actual testing (see `infiniband_bandwidth_results.md`):
 ```
 
 ### NCCL Hangs
+
 ```bash
 1. Check DNS resolution
    oc exec ml-dev-env-0 -n nccl-test -- \
@@ -556,6 +614,7 @@ Based on actual testing (see `infiniband_bandwidth_results.md`):
 ```
 
 ### Training Slow
+
 ```bash
 1. Check GPU utilization
    oc exec ml-dev-env-0 -n nccl-test -- nvidia-smi
@@ -577,6 +636,7 @@ Based on actual testing (see `infiniband_bandwidth_results.md`):
 ## 📐 Scaling Considerations
 
 ### Horizontal Scaling (More Nodes)
+
 ```yaml
 # In cluster config
 gpus:
@@ -587,12 +647,14 @@ make deploy-cluster CLUSTER=barcelona MODE=rdma NODES=8
 ```
 
 **Considerations:**
+
 - More nodes = more network traffic
 - Ensure sufficient InfiniBand ports/switches
 - Check node availability
 - Update WORLD_SIZE environment variable
 
 ### Vertical Scaling (More GPUs per Node)
+
 ```yaml
 # In cluster config
 gpus:
@@ -605,11 +667,13 @@ resources:
 ```
 
 **Considerations:**
+
 - Node must have enough GPUs
 - More GPUs = more memory needed
 - NVLink topology matters for intra-node
 
 ### Storage Scaling
+
 ```yaml
 # In cluster config
 storage:
@@ -618,6 +682,7 @@ storage:
 ```
 
 **Watch out for:**
+
 - Storage class quota limits
 - NFS server capacity (RWX mode)
 - I/O performance with many pods

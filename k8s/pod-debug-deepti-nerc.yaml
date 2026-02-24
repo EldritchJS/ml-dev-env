@@ -29,11 +29,11 @@ spec:
       echo "Namespace: mllm-interpretation-and-failure-investigation-c8fa7f"
       echo "GPUs: 4x NVIDIA H100 80GB HBM3"
       echo ""
-      
+
       cp /scripts/deepti.py /workspace/deepti.py
       echo "Copied deepti.py to workspace"
       echo ""
-      
+
       echo "Starting debugpy server on port 5678..."
       echo "Waiting for VSCode debugger to connect..."
       echo ""
@@ -41,7 +41,7 @@ spec:
       echo "  1. Port forward: oc port-forward deepti-debug 5678:5678 -n mllm-interpretation-and-failure-investigation-c8fa7f"
       echo "  2. Open VSCode and press F5"
       echo ""
-      
+
       cd /workspace
       # Run with debugpy, wait for client to attach
       python -m debugpy --listen 0.0.0.0:5678 --wait-for-client deepti.py

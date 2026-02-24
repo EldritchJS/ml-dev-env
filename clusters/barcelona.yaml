@@ -88,16 +88,16 @@ nccl:
 # Notes
 notes: |
   Barcelona cluster configuration.
-  
+
   Notes:
   - This cluster may not have CephFS for RWX storage
   - Using volumeClaimTemplates (per-pod storage) by default
   - IPC_LOCK may not be available without cluster admin privileges
   - If RWX storage becomes available, update storage.mode to "rwx"
-  
+
   To enable privileged SCC (if needed):
   1. Create service account:
      oc create serviceaccount ml-dev-sa -n nccl-test
-  
+
   2. Request cluster admin to grant privileged SCC:
      oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test

@@ -192,6 +192,7 @@ RUN pip install --no-cache-dir --force-reinstall --no-deps "numpy<2.0"
 ```
 
 **Why NumPy 1.x?**
+
 - NumPy 2.x causes compatibility warnings with PyTorch and other packages
 - Many packages are compiled against NumPy 1.x
 - NumPy 1.26.4 provides optimal compatibility

@@ -5,6 +5,7 @@ This guide shows how to customize pod name, namespace, directories, and ports fo
 ## 🎯 Quick Start with Defaults
 
 By default, scripts use:
+
 - **Namespace:** `nccl-test`
 - **Pod name:** `ml-dev-env`
 - **Local directory:** `./workspace`
@@ -12,6 +13,7 @@ By default, scripts use:
 - **Debug port:** `5678`
 
 To use defaults, just run:
+
 ```bash
 make dev-session
 ```
@@ -23,11 +25,13 @@ make dev-session
 Pass arguments directly to scripts:
 
 #### sync-code.sh
+
 ```bash
 ./scripts/sync-code.sh [local_dir] [remote_dir] [pod_name] [namespace]
 ```
 
 Examples:
+
 ```bash
 # Use custom directories
 ./scripts/sync-code.sh ./src /app
@@ -37,11 +41,13 @@ Examples:
 ```
 
 #### debug-remote.sh
+
 ```bash
 ./scripts/debug-remote.sh [script_name] [pod_name] [namespace] [port]
 ```
 
 Examples:
+
 ```bash
 # Different script
 ./scripts/debug-remote.sh train.py
@@ -54,11 +60,13 @@ Examples:
 ```
 
 #### dev-session.sh
+
 ```bash
 ./scripts/dev-session.sh [script] [local_dir] [remote_dir] [pod_name] [namespace] [port]
 ```
 
 Examples:
+
 ```bash
 # Custom script
 ./scripts/dev-session.sh train.py
@@ -89,6 +97,7 @@ make sync-code
 ```
 
 **Advantages:**
+
 - Works with both Makefile and scripts
 - Variables persist in your shell session
 - Easy to switch between configurations
@@ -118,6 +127,7 @@ make dev-session
 ```
 
 **Advantages:**
+
 - Configuration saved in file
 - Easy to version control (add `.env` to `.gitignore`)
 - Can have multiple configs (`.env.dev`, `.env.prod`)
@@ -252,6 +262,7 @@ make help
 ```
 
 Or check environment variables:
+
 ```bash
 env | grep -E 'NAMESPACE|POD_NAME|LOCAL_DIR|REMOTE_DIR|DEBUG_PORT'
 ```
@@ -266,6 +277,7 @@ When you use multiple configuration methods, this is the priority (highest to lo
 4. **Hardcoded defaults** (in scripts/Makefile)
 
 Example:
+
 ```bash
 # Set environment variable
 export NAMESPACE=env-namespace
@@ -372,16 +384,19 @@ make sync-code
    - Commit `.env.example` with defaults
 
 2. **Use environment variables for temporary changes**
+
    ```bash
    NAMESPACE=test make dev-session
    ```
 
 3. **Use command-line args for one-off commands**
+
    ```bash
    ./scripts/debug-remote.sh train.py other-pod
    ```
 
 4. **Document your team's config in .env.example**
+
    ```bash
    # .env.example
    # Team configuration for ML development
@@ -395,6 +410,7 @@ make sync-code
 ### "Pod not found"
 
 Check your POD_NAME and NAMESPACE:
+
 ```bash
 # See what you're using
 make help
@@ -409,6 +425,7 @@ export POD_NAME=correct-pod-name
 ### "Directory not found"
 
 Check your LOCAL_DIR:
+
 ```bash
 # Current setting
 echo $LOCAL_DIR
@@ -423,6 +440,7 @@ export LOCAL_DIR=./correct/path
 ### "Port already in use"
 
 Use a different DEBUG_PORT:
+
 ```bash
 # Check what's using the port
 lsof -i :5678

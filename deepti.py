@@ -1,26 +1,31 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import os
 import subprocess
+
 import torch
 
 # Fix for transformers post_init bug with ALL_PARALLEL_STYLES
 # See: https://github.com/huggingface/transformers/issues/38279
 from transformers import modeling_utils
+
 if not hasattr(modeling_utils, "ALL_PARALLEL_STYLES") or modeling_utils.ALL_PARALLEL_STYLES is None:
     modeling_utils.ALL_PARALLEL_STYLES = ["tp", "none", "colwise", "rowwise"]
 
 # Workaround: PyTorch 2.6.0a0 from NVIDIA not recognized as >= 2.6 by transformers
 # Patch the version check to accept NVIDIA's 2.6.0a0 (which is actually 2.6, just with alpha tag)
 import transformers.utils.import_utils
+
+
 def _bypass_check():
     # We have PyTorch 2.6.0a0 which is safe (>= 2.6), so bypass the check
     pass
+
+
 transformers.utils.import_utils.check_torch_load_is_safe = _bypass_check
 
-from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
 from qwen_omni_utils import process_mm_info
+from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
 
 """
 Minimal sanity test:
@@ -41,10 +46,14 @@ if not os.path.exists(DUMMY_VIDEO):
         [
             "ffmpeg",
             "-y",
-            "-f", "lavfi",
-            "-i", "testsrc=size=224x224:rate=5",
-            "-t", "2",
-            "-pix_fmt", "yuv420p",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=224x224:rate=5",
+            "-t",
+            "2",
+            "-pix_fmt",
+            "yuv420p",
             DUMMY_VIDEO,
         ],
         check=True,
@@ -81,9 +90,7 @@ print("[OK] Model + processor loaded")
 conversation = [
     {
         "role": "system",
-        "content": [
-            {"type": "text", "text": "You are a helpful multimodal assistant."}
-        ],
+        "content": [{"type": "text", "text": "You are a helpful multimodal assistant."}],
     },
     {
         "role": "user",
@@ -143,4 +150,3 @@ print(answer)
 print("====================")
 
 print("[SUCCESS] Minimal Qwen2.5-Omni + ffmpeg + flash-attn test completed")
-

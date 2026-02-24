@@ -120,22 +120,26 @@ The wizard automatically discovers available cluster configurations from `cluste
 - GPUs per node
 
 **What you choose:**
+
 - Which cluster to deploy to
 
 ### Deployment Mode
 
 **Single-node:**
+
 - One pod with multiple GPUs
 - Best for development and testing
 - Simpler setup
 
 **Multi-node:**
+
 - Multiple pods across nodes
 - Distributed training with DeepSpeed
 - RDMA or TCP networking
 - Configurable number of nodes
 
 **What you choose:**
+
 - Single-node or multi-node
 - Network mode (RDMA/TCP) if available
 - Number of nodes (multi-node only)
@@ -143,30 +147,37 @@ The wizard automatically discovers available cluster configurations from `cluste
 ### Feature Selection
 
 **Development Tools:**
+
 - ✅ **VSCode Server** - Browser-based IDE
 - ✅ **Jupyter Notebook** - Interactive development
 - ✅ **TensorBoard** - Training visualization
 
 **Utilities:**
+
 - ✅ **PVC File Browser** - Web-based file management
 
 **Monitoring:**
+
 - ✅ **Weights & Biases** - Experiment tracking
 
 **What you choose:**
+
 - Which tools to enable/configure
 
 ### Resource Configuration
 
 **GPUs:**
+
 - Single-node: Choose number of GPUs (1-4 typically)
 - Multi-node: Uses all GPUs per node
 
 **Storage:**
+
 - Workspace PVC size
 - Optional separate datasets PVC
 
 **What you choose:**
+
 - GPU allocation
 - Storage sizes
 
@@ -321,6 +332,7 @@ storage:
 ```
 
 Load with wizard:
+
 ```bash
 ./scripts/deployment-wizard.py --config custom-config.yaml
 ```
@@ -361,12 +373,14 @@ steps:
 ### No Clusters Available
 
 **Issue:**
+
 ```
 ⚠️  No cluster configurations found in clusters/ directory
 ```
 
 **Solution:**
 Create a cluster configuration:
+
 ```bash
 # Auto-discover
 make discover-cluster NAME=my-cluster
@@ -379,12 +393,14 @@ vim clusters/my-cluster.yaml
 ### Configuration File Not Found
 
 **Issue:**
+
 ```
 Error: Configuration file not found: my-config.yaml
 ```
 
 **Solution:**
 Check the file path:
+
 ```bash
 ls -l my-config.yaml
 # Use absolute path if needed
@@ -398,6 +414,7 @@ Configuration loads but values are wrong
 
 **Solution:**
 Validate YAML syntax:
+
 ```bash
 # Check YAML syntax
 python3 -c "import yaml; yaml.safe_load(open('my-config.yaml'))"
@@ -530,6 +547,7 @@ The deployment wizard simplifies ML environment deployment by:
 - ✅ Providing executable deployment scripts
 
 Perfect for:
+
 - New users getting started
 - Teams standardizing deployments
 - Quickly deploying to new clusters

@@ -15,6 +15,7 @@ Or:
 ```
 
 This starts everything you need:
+
 1. ✅ Syncs your local code to the pod
 2. ✅ Watches for changes (auto-syncs when you save)
 3. ✅ Sets up port-forwarding for debugging
@@ -30,6 +31,7 @@ make dev-session
 ```
 
 You'll see:
+
 ```
 🚀 ML Development Session
 =========================
@@ -69,11 +71,13 @@ Press ENTER to run the script, or Ctrl+C to exit
 ### 2. Edit Your Code
 
 Open VSCode:
+
 ```bash
 code .
 ```
 
 Edit `workspace/test_debug.py`:
+
 ```python
 import debugpy
 import torch
@@ -95,6 +99,7 @@ print(f"GPUs: {torch.cuda.device_count()}")
 In the terminal where `make dev-session` is running, **press ENTER**.
 
 You'll see:
+
 ```
 🐍 Running: /workspace/test_debug.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -107,6 +112,7 @@ Waiting for debugger...
 ### 4. Attach Debugger
 
 In VSCode:
+
 1. **Set breakpoints** (click left margin)
 2. **Press F5**
 3. **Select:** "Python: Remote Attach to Cluster"
@@ -135,6 +141,7 @@ Or:
 ```
 
 Then run scripts manually:
+
 ```bash
 oc exec -it ml-dev-env -n nccl-test -- python /workspace/my_script.py
 ```
@@ -163,6 +170,7 @@ make debug-remote FILE=test_debug.py
 ## 📋 Available Commands
 
 ### Makefile Commands
+
 ```bash
 make dev-session     # All-in-one: sync + port-forward + debug
 make sync-code       # Auto-sync code changes (watch mode)
@@ -172,6 +180,7 @@ make sync-once       # One-time manual sync
 ```
 
 ### Script Commands
+
 ```bash
 ./scripts/dev-session.sh [script.py]   # Full dev session
 ./scripts/sync-code.sh                 # Watch and sync
@@ -183,6 +192,7 @@ make sync-once       # One-time manual sync
 ### Improve Sync Performance
 
 Install `fswatch` for instant sync:
+
 ```bash
 brew install fswatch
 ```
@@ -204,16 +214,19 @@ make debug-remote FILE=my_training_script.py
 ### Multiple Terminals
 
 **Terminal 1: Keep sync running**
+
 ```bash
 make sync-code
 ```
 
 **Terminal 2: Port-forward**
+
 ```bash
 make port-forward
 ```
 
 **Terminal 3: Run scripts**
+
 ```bash
 oc exec -it ml-dev-env -n nccl-test -- python /workspace/train.py
 ```

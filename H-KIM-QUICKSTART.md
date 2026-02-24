@@ -49,6 +49,7 @@ oc start-build h-kim -n nccl-test --follow
 ### Deploy Pods
 
 **Single-Node (4 GPUs):**
+
 ```bash
 oc apply -f k8s/pod-h-kim.yaml
 
@@ -57,6 +58,7 @@ oc wait --for=condition=Ready pod/h-kim-dev -n nccl-test --timeout=300s
 ```
 
 **Multi-Node (8+ GPUs):**
+
 ```bash
 oc apply -f k8s/statefulset-h-kim.yaml
 
@@ -101,6 +103,7 @@ oc exec h-kim-0 -n nccl-test -- /workspace/h-kim-openshift.sh
 ```
 
 **What the script does:**
+
 - Auto-clones TorchTitan repository
 - Configures NCCL for RDMA/InfiniBand
 - Sets up distributed training across all pods
@@ -189,6 +192,7 @@ if __name__ == '__main__':
 ```
 
 Run it:
+
 ```bash
 # Single-node
 oc exec h-kim-dev -n nccl-test -- python3 /workspace/test_h_kim.py
@@ -232,6 +236,7 @@ The deployment script handles namespace configuration automatically:
 ```
 
 **Prerequisites for RDMA mode:**
+
 1. Service account with IPC_LOCK capability
 2. Network attachment definitions for RDMA interfaces
 3. Nodes with RDMA-capable NICs (ConnectX-7)
@@ -245,25 +250,30 @@ See [docs/H-KIM-RDMA-SETUP.md](docs/H-KIM-RDMA-SETUP.md) for complete RDMA setup
 ```
 
 Use TCP mode when:
+
 - RDMA network attachments are not available
 - Testing in namespaces without RDMA setup
 - You encounter "Bootstrap: no socket interface found" errors
 
 **Performance difference:**
+
 - RDMA: ~12,000 tokens/sec (8 H100s)
 - TCP: ~8,000 tokens/sec (8 H100s)
 
 ### Common Issues
 
 **NCCL Error: "Bootstrap: no socket interface found"**
+
 - Cause: RDMA interfaces (net1-4) not available in namespace
 - Fix: Use `--mode tcp` or complete RDMA setup (see [docs/H-KIM-RDMA-SETUP.md](docs/H-KIM-RDMA-SETUP.md))
 
 **Pods Stuck in Pending: "Insufficient openshift.io/eno5np0rdma"**
+
 - Cause: Network attachment definitions missing or misconfigured
 - Fix: Create network attachments (see RDMA setup guide)
 
 **IPC_LOCK Capability Error**
+
 - Cause: Service account lacks nccl-scc permissions
 - Fix: `oc adm policy add-scc-to-user nccl-scc -z h-kim-sa -n <namespace>`
 

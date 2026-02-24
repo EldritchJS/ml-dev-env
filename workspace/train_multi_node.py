@@ -5,17 +5,20 @@ Runs on 4 nodes × 4 GPUs = 16 H100s
 """
 
 import os
+
+import deepspeed
 import torch
 import torch.nn as nn
-import deepspeed
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 # Get environment variables
-NODE_RANK = int(os.environ.get('NODE_RANK', 0))
-LOCAL_RANK = int(os.environ.get('LOCAL_RANK', 0))
-WORLD_SIZE = int(os.environ.get('WORLD_SIZE', 16))
-MASTER_ADDR = os.environ.get('MASTER_ADDR', 'ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local')
-MASTER_PORT = os.environ.get('MASTER_PORT', '29500')
+NODE_RANK = int(os.environ.get("NODE_RANK", 0))
+LOCAL_RANK = int(os.environ.get("LOCAL_RANK", 0))
+WORLD_SIZE = int(os.environ.get("WORLD_SIZE", 16))
+MASTER_ADDR = os.environ.get(
+    "MASTER_ADDR", "ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local"
+)
+MASTER_PORT = os.environ.get("MASTER_PORT", "29500")
 
 # Calculate global rank
 GLOBAL_RANK = NODE_RANK * 4 + LOCAL_RANK
@@ -62,28 +65,29 @@ class RandomDataset(Dataset):
 def main():
     # Parse DeepSpeed args
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument("--epochs", type=int, default=5)
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
 
     # Initialize DeepSpeed
     deepspeed.init_distributed(
-        dist_backend='nccl',
+        dist_backend="nccl",
         rank=GLOBAL_RANK,
         world_size=WORLD_SIZE,
-        init_method=f'tcp://{MASTER_ADDR}:{MASTER_PORT}'
+        init_method=f"tcp://{MASTER_ADDR}:{MASTER_PORT}",
     )
 
     if GLOBAL_RANK == 0:
         print("=" * 60)
         print("Multi-Node DeepSpeed Training")
         print("=" * 60)
-        print(f"Nodes: 4")
-        print(f"GPUs per node: 4")
+        print("Nodes: 4")
+        print("GPUs per node: 4")
         print(f"Total GPUs: {WORLD_SIZE}")
-        print(f"Model: SimpleModel (12 layers, 4096 hidden)")
+        print("Model: SimpleModel (12 layers, 4096 hidden)")
         print("=" * 60)
 
     # Create model
@@ -94,10 +98,7 @@ def main():
 
     # DeepSpeed engine
     model_engine, optimizer, trainloader, _ = deepspeed.initialize(
-        args=args,
-        model=model,
-        model_parameters=model.parameters(),
-        training_data=dataset
+        args=args, model=model, model_parameters=model.parameters(), training_data=dataset
     )
 
     device = model_engine.local_rank

@@ -7,11 +7,13 @@ A minimal PyTorch environment based on NVIDIA PyTorch 2.9 with a focused package
 ## 📦 Included Packages
 
 ### Base
+
 - **NVIDIA PyTorch 26.01** (latest stable, from NVIDIA base image)
 - **CUDA** (latest from NVIDIA base image)
 - **NCCL** with GPUDirect RDMA support
 
 ### Python Packages
+
 - `torchtitan` - PyTorch Titan training framework
 - `transformers` - Hugging Face Transformers
 - `tokenizers` - Fast tokenizers
@@ -29,6 +31,7 @@ A minimal PyTorch environment based on NVIDIA PyTorch 2.9 with a focused package
 - `wandb` - Experiment tracking
 
 ### System Tools
+
 - Git, vim, wget, curl
 - RDMA/InfiniBand tools (libibverbs, rdma-core, ibstat)
 - PCI utilities, numactl
@@ -68,6 +71,7 @@ oc describe imagestream h-kim -n nccl-test
 ```
 
 The image will be available at:
+
 ```
 image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
 ```
@@ -377,12 +381,14 @@ The h-kim image is **minimal** compared to ml-dev-env:
 | **PyTorch/CUDA** | ✅ 2.9/13.0 | ✅ 2.9/13.0 (same) |
 
 **Use h-kim when:**
+
 - You need a minimal training environment
 - You're using TorchTitan for training
 - You don't need VSCode/Jupyter in the container
 - You want faster image builds and smaller size
 
 **Use ml-dev-env when:**
+
 - You need full development environment
 - You want VSCode/Jupyter integrated
 - You're using DeepSpeed or Flash Attention

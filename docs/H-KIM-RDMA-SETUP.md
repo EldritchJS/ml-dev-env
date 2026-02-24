@@ -60,6 +60,7 @@ oc get network-attachment-definitions -n $NAMESPACE
 ```
 
 You should see:
+
 - eno5np0-network
 - eno6np0-network
 - eno7np0-network
@@ -80,6 +81,7 @@ oc exec h-kim-0 -n $NAMESPACE -- ip addr show | grep net
 ```
 
 Expected output:
+
 ```
 net1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000
 net2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000
@@ -94,6 +96,7 @@ oc exec h-kim-0 -n $NAMESPACE -- env | grep NCCL
 ```
 
 Expected settings:
+
 ```
 NCCL_SOCKET_IFNAME=net1,net2,net3,net4
 NCCL_IB_DISABLE=0
@@ -121,6 +124,7 @@ oc exec h-kim-0 -n $NAMESPACE -- tail -f /workspace/training.log
 ```
 
 Look for these indicators that RDMA is working:
+
 ```
 NCCL INFO Bootstrap: Using net1:10.0.103.X<0>
 NCCL INFO NET/IB : Using [0]mlx5_6:1/RoCE [1]mlx5_7:1/RoCE [2]mlx5_10:1/RoCE [3]mlx5_11:1/RoCE
@@ -170,6 +174,7 @@ NCCL uses net1-4 for GPU-to-GPU communication via GPUDirect RDMA
 **Cause:** Network attachment definitions reference wrong SR-IOV resource names
 
 **Fix:** Ensure network attachments use correct resourceName:
+
 ```bash
 oc get network-attachment-definitions eno5np0-network -n $NAMESPACE -o yaml | grep resourceName
 ```
@@ -183,6 +188,7 @@ Should show: `k8s.v1.cni.cncf.io/resourceName: openshift.io/eno5np0rdma`
 **Cause:** Service account doesn't have access to nccl-scc
 
 **Fix:** Grant SCC permission:
+
 ```bash
 oc adm policy add-scc-to-user nccl-scc -z h-kim-sa -n $NAMESPACE
 ```
@@ -194,6 +200,7 @@ oc adm policy add-scc-to-user nccl-scc -z h-kim-sa -n $NAMESPACE
 **Cause:** RDMA interfaces (net1-4) don't exist in pod
 
 **Fix:** Verify network attachments are created and referenced correctly:
+
 ```bash
 # Check attachments exist
 oc get network-attachment-definitions -n $NAMESPACE
@@ -211,6 +218,7 @@ If RDMA is not available, deploy with TCP mode:
 ```
 
 TCP mode:
+
 - Uses eth0 instead of net1-4
 - Sets NCCL_IB_DISABLE=1
 - Lower performance but works on any network
@@ -225,6 +233,7 @@ RDMA vs TCP performance comparison (8 H100 GPUs, LLaMA 8B training):
 | TCP  | ~20 GB/s  | ~100 μs | ~8,000     |
 
 RDMA provides:
+
 - 10x higher bandwidth
 - 20x lower latency
 - ~50% higher training throughput

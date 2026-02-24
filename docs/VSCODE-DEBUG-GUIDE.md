@@ -11,20 +11,24 @@ For local VSCode debugging (Method 3), you need the Python extension installed. 
 The pod runs code-server (VSCode in browser) on port 8080.
 
 ### 1. Port-forward to your local machine
+
 ```bash
 oc port-forward -n nccl-test ml-dev-env 8080:8080
 ```
 
 ### 2. Open in your browser
-Navigate to: http://localhost:8080
+
+Navigate to: <http://localhost:8080>
 
 ### 3. Use the built-in debugger
+
 - Open your Python file
 - Set breakpoints by clicking left of line numbers
 - Press F5 or click "Run and Debug"
 - Select "Python File" configuration
 
 **Advantages:**
+
 - No local VSCode installation needed
 - All extensions run on the cluster
 - Direct access to GPU environment
@@ -39,6 +43,7 @@ Use VSCode's Remote-SSH extension to connect directly to the pod.
 ### 1. Expose SSH access (if not already configured)
 
 You'll need to either:
+
 - **Option A:** Install and run SSH server in the pod
 - **Option B:** Use `oc port-forward` with SSH
 
@@ -57,21 +62,25 @@ echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
 ```
 
 ### 2. Port-forward SSH
+
 ```bash
 oc port-forward -n nccl-test ml-dev-env 2222:22
 ```
 
 ### 3. Configure VSCode Remote-SSH
+
 - Install "Remote - SSH" extension in VSCode
 - Press Cmd+Shift+P → "Remote-SSH: Connect to Host"
 - Add host: `ssh root@localhost -p 2222`
 - Connect and open `/workspace` folder
 
 ### 4. Install Python extension in remote VSCode
+
 - Once connected, install "Python" extension (it installs on the remote)
 - Configure debugpy if needed
 
 **Advantages:**
+
 - Full VSCode desktop experience
 - All your local themes/keybindings
 - Better performance than browser
@@ -83,6 +92,7 @@ oc port-forward -n nccl-test ml-dev-env 2222:22
 Debug code running on the cluster from your local VSCode.
 
 ### 1. Install debugpy in the container (already included)
+
 The container already has `debugpy` installed.
 
 ### 2. Add debug code to your Python script
@@ -102,6 +112,7 @@ print(f"GPUs available: {torch.cuda.device_count()}")
 ```
 
 ### 3. Port-forward the debug port
+
 ```bash
 oc port-forward -n nccl-test ml-dev-env 5678:5678
 ```
@@ -135,12 +146,14 @@ Create `.vscode/launch.json` in your local project:
 ```
 
 ### 5. Start debugging
+
 - Run your Python script in the pod
 - In local VSCode: Press F5 and select "Python: Remote Attach"
 - Set breakpoints in your local copy of the code
 - Step through code executing on the cluster
 
 **Advantages:**
+
 - Debug distributed/multi-GPU code
 - Keep code in sync between local and remote
 - Attach to running processes
@@ -154,25 +167,31 @@ Create `.vscode/launch.json` in your local project:
 The pod runs Jupyter on port 8888.
 
 ### 1. Start Jupyter
+
 ```bash
 oc exec -it ml-dev-env -n nccl-test -- bash -c "jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root &"
 ```
 
 ### 2. Port-forward Jupyter
+
 ```bash
 oc port-forward -n nccl-test ml-dev-env 8888:8888
 ```
 
 ### 3. Get the token
+
 ```bash
 oc exec ml-dev-env -n nccl-test -- jupyter notebook list
 ```
 
 ### 4. Open in browser
-Navigate to: http://localhost:8888/?token=YOUR_TOKEN
+
+Navigate to: <http://localhost:8888/?token=YOUR_TOKEN>
 
 ### 5. Use %debug magic
+
 In notebook cells:
+
 ```python
 # Enable automatic debugging on exceptions
 %pdb on
@@ -186,6 +205,7 @@ set_trace()
 ```
 
 **Advantages:**
+
 - Interactive exploration
 - Great for ML experimentation
 - Visualizations inline
@@ -195,6 +215,7 @@ set_trace()
 ## Recommended Workflow for ML Development
 
 ### For Interactive Development: Use code-server (Method 1)
+
 ```bash
 # Port-forward code-server
 oc port-forward -n nccl-test ml-dev-env 8080:8080
@@ -204,6 +225,7 @@ oc port-forward -n nccl-test ml-dev-env 8080:8080
 ```
 
 ### For Training Scripts: Use Remote Debugging (Method 3)
+
 ```python
 # train.py
 import debugpy
@@ -219,6 +241,7 @@ model = AutoModel.from_pretrained("gpt2")
 ```
 
 ### For Experimentation: Use Jupyter (Method 4)
+
 ```bash
 # Start Jupyter
 oc exec ml-dev-env -n nccl-test -- bash -c "cd /workspace && jupyter notebook --ip=0.0.0.0 --no-browser --allow-root" &
@@ -256,6 +279,7 @@ model = DDP(YourModel().cuda())
 ```
 
 Port-forward multiple debug ports:
+
 ```bash
 oc port-forward -n nccl-test ml-dev-env 5678:5678 5679:5679 5680:5680 5681:5681
 ```
@@ -267,6 +291,7 @@ oc port-forward -n nccl-test ml-dev-env 5678:5678 5679:5679 5680:5680 5681:5681
 For detailed troubleshooting steps, see [VSCODE-DEBUG-TROUBLESHOOTING.md](VSCODE-DEBUG-TROUBLESHOOTING.md).
 
 Common issues:
+
 - Debugger dropdown not appearing → Check Python extension installation
 - Port-forward disconnects → Use a reconnection loop
 - Breakpoints not hitting → Verify path mappings in launch.json
@@ -276,13 +301,15 @@ Common issues:
 ## Quick Start: Try It Now
 
 1. **Start code-server:**
+
    ```bash
    oc port-forward -n nccl-test ml-dev-env 8080:8080
    ```
 
-2. **Open browser:** http://localhost:8080
+2. **Open browser:** <http://localhost:8080>
 
 3. **Create a test file:** `/workspace/test_debug.py`
+
    ```python
    import torch
    import debugpy
@@ -299,6 +326,7 @@ Common issues:
    ```
 
 4. **In another terminal, port-forward debug port:**
+
    ```bash
    oc port-forward -n nccl-test ml-dev-env 5678:5678
    ```
@@ -311,9 +339,9 @@ Common issues:
 
 ## Resources
 
-- **debugpy docs:** https://github.com/microsoft/debugpy
-- **VSCode Remote Development:** https://code.visualstudio.com/docs/remote/remote-overview
-- **PyTorch Distributed Debugging:** https://pytorch.org/tutorials/intermediate/dist_tuto.html
+- **debugpy docs:** <https://github.com/microsoft/debugpy>
+- **VSCode Remote Development:** <https://code.visualstudio.com/docs/remote/remote-overview>
+- **PyTorch Distributed Debugging:** <https://pytorch.org/tutorials/intermediate/dist_tuto.html>
 
 ## Environment Details
 

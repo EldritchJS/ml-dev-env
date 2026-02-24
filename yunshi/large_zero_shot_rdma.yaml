@@ -94,12 +94,12 @@ spec:
           value: "/mnt/tsfm/data/tsmixup"
         - name: TSMIXUP_ZERO
           value: "/mnt/tsfm/data/tsmixup_v01"
-        - name: HF_TOKEN 
+        - name: HF_TOKEN
           valueFrom:
             secretKeyRef:
               name: hf-secret
               key: token
-          
+
         command:
           - /bin/bash
           - -c

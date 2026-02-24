@@ -8,6 +8,7 @@
 ## Base Image
 
 **NVIDIA PyTorch 25.09-py3**
+
 - Ubuntu 24.04 LTS
 - CUDA 13.0
 - cuDNN 9.x
@@ -35,12 +36,14 @@
 ## Model Support
 
 ### Multimodal Models
+
 - **Qwen2.5-Omni** - Text, audio, video, vision multimodal model
   - qwen-omni-utils installed
   - Flash-attention 2 enabled for vision/text components
   - Verified working on 4x NVIDIA H100 GPUs
 
 ### Video/Vision Processing
+
 - **einops** - Tensor operations
 - **timm** - PyTorch Image Models
 - **av** - PyAV video processing
@@ -58,24 +61,28 @@
 ## Development Tools
 
 ### Interactive Computing
+
 - **Jupyter** - Notebook server
 - **ipykernel** - Jupyter kernel
 - **IPython** - Enhanced Python shell
 - **code-server** - VSCode in browser (port 8080)
 
 ### Code Quality
+
 - **pytest** - Testing framework
 - **black** - Code formatter
 - **flake8** - Linting
 - **debugpy** - Python debugger
 
 ### ML Experiment Tracking
+
 - **TensorBoard** - Training visualization
 - **Weights & Biases** - Experiment tracking and collaboration
 
 ## Networking & GPU Features
 
 ### RDMA/InfiniBand Support
+
 - **libibverbs-dev** - InfiniBand verbs library
 - **librdmacm-dev** - RDMA connection manager
 - **rdma-core** - RDMA core userspace
@@ -84,6 +91,7 @@
 - **numactl** - NUMA control
 
 ### NCCL Configuration (Pre-configured)
+
 ```bash
 NCCL_DEBUG=INFO
 NCCL_IB_DISABLE=0  # InfiniBand enabled
@@ -121,6 +129,7 @@ NCCL_NET_GDR_LEVEL=5  # GPUDirect RDMA enabled
 ## Usage Examples
 
 ### Pull Image
+
 ```bash
 # Default (recommended): PyTorch 2.9 with NumPy 2.2.6
 podman pull quay.io/jschless/ml-dev-env:pytorch-2.9-numpy2
@@ -130,6 +139,7 @@ podman pull quay.io/jschless/ml-dev-env:pytorch-2.8-numpy1
 ```
 
 ### Run Interactive Container
+
 ```bash
 podman run -it --rm \
   --gpus all \
@@ -139,6 +149,7 @@ podman run -it --rm \
 ```
 
 ### Kubernetes Deployment
+
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -154,11 +165,13 @@ spec:
 ```
 
 ### Start Jupyter Notebook
+
 ```bash
 jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
 ```
 
 ### Start VSCode Server
+
 ```bash
 code-server --bind-addr 0.0.0.0:8080 --auth none
 ```
@@ -200,19 +213,22 @@ code-server --bind-addr 0.0.0.0:8080 --auth none
 ## Known Warnings (Expected)
 
 When using Qwen2.5-Omni:
+
 ```
 You are attempting to use Flash Attention 2.0 without specifying a torch dtype.
 ```
+
 **Expected** - Model uses bfloat16 for vision/text, fp32 for audio generation
 
 ```
 Qwen2_5OmniToken2WavModel must inference with fp32, but flash_attention_2 only supports fp16 and bf16
 ```
+
 **Expected** - Audio component uses SDPA instead of flash-attention, text/vision components still use flash-attention
 
 ## Maintenance
 
-**Image Registry:** https://quay.io/repository/jschless/ml-dev-env
+**Image Registry:** <https://quay.io/repository/jschless/ml-dev-env>
 **Source BuildConfig:** `/Users/jschless/nairr/deepti/ml-dev-env/k8s/buildconfig.yaml`
 
 ## License

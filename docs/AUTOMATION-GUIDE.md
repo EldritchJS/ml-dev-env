@@ -11,6 +11,7 @@ The easiest way to start developing:
 ```
 
 This single command:
+
 - ✅ Syncs your local code to the pod
 - ✅ Watches for changes and auto-syncs continuously
 - ✅ Sets up port-forwarding for debugging
@@ -22,6 +23,7 @@ This single command:
 All scripts support custom configuration. See **CONFIGURATION-GUIDE.md** for details.
 
 **Quick config via environment variables:**
+
 ```bash
 export NAMESPACE=my-namespace    # Default: nccl-test
 export POD_NAME=my-pod           # Default: ml-dev-env
@@ -33,11 +35,13 @@ make dev-session
 ```
 
 **Or inline:**
+
 ```bash
 NAMESPACE=ml-team POD_NAME=gpu-pod make dev-session
 ```
 
 **Or use .env file:**
+
 ```bash
 cp .env.example .env
 # Edit .env
@@ -50,6 +54,7 @@ See **QUICK-CONFIG-REFERENCE.md** for quick examples.
 ### How It Works
 
 1. **Run the script:**
+
    ```bash
    ./scripts/dev-session.sh test_debug.py
    ```
@@ -81,19 +86,24 @@ If you just want to sync code changes automatically:
 ```
 
 **What it does:**
+
 - Syncs `./workspace/` to pod's `/workspace/`
 - Watches for local changes
 - Automatically syncs when you save files
 - Excludes: `.git`, `__pycache__`, `*.pyc`, `.DS_Store`
 
 **Requirements:**
+
 - Install `fswatch` for instant sync (recommended):
+
   ```bash
   brew install fswatch
   ```
+
 - Without fswatch, it polls every 5 seconds
 
 **Example workflow:**
+
 ```bash
 # Terminal 1: Start sync
 ./scripts/sync-code.sh
@@ -115,12 +125,14 @@ Automates port-forwarding and running a debug script:
 ```
 
 **What it does:**
+
 - Starts port-forward on 5678
 - Runs the specified Python script on the pod
 - Waits for debugger to attach
 - Cleans up port-forward when done
 
 **Workflow:**
+
 ```bash
 # Terminal 1
 ./scripts/debug-remote.sh my_script.py
@@ -309,6 +321,7 @@ done
 **Problem:** rsync not working
 
 **Solution:**
+
 ```bash
 # Check pod is running
 oc get pod ml-dev-env -n nccl-test
@@ -322,6 +335,7 @@ oc cp ./workspace/test.py nccl-test/ml-dev-env:/workspace/test.py
 **Problem:** fswatch not installed
 
 **Solution:**
+
 ```bash
 # Install fswatch (recommended for macOS)
 brew install fswatch
@@ -334,6 +348,7 @@ brew install fswatch
 **Problem:** Port-forward stops after a while
 
 **Solution:**
+
 ```bash
 # Use a loop to auto-reconnect
 while true; do
@@ -348,6 +363,7 @@ done
 **Problem:** Local changes don't appear on pod
 
 **Solution:**
+
 ```bash
 # Force a full sync
 oc rsync ./workspace/ ml-dev-env:/workspace/ -n nccl-test --delete
@@ -361,6 +377,7 @@ oc exec ml-dev-env -n nccl-test -- ls -la /workspace/
 **Problem:** Running script uses old code despite sync
 
 **Solution:**
+
 ```bash
 # Python might cache .pyc files
 oc exec ml-dev-env -n nccl-test -- bash -c "find /workspace -name '*.pyc' -delete"
