@@ -45,12 +45,13 @@ The project uses pre-commit hooks to maintain code quality:
 
 - **Python files:**
   - Code formatting with Black
-  - Import sorting with isort
-  - Linting with flake8
-  - Type checking (optional)
+  - Linting with Ruff (replaces flake8, isort, pylint)
+  - Import sorting (via Ruff)
+  - Type annotations (Python 3.9+ compatible)
 
 - **Shell scripts:**
-  - Syntax checking with shellcheck
+  - Syntax checking with ShellCheck
+  - Warnings treated as errors
 
 - **YAML files:**
   - Syntax validation
@@ -64,7 +65,7 @@ The project uses pre-commit hooks to maintain code quality:
   - End-of-file newlines
   - No large files
   - No merge conflicts
-  - Secret detection
+  - Secret detection with detect-secrets
 
 ### Running Hooks Manually
 
@@ -74,7 +75,8 @@ pre-commit run --all-files
 
 # Run specific hook
 pre-commit run black --all-files
-pre-commit run flake8 --all-files
+pre-commit run ruff --all-files
+pre-commit run shellcheck --all-files
 
 # Update hooks to latest versions
 pre-commit autoupdate
@@ -96,8 +98,8 @@ git commit --no-verify -m "Your message"
 
 - **Line length:** 100 characters
 - **Formatter:** Black
-- **Import sorting:** isort (Black profile)
-- **Linter:** flake8
+- **Linter:** Ruff (modern, fast linter replacing flake8, isort, pylint)
+- **Type hints:** Python 3.9+ compatible (use `from __future__ import annotations`)
 - **Docstrings:** Google style
 
 Example:
@@ -110,13 +112,14 @@ Module description.
 Longer description if needed.
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
 
 
-def my_function(param: str, count: int = 5) -> List[str]:
+def my_function(param: str, count: int = 5) -> list[str]:
     """
     Short description of function.
 
@@ -134,6 +137,8 @@ def my_function(param: str, count: int = 5) -> List[str]:
         raise ValueError("param cannot be empty")
     return [param] * count
 ```
+
+**Note:** Use modern type hints (`list[str]` instead of `List[str]`, `dict[str, int]` instead of `Dict[str, int]`, `str | None` instead of `Optional[str]`) with `from __future__ import annotations` for Python 3.9 compatibility.
 
 ### Shell Scripts
 
@@ -158,15 +163,86 @@ def my_function(param: str, count: int = 5) -> List[str]:
 
 ## Testing
 
-Currently, the project uses manual testing. Automated tests coming soon!
+The project uses pytest for automated testing with 76% code coverage.
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov
+
+# Run specific test file
+pytest tests/test_deployment_wizard.py
+
+# Run specific test
+pytest tests/test_deployment_wizard.py::TestDeploymentWizard::test_select_cluster
+
+# Run tests verbosely
+pytest -v
+```
+
+### Writing Tests
+
+- Place tests in `tests/` directory
+- Name test files `test_*.py`
+- Name test functions `test_*`
+- Use fixtures for common setup
+- Mock external dependencies (subprocess, file I/O)
+- Aim for >70% code coverage
+
+Example:
+
+```python
+"""Tests for my_script.py"""
+
+import pytest
+from unittest.mock import patch, mock_open
+
+from my_script import MyClass
+
+
+class TestMyClass:
+    """Test MyClass"""
+
+    @pytest.fixture
+    def my_instance(self):
+        """Create MyClass instance for testing"""
+        return MyClass()
+
+    def test_my_method(self, my_instance):
+        """Test my_method returns expected value"""
+        result = my_instance.my_method("input")
+        assert result == "expected"
+
+    def test_with_mock(self, my_instance):
+        """Test method that uses external commands"""
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.stdout = "output"
+            result = my_instance.run_command()
+            assert result == "output"
+```
+
+### Continuous Integration
+
+GitHub Actions runs on every push and pull request:
+
+- **Tests:** Python 3.9, 3.10, 3.11, 3.12
+- **Pre-commit hooks:** Black, Ruff, ShellCheck, yamllint, markdownlint, detect-secrets
+- **YAML validation:** All cluster configs and Kubernetes manifests
+- **Shell validation:** ShellCheck with warnings as errors
+
+All checks must pass before merging.
 
 ### Manual Testing Checklist
 
-When modifying scripts:
+After automated tests pass, also verify:
 
 - [ ] Test on actual OpenShift cluster
 - [ ] Verify help messages (`--help`)
-- [ ] Test error handling
+- [ ] Test error handling with real scenarios
 - [ ] Check output formatting
 - [ ] Verify file permissions (scripts should be executable)
 

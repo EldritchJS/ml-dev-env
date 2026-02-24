@@ -737,10 +737,19 @@ pip install -r requirements-dev.txt
 # Install pre-commit hooks
 pre-commit install
 
+# Run tests
+pytest --cov
+
 # Make changes and commit (hooks run automatically)
 git add <files>
 git commit -m "Your changes"
 ```
+
+**Automated Testing:**
+- ✅ Python 3.9-3.12 compatibility
+- ✅ 76% code coverage with pytest
+- ✅ CI/CD with GitHub Actions
+- ✅ Pre-commit hooks (Black, Ruff, ShellCheck, yamllint, markdownlint)
 
 ### Adding a New Cluster
 
