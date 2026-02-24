@@ -275,21 +275,23 @@ class TestDeploymentWizard:
             "storage": {"mode": "rwx", "class_rwx": "nfs"},
         }
 
-        with patch.object(ClusterDiscovery, "generate_config", return_value=mock_config):
-            with patch("builtins.input", side_effect=["new-cluster", "test"]):
-                with patch.object(wizard, "_prompt_yes_no", side_effect=[True, True]):
-                    # Change to tmp directory for test
-                    import os
+        # Mock _run_command to avoid subprocess calls during initialization
+        with patch.object(ClusterDiscovery, "_run_command", return_value="test-namespace"):
+            with patch.object(ClusterDiscovery, "generate_config", return_value=mock_config):
+                with patch("builtins.input", side_effect=["new-cluster", "test"]):
+                    with patch.object(wizard, "_prompt_yes_no", side_effect=[True, True]):
+                        # Change to tmp directory for test
+                        import os
 
-                    original_dir = os.getcwd()
-                    os.chdir(tmp_path)
+                        original_dir = os.getcwd()
+                        os.chdir(tmp_path)
 
-                    try:
-                        cluster_name = wizard.discover_and_add_cluster()
+                        try:
+                            cluster_name = wizard.discover_and_add_cluster()
 
-                        assert cluster_name == "new-cluster"
-                        assert "new-cluster" in wizard.available_clusters
-                        assert wizard.available_clusters["new-cluster"] == mock_config
-                        assert (tmp_path / "clusters" / "new-cluster.yaml").exists()
-                    finally:
-                        os.chdir(original_dir)
+                            assert cluster_name == "new-cluster"
+                            assert "new-cluster" in wizard.available_clusters
+                            assert wizard.available_clusters["new-cluster"] == mock_config
+                            assert (tmp_path / "clusters" / "new-cluster.yaml").exists()
+                        finally:
+                            os.chdir(original_dir)
