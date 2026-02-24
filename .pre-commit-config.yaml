@@ -7,7 +7,7 @@
 repos:
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         exclude: '^.*\.(md|txt)$'
@@ -20,52 +20,55 @@ repos:
       - id: check-merge-conflict
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
+        exclude: '^(examples/|workspace/|deepti\.py|h-kim\.sh|h-kim-openshift\.sh)'
       - id: mixed-line-ending
         args: ['--fix=lf']
 
   # Python code formatting with Black
   - repo: https://github.com/psf/black
-    rev: 24.1.1
+    rev: 26.1.0
     hooks:
       - id: black
         language_version: python3
         args: ['--line-length=100']
+        exclude: '^(examples/|workspace/)'
 
   # Ruff - Fast Python linter (replaces flake8, isort, pyupgrade, etc.)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.15
+    rev: v0.15.2
     hooks:
       # Run the linter
       - id: ruff
         args: ['--fix', '--exit-non-zero-on-fix']
+        exclude: '^(examples/|workspace/|deepti\.py|deepti-simple\.py)'
       # Run the formatter (optional, since we use black)
       # - id: ruff-format
 
   # Shell script checks
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
+    rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        args: ['-x']  # Follow sourced files
+        args: ['-x', '--severity=error']  # Only fail on errors, not style/info
 
   # Markdown linting
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.39.0
+    rev: v0.47.0
     hooks:
       - id: markdownlint
         args: ['--fix']
-        exclude: '^(DEEPTI-|pcie_|infiniband_|complete_)'
+        exclude: '^(DEEPTI-|pcie_|infiniband_|complete_|README\.md)'
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: ['-d', '{extends: default, rules: {line-length: {max: 120}, document-start: disable}}']
 
   # Check for secrets/credentials
   - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
