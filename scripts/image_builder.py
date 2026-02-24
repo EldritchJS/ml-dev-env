@@ -226,9 +226,7 @@ class ImageBuilder:
             subprocess.CalledProcessError: If oc apply fails
         """
         # Write to temp file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(yaml_content)
             temp_path = f.name
 
@@ -444,7 +442,9 @@ class BuildMonitor:
                         print(f"\n✓ Build completed successfully!")
                         if image_ref:
                             print(f"  Image: {image_ref}")
-                        return BuildResult(success=True, phase=phase, image_ref=image_ref, logs=logs)
+                        return BuildResult(
+                            success=True, phase=phase, image_ref=image_ref, logs=logs
+                        )
                     else:
                         error_msg = self._extract_error_from_logs(logs)
                         print(f"\n✗ Build failed with phase: {phase}")
@@ -622,7 +622,11 @@ class BuildErrorHandler:
 
         if error_type == "package_not_found":
             # Try to extract package name
-            match = re.search(r"(?:could not find|no matching).*?(?:package|version).*?[\"']?(\S+)[\"']?", logs, re.IGNORECASE)
+            match = re.search(
+                r"(?:could not find|no matching).*?(?:package|version).*?[\"']?(\S+)[\"']?",
+                logs,
+                re.IGNORECASE,
+            )
             pkg_name = match.group(1) if match else "unknown package"
 
             return ErrorAnalysis(

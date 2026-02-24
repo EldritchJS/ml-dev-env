@@ -171,16 +171,17 @@ class TestImageBuilder:
 
         result = builder.get_image_reference("ml-dev-env", "test-tag")
 
-        assert result == "image-registry.openshift-image-registry.svc:5000/test-ns/ml-dev-env@sha256:abc123"
+        assert (
+            result
+            == "image-registry.openshift-image-registry.svc:5000/test-ns/ml-dev-env@sha256:abc123"
+        )
 
     @patch("subprocess.run")
     def test_get_image_reference_tag_not_found(self, mock_run):
         """Test getting image reference when tag doesn't exist"""
         builder = ImageBuilder(namespace="test-ns")
 
-        mock_run.return_value = Mock(
-            returncode=0, stdout=yaml.dump({"status": {"tags": []}})
-        )
+        mock_run.return_value = Mock(returncode=0, stdout=yaml.dump({"status": {"tags": []}}))
 
         with pytest.raises(ValueError, match="Tag 'missing-tag' not found"):
             builder.get_image_reference("ml-dev-env", "missing-tag")

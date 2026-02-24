@@ -447,7 +447,9 @@ class DeploymentWizard:
             # Interactive package entry
             packages = []
             if not self.non_interactive:
-                print("\nEnter package names (one per line). Press Enter with empty line when done.")
+                print(
+                    "\nEnter package names (one per line). Press Enter with empty line when done."
+                )
                 while True:
                     try:
                         pkg = input(f"Package {len(packages) + 1} (or Enter to finish): ").strip()
@@ -638,12 +640,16 @@ class DeploymentWizard:
             commands.append("# 3. Deploy single-node environment")
             if self.config.get("image", {}).get("url"):
                 commands.append(f"# Using custom image: {self.config['image']['url']}")
-                commands.append(f"./scripts/deploy_cluster.py {cluster} --mode tcp --image {self.config['image']['url']}")
+                commands.append(
+                    f"./scripts/deploy_cluster.py {cluster} --mode tcp --image {self.config['image']['url']}"
+                )
             else:
                 commands.append("make deploy")
         else:
             commands.append("# 3. Deploy multi-node environment")
-            deploy_cmd = f"./scripts/deploy_cluster.py {cluster} --mode {self.config['network_mode']}"
+            deploy_cmd = (
+                f"./scripts/deploy_cluster.py {cluster} --mode {self.config['network_mode']}"
+            )
             if self.config.get("image", {}).get("url"):
                 commands.append(f"# Using custom image: {self.config['image']['url']}")
                 deploy_cmd += f" --image {self.config['image']['url']}"

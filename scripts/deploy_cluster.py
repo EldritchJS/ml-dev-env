@@ -41,7 +41,9 @@ def load_cluster_config(cluster_name: str) -> dict[str, Any]:
     return config
 
 
-def generate_statefulset(config: dict[str, Any], mode: str, output_file: str, image_url: str | None = None):
+def generate_statefulset(
+    config: dict[str, Any], mode: str, output_file: str, image_url: str | None = None
+):
     """Generate StatefulSet YAML with cluster-specific configuration"""
 
     # Check if RDMA is enabled on this cluster
@@ -84,7 +86,9 @@ def generate_statefulset(config: dict[str, Any], mode: str, output_file: str, im
 
     # Add custom image URL if provided
     if image_url:
-        replacements["image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2"] = f"image: {image_url}"
+        replacements[
+            "image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2"
+        ] = f"image: {image_url}"
 
     # Add RDMA-specific replacements only if RDMA is enabled
     if rdma_enabled and mode == "rdma":

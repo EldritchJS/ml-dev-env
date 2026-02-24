@@ -310,15 +310,23 @@ class TestDeploymentWizard:
     def test_select_custom_image_url(self):
         """Test selecting a custom image URL."""
         # Need interactive mode for custom URL input
-        with patch.object(DeploymentWizard, "_load_available_clusters", return_value={
-            "test-cluster": {
-                "cluster": {"name": "test-cluster", "api": "api.test.com", "namespace": "test-ns"},
-                "network": {"rdma": {"enabled": True}},
-                "storage": {"mode": "rwx"},
-                "gpus": {"per_node": 4},
-                "nodes": {"gpu_nodes": ["node1", "node2"]},
-            }
-        }):
+        with patch.object(
+            DeploymentWizard,
+            "_load_available_clusters",
+            return_value={
+                "test-cluster": {
+                    "cluster": {
+                        "name": "test-cluster",
+                        "api": "api.test.com",
+                        "namespace": "test-ns",
+                    },
+                    "network": {"rdma": {"enabled": True}},
+                    "storage": {"mode": "rwx"},
+                    "gpus": {"per_node": 4},
+                    "nodes": {"gpu_nodes": ["node1", "node2"]},
+                }
+            },
+        ):
             wizard = DeploymentWizard(non_interactive=False)
             wizard.config["cluster_config"] = wizard.available_clusters["test-cluster"]
 
@@ -338,15 +346,23 @@ class TestDeploymentWizard:
         from scripts.image_builder import BuildResult
 
         # Create non-interactive wizard for most operations but override package input
-        with patch.object(DeploymentWizard, "_load_available_clusters", return_value={
-            "test-cluster": {
-                "cluster": {"name": "test-cluster", "api": "api.test.com", "namespace": "test-ns"},
-                "network": {"rdma": {"enabled": True}},
-                "storage": {"mode": "rwx"},
-                "gpus": {"per_node": 4},
-                "nodes": {"gpu_nodes": ["node1", "node2"]},
-            }
-        }):
+        with patch.object(
+            DeploymentWizard,
+            "_load_available_clusters",
+            return_value={
+                "test-cluster": {
+                    "cluster": {
+                        "name": "test-cluster",
+                        "api": "api.test.com",
+                        "namespace": "test-ns",
+                    },
+                    "network": {"rdma": {"enabled": True}},
+                    "storage": {"mode": "rwx"},
+                    "gpus": {"per_node": 4},
+                    "nodes": {"gpu_nodes": ["node1", "node2"]},
+                }
+            },
+        ):
             wizard = DeploymentWizard(non_interactive=False)
             wizard.config["cluster"] = "test-cluster"
             wizard.config["cluster_config"] = wizard.available_clusters["test-cluster"]
@@ -363,17 +379,26 @@ class TestDeploymentWizard:
                 with patch("builtins.input", side_effect=["transformers", "datasets", ""]):
                     with patch.object(wizard, "_prompt_yes_no", return_value=True):
                         # Mock subprocess.run to prevent actual oc commands
-                        with patch("subprocess.run", return_value=Mock(returncode=0, stdout="buildconfig created")):
-                            with patch("scripts.deployment_wizard.ImageBuilder") as mock_builder_class:
+                        with patch(
+                            "subprocess.run",
+                            return_value=Mock(returncode=0, stdout="buildconfig created"),
+                        ):
+                            with patch(
+                                "scripts.deployment_wizard.ImageBuilder"
+                            ) as mock_builder_class:
                                 mock_builder = Mock()
                                 mock_builder.generate_buildconfig.return_value = "mock yaml"
                                 mock_builder.apply_buildconfig.return_value = None
                                 mock_builder.start_build.return_value = "test-build-1"
                                 mock_builder_class.return_value = mock_builder
 
-                                with patch("scripts.deployment_wizard.BuildMonitor") as mock_monitor_class:
+                                with patch(
+                                    "scripts.deployment_wizard.BuildMonitor"
+                                ) as mock_monitor_class:
                                     mock_monitor = Mock()
-                                    mock_monitor.monitor_with_progress.return_value = mock_build_result
+                                    mock_monitor.monitor_with_progress.return_value = (
+                                        mock_build_result
+                                    )
                                     mock_monitor_class.return_value = mock_monitor
 
                                     wizard.select_image()
@@ -391,15 +416,23 @@ class TestDeploymentWizard:
         from scripts.image_builder import BuildResult, ErrorAnalysis
 
         # Create non-interactive wizard
-        with patch.object(DeploymentWizard, "_load_available_clusters", return_value={
-            "test-cluster": {
-                "cluster": {"name": "test-cluster", "api": "api.test.com", "namespace": "test-ns"},
-                "network": {"rdma": {"enabled": True}},
-                "storage": {"mode": "rwx"},
-                "gpus": {"per_node": 4},
-                "nodes": {"gpu_nodes": ["node1", "node2"]},
-            }
-        }):
+        with patch.object(
+            DeploymentWizard,
+            "_load_available_clusters",
+            return_value={
+                "test-cluster": {
+                    "cluster": {
+                        "name": "test-cluster",
+                        "api": "api.test.com",
+                        "namespace": "test-ns",
+                    },
+                    "network": {"rdma": {"enabled": True}},
+                    "storage": {"mode": "rwx"},
+                    "gpus": {"per_node": 4},
+                    "nodes": {"gpu_nodes": ["node1", "node2"]},
+                }
+            },
+        ):
             wizard = DeploymentWizard(non_interactive=False)
             wizard.config["cluster"] = "test-cluster"
             wizard.config["cluster_config"] = wizard.available_clusters["test-cluster"]
@@ -425,23 +458,36 @@ class TestDeploymentWizard:
                 with patch("builtins.input", side_effect=["invalid-package", ""]):
                     with patch.object(wizard, "_prompt_yes_no", return_value=True):
                         # Mock subprocess.run to prevent actual oc commands
-                        with patch("subprocess.run", return_value=Mock(returncode=0, stdout="buildconfig created")):
-                            with patch("scripts.deployment_wizard.ImageBuilder") as mock_builder_class:
+                        with patch(
+                            "subprocess.run",
+                            return_value=Mock(returncode=0, stdout="buildconfig created"),
+                        ):
+                            with patch(
+                                "scripts.deployment_wizard.ImageBuilder"
+                            ) as mock_builder_class:
                                 mock_builder = Mock()
                                 mock_builder.generate_buildconfig.return_value = "mock yaml"
                                 mock_builder.apply_buildconfig.return_value = None
                                 mock_builder.start_build.return_value = "test-build-1"
                                 mock_builder_class.return_value = mock_builder
 
-                                with patch("scripts.deployment_wizard.BuildMonitor") as mock_monitor_class:
+                                with patch(
+                                    "scripts.deployment_wizard.BuildMonitor"
+                                ) as mock_monitor_class:
                                     mock_monitor = Mock()
-                                    mock_monitor.monitor_with_progress.return_value = mock_build_result
+                                    mock_monitor.monitor_with_progress.return_value = (
+                                        mock_build_result
+                                    )
                                     mock_monitor_class.return_value = mock_monitor
 
-                                    with patch("scripts.deployment_wizard.BuildErrorHandler") as mock_error_class:
+                                    with patch(
+                                        "scripts.deployment_wizard.BuildErrorHandler"
+                                    ) as mock_error_class:
                                         mock_error_handler = Mock()
                                         mock_error_handler.analyze_failure.return_value = mock_error
-                                        mock_error_handler.handle_failure.return_value = "use_prebuilt"
+                                        mock_error_handler.handle_failure.return_value = (
+                                            "use_prebuilt"
+                                        )
                                         mock_error_class.return_value = mock_error_handler
 
                                         wizard.select_image()
