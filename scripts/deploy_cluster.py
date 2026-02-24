@@ -42,7 +42,11 @@ def load_cluster_config(cluster_name: str) -> dict[str, Any]:
 
 
 def generate_statefulset(
-    config: dict[str, Any], mode: str, output_file: str, image_url: str | None = None
+    config: dict[str, Any],
+    mode: str,
+    output_file: str,
+    image_url: str | None = None,
+    app_name: str = "ml-dev-env",
 ):
     """Generate StatefulSet YAML with cluster-specific configuration"""
 
@@ -64,8 +68,11 @@ def generate_statefulset(
     with open(template_file) as f:
         content = f.read()
 
-    # Build replacements dict - start with common values
+    # Build replacements dict - start with app_name and namespace (must come first)
     replacements = {
+        "{app_name}": app_name,
+        "{namespace}": config["cluster"]["namespace"],
+        "{app_startup_code}": "",  # Default: no application startup code
         # TCP interface exclusion (used in both modes)
         "^lo,docker0": config["network"]["tcp"]["interface_exclude"],
         # Resources
@@ -138,6 +145,127 @@ def generate_statefulset(
                 continue
             filtered_lines.append(line)
         content = "\n".join(filtered_lines)
+
+    # Write output
+    with open(output_file, "w") as f:
+        f.write(content)
+
+    print(f"Generated: {output_file}")
+
+
+def generate_service(
+    config: dict[str, Any], output_file: str, app_name: str = "ml-dev-env"
+):
+    """Generate Service and Routes YAML with app-specific naming"""
+
+    # Read service template
+    template_file = "k8s/service.yaml"
+
+    with open(template_file) as f:
+        content = f.read()
+
+    # Replace placeholders
+    replacements = {
+        "{app_name}": app_name,
+        "{namespace}": config["cluster"]["namespace"],
+    }
+
+    for old, new in replacements.items():
+        content = content.replace(old, new)
+
+    # Write output
+    with open(output_file, "w") as f:
+        f.write(content)
+
+    print(f"Generated: {output_file}")
+
+
+def generate_job(
+    config: dict[str, Any],
+    project_config: dict[str, Any],
+    job_id: str,
+    output_file: str,
+    mode: str = "tcp",
+    app_name: str = "ml-dev-env",
+):
+    """Generate Kubernetes Job YAML for application execution"""
+    import datetime
+
+    # Read job template
+    template_file = "templates/job.yaml"
+
+    with open(template_file) as f:
+        content = f.read()
+
+    # Extract application config
+    app_config = project_config.get("application", {})
+    if not app_config.get("enabled"):
+        print("Warning: Application not configured in project config")
+        return
+
+    # Extract application details
+    working_dir = app_config.get("runtime", {}).get("working_dir", "/workspace")
+    entry_point = app_config.get("source", {}).get("entry_point", "train.py")
+    arguments = app_config.get("execution", {}).get("arguments", "")
+
+    # Requirements installation code
+    requirements_config = app_config.get("requirements", {})
+    install_mode = requirements_config.get("install_mode", "skip")
+
+    if install_mode == "pod_startup" and requirements_config.get("file"):
+        requirements_install = f"""
+          if [ -f "{requirements_config['file']}" ]; then
+            echo "Installing requirements..."
+            pip install --no-cache-dir -r {requirements_config['file']}
+            echo ""
+          fi
+"""
+    else:
+        requirements_install = "# No requirements to install"
+
+    # NCCL configuration based on mode
+    if mode == "rdma":
+        nccl_ib_disable = "0"
+        nccl_socket_ifname = config["network"]["rdma"].get("interfaces", "net1,net2,net3,net4")
+    else:
+        nccl_ib_disable = "1"
+        nccl_socket_ifname = config["network"]["tcp"].get("interface_exclude", "^lo,docker0")
+
+    # Calculate world size
+    num_nodes = project_config.get("deployment", {}).get("num_nodes", 1)
+    gpus_per_node = config.get("gpus", {}).get("per_node", 4)
+    world_size = num_nodes * gpus_per_node
+
+    # Image URL
+    image_url = project_config.get("image", {}).get("url", "image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2")
+
+    # Build replacements dict
+    replacements = {
+        "{app_name}": app_name,
+        "{job_id}": job_id,
+        "{namespace}": config["cluster"]["namespace"],
+        "{num_nodes}": str(num_nodes),
+        "{gpus_per_node}": str(gpus_per_node),
+        "{world_size}": str(world_size),
+        "{image_url}": image_url,
+        "{memory_request}": config["resources"]["requests"]["memory"],
+        "{memory_limit}": config["resources"]["limits"]["memory"],
+        "{cpu_request}": str(config["resources"]["requests"]["cpu"]),
+        "{cpu_limit}": str(config["resources"]["limits"]["cpu"]),
+        "{nccl_debug}": config["nccl"]["debug"],
+        "{nccl_ib_disable}": nccl_ib_disable,
+        "{nccl_socket_ifname}": nccl_socket_ifname,
+        "{working_dir}": working_dir,
+        "{entry_point}": entry_point,
+        "{arguments}": arguments,
+        "{requirements_install}": requirements_install,
+        "{app_env}": "",  # Additional env vars if needed
+        "{pvc_workspace}": "ml-dev-workspace",
+        "{pvc_datasets}": "ml-datasets",
+    }
+
+    for old, new in replacements.items():
+        content = content.replace(old, new)
 
     # Write output
     with open(output_file, "w") as f:
@@ -247,6 +375,7 @@ def print_setup_instructions(config: dict[str, Any]):
     print("\nTo deploy:")
     print(f"   oc apply -f /tmp/{config['cluster']['name']}-serviceaccount.yaml")
     print(f"   oc apply -f /tmp/{config['cluster']['name']}-pvcs.yaml")
+    print(f"   oc apply -f /tmp/{config['cluster']['name']}-service.yaml")
     print(f"   oc apply -f /tmp/{config['cluster']['name']}-statefulset-*.yaml")
     print("=" * 60 + "\n")
 
@@ -272,12 +401,39 @@ def main():
         "--image",
         help="Container image URL (overrides default image)",
     )
+    parser.add_argument(
+        "--project",
+        help="Project name (to load app config from deployments/<project>/config.yaml)",
+    )
+    parser.add_argument(
+        "--job",
+        action="store_true",
+        help="Generate Job manifest instead of StatefulSet (requires --project)",
+    )
 
     args = parser.parse_args()
 
     # Load cluster configuration
     print(f"Loading configuration for cluster: {args.cluster}")
     config = load_cluster_config(args.cluster)
+
+    # Extract app_name from project config if provided
+    app_name = "ml-dev-env"
+    project_config = {}
+    if args.project:
+        project_config_file = Path(f"deployments/{args.project}/config.yaml")
+        if project_config_file.exists():
+            with open(project_config_file) as f:
+                project_config = yaml.safe_load(f)
+                app_name = project_config.get("application", {}).get("name", "ml-dev-env")
+                print(f"Loaded application name from project: {app_name}")
+        else:
+            print(f"Warning: Project config not found: {project_config_file}")
+
+    # Validate --job flag
+    if args.job and not args.project:
+        print("Error: --job requires --project to be specified")
+        sys.exit(1)
 
     # Check RDMA availability
     rdma_enabled = config["network"]["rdma"].get("enabled", False)
@@ -314,9 +470,26 @@ def main():
         pvcs_file = output_dir / f"{cluster_name}-pvcs.yaml"
         generate_pvcs(config, str(pvcs_file))
 
-    # Generate StatefulSet
-    statefulset_file = output_dir / f"{cluster_name}-statefulset-{args.mode}.yaml"
-    generate_statefulset(config, args.mode, str(statefulset_file), image_url=args.image)
+    # Generate Service and Routes
+    service_file = output_dir / f"{cluster_name}-service.yaml"
+    generate_service(config, str(service_file), app_name=app_name)
+
+    # Generate Job or StatefulSet
+    if args.job:
+        # Generate Job manifest
+        import datetime
+        job_id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        job_file = output_dir / f"{cluster_name}-job-{job_id}.yaml"
+        generate_job(config, project_config, job_id, str(job_file), mode=args.mode, app_name=app_name)
+        print(f"\n✓ Job manifest generated: {job_file}")
+        print(f"  Job ID: {job_id}")
+        print(f"  To apply: oc apply -f {job_file} -n {config['cluster']['namespace']}")
+        # Early return - don't generate StatefulSet or apply configs
+        return
+    else:
+        # Generate StatefulSet
+        statefulset_file = output_dir / f"{cluster_name}-statefulset-{args.mode}.yaml"
+        generate_statefulset(config, args.mode, str(statefulset_file), image_url=args.image, app_name=app_name)
 
     # Print setup instructions
     print_setup_instructions(config)
@@ -333,6 +506,10 @@ def main():
         # Apply PVCs
         if config["storage"]["mode"] == "rwx" and pvcs_file.exists():
             subprocess.run(["oc", "apply", "-f", str(pvcs_file), "-n", namespace], check=True)
+
+        # Apply Service
+        if service_file.exists():
+            subprocess.run(["oc", "apply", "-f", str(service_file), "-n", namespace], check=True)
 
         # Apply StatefulSet
         subprocess.run(["oc", "apply", "-f", str(statefulset_file), "-n", namespace], check=True)

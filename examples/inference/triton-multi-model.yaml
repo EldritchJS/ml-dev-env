@@ -1,0 +1,65 @@
+# NVIDIA Triton Inference Server
+# Multi-model, multi-framework serving
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/inference/triton-multi-model.yaml --project triton-inference
+
+deployment:
+  cluster: barcelona
+  mode: single-node
+  network_mode: tcp
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: false
+
+image:
+  type: prebuilt
+  url: nvcr.io/nvidia/tritonserver:24.01-py3  # Official Triton image
+
+application:
+  enabled: true
+  type: custom_command
+  name: triton-inference
+  source:
+    path: "tritonserver --model-repository=/models --http-port=8000 --grpc-port=8001 --metrics-port=8002"
+  execution:
+    mode: auto_start
+    arguments: ""
+  requirements:
+    install_mode: skip  # Using Triton base image
+  runtime:
+    working_dir: /workspace/triton-inference
+
+resources:
+  gpus: 4
+
+storage:
+  workspace_size: 200  # For model repository
+  datasets_size: 0
+
+# Model Repository Structure:
+# /models/
+#   ├── gpt2/
+#   │   ├── config.pbtxt
+#   │   └── 1/
+#   │       └── model.pt
+#   ├── bert-classifier/
+#   │   ├── config.pbtxt
+#   │   └── 1/
+#   │       └── model.onnx
+#   └── yolo/
+#       ├── config.pbtxt
+#       └── 1/
+#           └── model.plan (TensorRT)
+#
+# Features:
+# - Serve PyTorch, TensorFlow, ONNX, TensorRT models
+# - Dynamic batching
+# - Model versioning
+# - Concurrent model execution
+# - HTTP and gRPC endpoints
+#
+# Access:
+# curl -X POST http://localhost:8000/v2/models/gpt2/infer -d '{"inputs":[...]}'

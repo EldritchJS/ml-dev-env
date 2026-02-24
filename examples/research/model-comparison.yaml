@@ -1,0 +1,70 @@
+# Model Comparison Study
+# Compare different model architectures on same task
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/research/model-comparison.yaml --project model-comparison
+
+deployment:
+  cluster: barcelona
+  mode: multi-node
+  network_mode: rdma
+  num_nodes: 2
+
+features:
+  vscode: true
+  jupyter: true
+  tensorboard: true
+  wandb: true
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: single_file
+  name: model-comparison
+  source:
+    path: ./evaluate.py
+  execution:
+    mode: job
+    arguments: "--model gpt2 --dataset wikitext --metric perplexity"
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - torch
+      - transformers
+      - datasets
+      - wandb
+      - evaluate
+  runtime:
+    working_dir: /workspace/model-comparison
+
+resources:
+  gpus_per_node: 4
+  total_gpus: 8
+
+storage:
+  workspace_size: 200  # For multiple model checkpoints
+  datasets_size: 500
+
+# Models to compare:
+# - GPT-2 (small, medium, large)
+# - BERT (base, large)
+# - RoBERTa (base, large)
+# - LLaMA (7B, 13B)
+#
+# Run comparison:
+#
+# models=("gpt2" "gpt2-medium" "gpt2-large" "bert-base" "bert-large" "roberta-base" "roberta-large")
+#
+# for model in "${models[@]}"; do
+#   sed -i "s/--model [a-z0-9-]*/--model $model/" config.yaml
+#   ./scripts/submit-job.sh
+#   echo "Submitted evaluation for $model"
+#   sleep 5
+# done
+#
+# # View comparison in wandb dashboard
+# # All experiments tagged: model-comparison
+# # Compare metrics: perplexity, throughput, memory usage

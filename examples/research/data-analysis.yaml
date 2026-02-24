@@ -1,0 +1,83 @@
+# Dataset Analysis
+# Interactive data exploration and analysis
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/research/data-analysis.yaml --project data-analysis
+
+deployment:
+  cluster: nerc-production
+  mode: single-node
+  network_mode: tcp
+
+features:
+  vscode: true
+  jupyter: true
+  tensorboard: false
+  pvc_browser: true
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: directory
+  name: data-analysis
+  source:
+    path: ./analysis/
+    entry_point: analyze.py
+  execution:
+    mode: manual  # Interactive analysis
+    arguments: "--dataset /datasets/wikitext"
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - pandas
+      - numpy
+      - matplotlib
+      - seaborn
+      - jupyter
+      - datasets
+      - transformers
+  runtime:
+    working_dir: /workspace/data-analysis
+
+resources:
+  gpus: 1  # For data processing
+
+storage:
+  workspace_size: 100
+  datasets_size: 1000
+
+# Use cases:
+# 1. Interactive analysis in Jupyter:
+#    ./scripts/jupyter.sh
+#    # Open analysis.ipynb
+#
+# 2. Batch analysis:
+#    ./scripts/run-app.sh
+#
+# 3. VSCode notebooks:
+#    ./scripts/vscode.sh
+#    # Open .ipynb files
+#
+# Example analysis tasks:
+# - Token distribution analysis
+# - Vocabulary coverage
+# - Sequence length statistics
+# - Label distribution
+# - Data quality checks
+# - Outlier detection
+# - Duplicate detection
+# - Bias analysis
+#
+# Directory structure:
+# analysis/
+#   ├── analyze.py              # Main analysis script
+#   ├── notebooks/
+#   │   ├── eda.ipynb           # Exploratory data analysis
+#   │   ├── statistics.ipynb    # Statistical analysis
+#   │   └── visualization.ipynb # Visualizations
+#   └── utils/
+#       ├── metrics.py
+#       └── plotting.py

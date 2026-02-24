@@ -1,0 +1,55 @@
+# vLLM Inference Server - LLaMA-3-70B
+# High-throughput LLM inference with OpenAI-compatible API
+#
+# Usage:
+#   make wizard PROJECT=llama-inference
+#   # Then load this config when prompted, or:
+#   ./scripts/deployment-wizard.py --config examples/inference/vllm-llama.yaml --project llama-inference
+
+deployment:
+  cluster: barcelona  # Change to your cluster
+  mode: single-node
+  network_mode: tcp
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: false
+  pvc_browser: false
+  wandb: false
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: custom_command
+  name: llama-inference
+  source:
+    path: "python -m vllm.entrypoints.openai.api_server --model meta-llama/Llama-3-70b-hf --tensor-parallel-size 8 --host 0.0.0.0 --port 8000"
+  execution:
+    mode: auto_start  # Keeps server running
+    arguments: ""  # Arguments in command
+  requirements:
+    install_mode: pod_startup
+    file: ""
+    packages:
+      - vllm>=0.3.0
+      - transformers>=4.38.0
+  runtime:
+    working_dir: /workspace/llama-inference
+
+resources:
+  gpus: 8  # For 70B model with TP=8
+
+storage:
+  workspace_size: 200  # For model cache
+  datasets_size: 0
+
+# After deployment:
+# 1. Wait for model to load (~2 minutes)
+# 2. Check logs: ./scripts/logs.sh -f
+# 3. Port-forward: oc port-forward llama-inference 8000:8000
+# 4. Test: curl http://localhost:8000/v1/models
+# 5. Inference: curl http://localhost:8000/v1/completions -H "Content-Type: application/json" -d '{"model": "meta-llama/Llama-3-70b-hf", "prompt": "Once upon a time", "max_tokens": 100}'

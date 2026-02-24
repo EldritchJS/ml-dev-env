@@ -61,19 +61,36 @@ Development and testing on one node with 4x H100 GPUs.
 
 ### Option 1: Interactive Wizard (Recommended for New Users)
 
-The deployment wizard guides you through cluster selection, feature configuration, and deployment:
+The deployment wizard guides you through cluster selection, feature configuration, and **application-specific deployment**:
 
 ```bash
-# Run the interactive wizard
-make wizard
+# Run the interactive wizard with project mode
+make wizard PROJECT=my-training
 
 # Follow the prompts to:
 # 1. Select your cluster
 # 2. Choose single-node or multi-node
 # 3. Select features (VSCode, Jupyter, file browser, etc.)
-# 4. Configure resources (GPUs, storage)
-# 5. Generate deployment commands
+# 4. Select/build container image
+# 5. Configure your application (NEW!)
+#    - Specify your training script or code directory
+#    - Choose execution mode (manual, auto-start, or Job)
+#    - Set CLI arguments and requirements
+# 6. Configure resources (GPUs, storage)
+# 7. Generate deployment with your app name
+
+# This creates: deployments/my-training/ with all scripts customized
+# - Pods named: my-training-0, my-training-1, ...
+# - Scripts: run-app.sh, submit-job.sh (if Job mode), etc.
+# - QUICKSTART.md personalized for your application
 ```
+
+**Application-aware features:**
+- 🎯 **Custom naming** - All resources named after your application
+- 🚀 **Multiple execution modes** - Manual, auto-start, or Kubernetes Jobs
+- 📦 **Requirements handling** - Automatic installation from requirements.txt
+- 📁 **Project isolation** - Each deployment in its own directory
+- 🔧 **Application scripts** - run-app.sh, submit-job.sh tailored to your app
 
 See [DEPLOYMENT-WIZARD-GUIDE.md](docs/DEPLOYMENT-WIZARD-GUIDE.md) for details.
 

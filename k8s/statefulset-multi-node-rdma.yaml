@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ml-dev-env-headless
-  namespace: nccl-test
+  name: {app_name}-headless
+  namespace: {namespace}
   labels:
-    app: ml-dev-env-multi
+    app: {app_name}-multi
 spec:
   clusterIP: None  # Headless service for StatefulSet
   selector:
-    app: ml-dev-env-multi
+    app: {app_name}-multi
   ports:
   - port: 29500
     name: master
@@ -20,12 +20,12 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: ml-dev-env
-  namespace: nccl-test
+  name: {app_name}
+  namespace: {namespace}
   labels:
-    app: ml-dev-env-multi
+    app: {app_name}-multi
 spec:
-  serviceName: ml-dev-env-headless
+  serviceName: {app_name}-headless
   # CUSTOMIZE: Change replicas to set number of nodes (each node gets 1 pod)
   # Examples: 2 nodes = 8 GPUs, 4 nodes = 16 GPUs, 8 nodes = 32 GPUs
   replicas: 2  # Default: 2 nodes
@@ -33,12 +33,12 @@ spec:
 
   selector:
     matchLabels:
-      app: ml-dev-env-multi
+      app: {app_name}-multi
 
   template:
     metadata:
       labels:
-        app: ml-dev-env-multi
+        app: {app_name}-multi
         pytorch-version: "2.9"
         numpy-version: "2.2.6"
 
@@ -54,7 +54,7 @@ spec:
               - key: app
                 operator: In
                 values:
-                - ml-dev-env-multi
+                - {app_name}-multi
             topologyKey: kubernetes.io/hostname
 
         # OPTIONAL: Constrain to specific nodes
@@ -148,7 +148,7 @@ spec:
 
         # DeepSpeed master address (pod-0 is master)
         - name: MASTER_ADDR
-          value: "ml-dev-env-0.ml-dev-env-headless.nccl-test.svc.cluster.local"
+          value: "{app_name}-0.{app_name}-headless.{namespace}.svc.cluster.local"
         - name: MASTER_PORT
           value: "29500"
 
@@ -244,7 +244,7 @@ spec:
           NUM_NODES=$((WORLD_SIZE / GPUS_PER_NODE))
           > /workspace/.deepspeed/hostfile
           for i in $(seq 0 $((NUM_NODES - 1))); do
-            echo "ml-dev-env-$i.ml-dev-env-headless.nccl-test.svc.cluster.local slots=$GPUS_PER_NODE" >> /workspace/.deepspeed/hostfile
+            echo "{app_name}-$i.{app_name}-headless.{namespace}.svc.cluster.local slots=$GPUS_PER_NODE" >> /workspace/.deepspeed/hostfile
           done
 
           echo "Hostfile created at /workspace/.deepspeed/hostfile ($NUM_NODES nodes)"
@@ -252,6 +252,9 @@ spec:
           echo ""
           echo "Ready for multi-node training!"
           echo "=========================================="
+
+          # Application startup
+          {app_startup_code}
 
           # Keep container running
           tail -f /dev/null

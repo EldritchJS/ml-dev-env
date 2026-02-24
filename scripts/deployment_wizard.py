@@ -146,6 +146,117 @@ class DeploymentWizard:
                 print("\n\nCancelled by user")
                 sys.exit(0)
 
+    def _extract_app_name(self, path: str, app_type: str) -> str:
+        """Extract application name from file path or directory name"""
+        import os
+        import re
+
+        # Get the base name
+        if app_type == "single_file":
+            # Extract filename without extension
+            basename = Path(path).stem
+        elif app_type == "directory":
+            # Get directory name
+            basename = Path(path).name
+        elif app_type == "custom_command":
+            # Extract from command - try to find a .py file or use first word
+            parts = path.split()
+            for part in parts:
+                if part.endswith(".py"):
+                    basename = Path(part).stem
+                    break
+            else:
+                # Use first non-option word
+                for part in parts:
+                    if not part.startswith("-"):
+                        basename = part
+                        break
+                else:
+                    basename = "app"
+        else:
+            basename = "app"
+
+        # Convert to valid DNS name:
+        # - Lowercase
+        # - Replace underscores with hyphens
+        # - Remove invalid characters (keep only alphanumeric and hyphens)
+        # - Ensure starts with letter
+        name = basename.lower()
+        name = name.replace("_", "-")
+        name = re.sub(r"[^a-z0-9-]", "", name)
+
+        # Ensure starts with letter
+        if name and not name[0].isalpha():
+            name = f"app-{name}"
+
+        # Strip leading/trailing hyphens
+        name = name.strip("-")
+
+        # Default if empty
+        if not name:
+            name = "app"
+
+        # Truncate to 63 characters (DNS-1123 limit)
+        if len(name) > 63:
+            name = name[:63].rstrip("-")
+
+        return name
+
+    def _validate_app_name(self, name: str) -> str:
+        """Validate and fix app name to be DNS-1123 compliant"""
+        import re
+
+        # Convert to lowercase
+        name = name.lower()
+
+        # Replace invalid characters with hyphens
+        name = re.sub(r"[^a-z0-9-]", "-", name)
+
+        # Ensure starts with letter
+        if name and not name[0].isalpha():
+            name = f"app-{name}"
+
+        # Ensure ends with alphanumeric
+        name = name.rstrip("-")
+
+        # Strip leading hyphens
+        name = name.lstrip("-")
+
+        # Truncate to 63 characters
+        if len(name) > 63:
+            name = name[:63].rstrip("-")
+
+        # Default if empty
+        if not name:
+            name = "app"
+
+        return name
+
+    def _extract_requirements(self, file_path: str) -> list[str]:
+        """Parse requirements.txt and return list of packages"""
+        packages = []
+
+        try:
+            with open(file_path) as f:
+                for line in f:
+                    # Strip whitespace
+                    line = line.strip()
+
+                    # Skip empty lines and comments
+                    if not line or line.startswith("#"):
+                        continue
+
+                    # Skip lines with -r or -e (include/editable)
+                    if line.startswith("-r") or line.startswith("-e"):
+                        continue
+
+                    packages.append(line)
+
+        except FileNotFoundError:
+            print(f"Warning: Requirements file not found: {file_path}")
+
+        return packages
+
     def discover_and_add_cluster(self) -> str | None:
         """Discover a new cluster and add it to available clusters"""
         print("\n🔍 Cluster Discovery")
@@ -571,6 +682,394 @@ class DeploymentWizard:
             print("\nFalling back to pre-built image...")
             return self._select_prebuilt_image()
 
+    def select_application(self):
+        """Configure application deployment"""
+        self._print_header("Step 4.5: Application Configuration (Optional)")
+
+        print("\n🚀 Application Deployment")
+        print("")
+        print("You can configure this deployment to run a specific ML application")
+        print("(Python scripts, training jobs, etc.) with customized naming and execution.")
+        print("")
+
+        if not self._prompt_yes_no("Configure application deployment?", default=False):
+            # No application deployment - use default ml-dev-env naming
+            self.config["application"] = {"enabled": False}
+            return
+
+        # Initialize application config
+        app_config = {"enabled": True}
+
+        # Step 1: Select application type
+        print("\n📝 Step 1: Application Type")
+        print("")
+
+        type_options = [
+            "Single Python file (e.g., train.py, inference.py)",
+            "Directory with multiple files (specify entry point)",
+            "Custom command (e.g., 'python train.py --epochs 100')",
+        ]
+
+        type_choice = self._prompt_choice("Select application type:", type_options, default=0)
+
+        if type_choice == 0:
+            app_type = "single_file"
+        elif type_choice == 1:
+            app_type = "directory"
+        else:
+            app_type = "custom_command"
+
+        app_config["type"] = app_type
+
+        # Step 2: Get source path/command
+        print("\n📁 Step 2: Application Source")
+        print("")
+
+        if app_type == "single_file":
+            if self.non_interactive:
+                source_path = "./train.py"
+            else:
+                source_path = input("Enter path to Python file: ").strip()
+                if not source_path:
+                    print("No path provided, disabling application deployment")
+                    self.config["application"] = {"enabled": False}
+                    return
+
+            # Validate file exists
+            if not Path(source_path).exists():
+                print(f"⚠️  Warning: File not found: {source_path}")
+                if not self._prompt_yes_no("Continue anyway?", default=False):
+                    self.config["application"] = {"enabled": False}
+                    return
+
+            app_config["source"] = {"path": source_path}
+            entry_point = Path(source_path).name
+
+        elif app_type == "directory":
+            if self.non_interactive:
+                source_path = "./code"
+                entry_point = "train.py"
+            else:
+                source_path = input("Enter path to directory: ").strip()
+                if not source_path:
+                    print("No path provided, disabling application deployment")
+                    self.config["application"] = {"enabled": False}
+                    return
+
+                # Validate directory exists
+                if not Path(source_path).exists():
+                    print(f"⚠️  Warning: Directory not found: {source_path}")
+                    if not self._prompt_yes_no("Continue anyway?", default=False):
+                        self.config["application"] = {"enabled": False}
+                        return
+
+                # Get entry point
+                entry_point = input("Enter entry point file (e.g., train.py): ").strip()
+                if not entry_point:
+                    entry_point = "train.py"
+
+            app_config["source"] = {"path": source_path, "entry_point": entry_point}
+
+        else:  # custom_command
+            if self.non_interactive:
+                command = "python train.py"
+            else:
+                command = input("Enter command to run: ").strip()
+                if not command:
+                    print("No command provided, disabling application deployment")
+                    self.config["application"] = {"enabled": False}
+                    return
+
+            app_config["source"] = {"path": command}
+            # Extract entry point from command for naming
+            parts = command.split()
+            for part in parts:
+                if part.endswith(".py"):
+                    entry_point = part
+                    break
+            else:
+                entry_point = "app.py"
+
+        # Step 3: Extract and confirm application name
+        print("\n🏷️  Step 3: Application Name")
+        print("")
+
+        extracted_name = self._extract_app_name(
+            app_config["source"]["path"], app_type
+        )
+        print(f"Extracted name: {extracted_name}")
+        print("(This will be used for all resource names: pods, services, routes)")
+        print("")
+
+        if self.non_interactive:
+            app_name = extracted_name
+        else:
+            custom_name = input(f"Custom name (or Enter to use '{extracted_name}'): ").strip()
+            if custom_name:
+                app_name = self._validate_app_name(custom_name)
+                if app_name != custom_name:
+                    print(f"Name adjusted for DNS compliance: {app_name}")
+            else:
+                app_name = extracted_name
+
+        app_config["name"] = app_name
+        print(f"✓ Application name: {app_name}")
+
+        # Step 4: Execution mode
+        print("\n⚙️  Step 4: Execution Mode")
+        print("")
+
+        exec_options = [
+            "Manual - Scripts provided, run when you're ready (./scripts/run-app.sh)",
+            "Auto-start - Application starts automatically when pods launch",
+            "Job - Run as Kubernetes Job (one-time execution)",
+        ]
+
+        exec_choice = self._prompt_choice("Select execution mode:", exec_options, default=0)
+
+        if exec_choice == 0:
+            exec_mode = "manual"
+        elif exec_choice == 1:
+            exec_mode = "auto_start"
+        else:
+            exec_mode = "job"
+
+        app_config["execution"] = {"mode": exec_mode}
+
+        # Step 5: CLI arguments
+        print("\n🔧 Step 5: Command-Line Arguments")
+        print("")
+
+        if self.non_interactive:
+            arguments = ""
+        else:
+            arguments = input("Enter CLI arguments (or Enter for none): ").strip()
+
+        app_config["execution"]["arguments"] = arguments
+
+        if arguments:
+            print(f"✓ Arguments: {arguments}")
+
+        # Step 6: Requirements handling
+        print("\n📦 Step 6: Requirements")
+        print("")
+
+        # Check if requirements.txt exists in source directory
+        if app_type == "directory":
+            req_path = Path(source_path) / "requirements.txt"
+        elif app_type == "single_file":
+            # Check in same directory as the file
+            req_path = Path(source_path).parent / "requirements.txt"
+        else:
+            req_path = Path("requirements.txt")
+
+        has_requirements = req_path.exists()
+
+        if has_requirements:
+            print(f"Found requirements.txt at: {req_path}")
+        else:
+            if not self.non_interactive:
+                req_input = input("Path to requirements.txt (or Enter to skip): ").strip()
+                if req_input and Path(req_input).exists():
+                    req_path = Path(req_input)
+                    has_requirements = True
+                else:
+                    has_requirements = False
+
+        if has_requirements:
+            # Parse requirements
+            packages = self._extract_requirements(str(req_path))
+            print(f"Found {len(packages)} packages in requirements.txt")
+
+            # Ask how to handle requirements
+            # If using custom image, offer to merge into image
+            is_custom_image = self.config.get("image", {}).get("type") == "custom_build"
+
+            if is_custom_image:
+                print("\nNote: Image already built. Requirements can only be installed at pod startup.")
+                print("To merge requirements into image, rerun wizard and specify requirements during image build.")
+                req_options = [
+                    "Install at pod startup (pip install on each pod start)",
+                    "Skip (manually manage dependencies)",
+                ]
+                req_choice = self._prompt_choice("How to handle requirements:", req_options, default=0)
+
+                if req_choice == 0:
+                    install_mode = "pod_startup"
+                else:
+                    install_mode = "skip"
+            else:
+                req_options = [
+                    "Install at pod startup (pip install on each pod start)",
+                    "Skip (manually manage dependencies)",
+                ]
+                req_choice = self._prompt_choice("How to handle requirements:", req_options, default=0)
+
+                if req_choice == 0:
+                    install_mode = "pod_startup"
+                else:
+                    install_mode = "skip"
+
+            app_config["requirements"] = {
+                "file": str(req_path),
+                "install_mode": install_mode,
+                "packages": packages,
+            }
+
+            print(f"✓ Requirements mode: {install_mode}")
+        else:
+            app_config["requirements"] = {"install_mode": "skip"}
+
+        # Step 7: Working directory
+        working_dir = f"/workspace/{app_name}"
+        app_config["runtime"] = {"working_dir": working_dir}
+
+        # Store configuration
+        self.config["application"] = app_config
+
+        # Summary
+        print("\n📋 Application Configuration Summary:")
+        print(f"  Type: {app_type}")
+        print(f"  Name: {app_name}")
+        print(f"  Source: {app_config['source']['path']}")
+        if app_type == "directory":
+            print(f"  Entry point: {entry_point}")
+        print(f"  Execution: {exec_mode}")
+        if arguments:
+            print(f"  Arguments: {arguments}")
+        print(f"  Working dir: {working_dir}")
+        if has_requirements:
+            print(f"  Requirements: {len(packages)} packages ({install_mode})")
+
+        print("\n✓ Application configuration complete!")
+
+    def configure_sweep(self):
+        """Configure hyperparameter sweep (optional, only for job mode)"""
+        # Only offer sweep for job execution mode
+        app_config = self.config.get("application", {})
+        if not app_config.get("enabled") or app_config.get("execution", {}).get("mode") != "job":
+            # Not applicable - skip silently
+            return
+
+        self._print_header("Step 4.5: Hyperparameter Sweep (Optional)")
+
+        print("\n🔬 Hyperparameter Sweep Automation")
+        print("")
+        print("Enable sweep to automatically submit multiple jobs with different")
+        print("parameter combinations (e.g., learning rates, batch sizes).")
+        print("")
+
+        if self.non_interactive:
+            # Skip sweep in non-interactive mode
+            return
+
+        enable_sweep = self._prompt_yes_no("Enable hyperparameter sweep?", default=False)
+
+        if not enable_sweep:
+            return
+
+        # Initialize sweep config
+        sweep_config = {"enabled": True, "parameters": []}
+
+        # Collect sweep parameters
+        print("\n📊 Sweep Parameters")
+        print("Define parameters to sweep over (e.g., learning rate, batch size)")
+        print("")
+
+        param_count = 0
+        while True:
+            param_count += 1
+            print(f"\n--- Parameter {param_count} ---")
+
+            # Parameter name (for job ID, e.g., "lr", "bs")
+            param_name = input("Parameter name (e.g., 'lr', 'batch_size') or Enter to finish: ").strip()
+            if not param_name:
+                if param_count == 1:
+                    print("No parameters defined, disabling sweep")
+                    return
+                break
+
+            # CLI flag (e.g., "--lr", "--batch-size")
+            default_flag = f"--{param_name.replace('_', '-')}"
+            flag_input = input(f"CLI flag (default: {default_flag}): ").strip()
+            cli_flag = flag_input if flag_input else default_flag
+
+            # Values to sweep
+            print(f"Enter values for {param_name} (comma-separated):")
+            print(f"  Example: 0.0001,0.001,0.01  or  16,32,64")
+            values_input = input("Values: ").strip()
+
+            if not values_input:
+                print(f"No values provided, skipping parameter {param_name}")
+                param_count -= 1
+                continue
+
+            # Parse values (try to detect type: float, int, or string)
+            values = []
+            for v in values_input.split(","):
+                v = v.strip()
+                # Try to parse as number
+                try:
+                    if "." in v:
+                        values.append(float(v))
+                    else:
+                        values.append(int(v))
+                except ValueError:
+                    # Keep as string
+                    values.append(v)
+
+            sweep_config["parameters"].append({
+                "name": param_name,
+                "flag": cli_flag,
+                "values": values
+            })
+
+            print(f"✓ Added parameter: {param_name} with {len(values)} values")
+
+            # Ask if more parameters
+            if param_count >= 5:
+                print("\nMaximum 5 parameters reached")
+                break
+
+        # Sweep strategy
+        print("\n⚙️  Sweep Strategy")
+        strategy_options = [
+            "Grid - Try all combinations (full grid search)",
+        ]
+        strategy_choice = self._prompt_choice("Select strategy:", strategy_options, default=0)
+        sweep_config["strategy"] = "grid"
+
+        # Calculate total jobs
+        total_jobs = 1
+        for param in sweep_config["parameters"]:
+            total_jobs *= len(param["values"])
+
+        print(f"\n📈 Total jobs to submit: {total_jobs}")
+
+        # Max concurrent jobs (optional)
+        max_concurrent_default = min(total_jobs, 5)
+        max_concurrent = self._prompt_number(
+            f"Maximum concurrent jobs (1-{total_jobs})?",
+            default=max_concurrent_default,
+            min_val=1,
+            max_val=total_jobs
+        )
+        sweep_config["max_concurrent"] = max_concurrent
+
+        # Store sweep config in application execution
+        self.config["application"]["execution"]["sweep"] = sweep_config
+
+        # Summary
+        print("\n📋 Sweep Configuration Summary:")
+        print(f"  Strategy: grid search")
+        print(f"  Parameters: {len(sweep_config['parameters'])}")
+        for param in sweep_config["parameters"]:
+            print(f"    - {param['name']}: {len(param['values'])} values ({param['flag']})")
+        print(f"  Total jobs: {total_jobs}")
+        print(f"  Max concurrent: {max_concurrent}")
+
+        print("\n✓ Sweep configuration complete!")
+
     def configure_resources(self):
         """Configure resource requirements"""
         self._print_header("Step 5: Configure Resources")
@@ -735,6 +1234,7 @@ class DeploymentWizard:
             },
             "features": self.config["features"],
             "image": self.config.get("image", {}),
+            "application": self.config.get("application", {"enabled": False}),
             "resources": self.config["resources"],
             "storage": self.config["storage"],
         }
@@ -768,6 +1268,7 @@ class DeploymentWizard:
         self.config["num_nodes"] = deployment.get("num_nodes")
         self.config["features"] = loaded_config.get("features", {})
         self.config["image"] = loaded_config.get("image", {})
+        self.config["application"] = loaded_config.get("application", {"enabled": False})
         self.config["resources"] = loaded_config.get("resources", {})
         self.config["storage"] = loaded_config.get("storage", {})
 
@@ -933,8 +1434,109 @@ env | grep NCCL  # Check NCCL configuration
         if self.config["features"].get("pvc_browser"):
             deploy_details += "- Deploy web-based file browser\n"
 
-        # Pod name
-        pod_name = "ml-dev-env-0" if self.config["mode"] != "single-node" else "ml-dev-env"
+        # Application configuration
+        app_config = self.config.get("application", {})
+        app_name = app_config.get("name", "ml-dev-env") if app_config.get("enabled") else "ml-dev-env"
+
+        # Pod name (now uses app_name)
+        pod_name = f"{app_name}-0" if self.config["mode"] != "single-node" else app_name
+
+        # Application sections
+        app_details = ""
+        app_instructions = ""
+        app_environment = ""
+
+        if app_config.get("enabled"):
+            # Application details section
+            app_type = app_config.get("type", "N/A")
+            source_path = app_config.get("source", {}).get("path", "N/A")
+            exec_mode = app_config.get("execution", {}).get("mode", "manual")
+            working_dir = app_config.get("runtime", {}).get("working_dir", "/workspace")
+            entry_point = app_config.get("source", {}).get("entry_point", "N/A")
+            arguments = app_config.get("execution", {}).get("arguments", "")
+
+            app_details = f"""
+## Your Application
+
+- **Name:** {app_name}
+- **Type:** {app_type}
+- **Source:** {source_path}"""
+
+            if app_type == "directory":
+                app_details += f"\n- **Entry point:** {entry_point}"
+
+            app_details += f"""
+- **Working directory:** {working_dir}
+- **Execution mode:** {exec_mode}"""
+
+            if arguments:
+                app_details += f"\n- **Arguments:** {arguments}"
+
+            # Application execution instructions
+            if exec_mode == "manual":
+                app_instructions = f"""
+## Running Your Application
+
+Your application is configured for **manual execution**. Use the provided script:
+
+```bash
+./scripts/run-app.sh              # Run on all pods
+./scripts/run-app.sh --node 0     # Run only on pod-0
+./scripts/run-app.sh --watch      # Stream logs while running
+```
+
+Or execute manually:
+
+```bash
+./scripts/shell.sh
+cd {working_dir}
+python {entry_point} {arguments}
+```"""
+
+            elif exec_mode == "auto_start":
+                app_instructions = f"""
+## Running Your Application
+
+Your application is configured for **auto-start**. It starts automatically when pods launch.
+
+View logs:
+```bash
+./scripts/logs.sh -f
+```
+
+Or check status:
+```bash
+./scripts/status.sh
+```"""
+
+            elif exec_mode == "job":
+                app_instructions = f"""
+## Running Your Application
+
+Your application is configured for **Job execution** (one-time runs).
+
+Submit a job:
+```bash
+./scripts/submit-job.sh
+```
+
+Watch job execution:
+```bash
+./scripts/watch-job.sh <job-id>
+```
+
+List jobs:
+```bash
+oc get jobs -n {cluster_config["cluster"]["namespace"]} -l app={app_name}
+```"""
+
+            # Application environment
+            app_environment = f"""
+**Application-specific:**
+- Working directory: `{working_dir}`
+- Sync target: `{working_dir}/`
+- App resources: `{app_name}-*` (pods, services, routes)
+"""
 
         # Perform substitutions
         quickstart = template.format(
@@ -961,7 +1563,11 @@ env | grep NCCL  # Check NCCL configuration
             monitoring_details=monitoring_details,
             rdma_troubleshooting=rdma_troubleshooting,
             pod_name=pod_name,
+            app_name=app_name,
             namespace=cluster_config["cluster"]["namespace"],
+            app_details=app_details,
+            app_instructions=app_instructions,
+            app_environment=app_environment,
         )
 
         # Write QUICKSTART.md
@@ -983,23 +1589,38 @@ env | grep NCCL  # Check NCCL configuration
         cluster_config = self.config["cluster_config"]
         namespace = cluster_config["cluster"]["namespace"]
 
+        # Extract app_name from config (default to ml-dev-env)
+        app_config = self.config.get("application", {})
+        app_name = app_config.get("name", "ml-dev-env") if app_config.get("enabled") else "ml-dev-env"
+
         # Determine pod name and sync target based on mode
         if self.config["mode"] == "single-node":
-            pod_name = "ml-dev-env"
+            pod_name = app_name
             sync_target = "once"
         else:
-            pod_name = "ml-dev-env-0"
+            pod_name = f"{app_name}-0"
             sync_target = "multi-node"
 
         # Prepare template variables
         template_vars = {
             "project_name": self.project_name,
+            "cluster": self.config["cluster"],
             "cluster_name": self.config["cluster"],
             "network_mode": self.config.get("network_mode", "tcp"),
             "namespace": namespace,
             "pod_name": pod_name,
+            "app_name": app_name,
             "sync_target": sync_target,
         }
+
+        # Add application-specific template variables
+        if app_config.get("enabled"):
+            template_vars.update({
+                "working_dir": app_config.get("runtime", {}).get("working_dir", f"/workspace/{app_name}"),
+                "entry_point": app_config.get("source", {}).get("entry_point", "train.py"),
+                "arguments": app_config.get("execution", {}).get("arguments", ""),
+                "project": self.project_name,
+            })
 
         # Deploy command
         image_flag = (
@@ -1049,6 +1670,8 @@ env | grep NCCL  # Check NCCL configuration
         self.select_deployment_mode()
         self.select_features()
         self.select_image()
+        self.select_application()
+        self.configure_sweep()  # Only runs if job mode enabled
         self.configure_resources()
 
         # Generate commands

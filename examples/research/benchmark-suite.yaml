@@ -1,0 +1,99 @@
+# Comprehensive Benchmark Suite
+# Evaluate model on multiple benchmarks
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/research/benchmark-suite.yaml --project benchmarks
+
+deployment:
+  cluster: barcelona
+  mode: single-node
+  network_mode: tcp
+
+features:
+  vscode: true
+  jupyter: true
+  tensorboard: false
+  wandb: true
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: directory
+  name: benchmarks
+  source:
+    path: ./benchmark_suite/
+    entry_point: run_all.py
+  execution:
+    mode: job
+    arguments: "--model /models/my-model --output /workspace/results"
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - torch
+      - transformers
+      - datasets
+      - lm-eval>=0.4.0
+      - wandb
+  runtime:
+    working_dir: /workspace/benchmarks
+
+resources:
+  gpus: 4
+
+storage:
+  workspace_size: 100
+  datasets_size: 1000  # Multiple benchmark datasets
+
+# Benchmarks to run:
+# - MMLU (Massive Multitask Language Understanding)
+# - HellaSwag (Commonsense reasoning)
+# - TruthfulQA (Truthfulness)
+# - GSM8K (Math reasoning)
+# - HumanEval (Code generation)
+# - MATH (Mathematical problem solving)
+# - BBH (Big Bench Hard)
+#
+# Directory structure:
+# benchmark_suite/
+#   ├── run_all.py          # Main evaluation script
+#   ├── benchmarks/
+#   │   ├── mmlu.py
+#   │   ├── hellaswag.py
+#   │   ├── truthfulqa.py
+#   │   ├── gsm8k.py
+#   │   ├── humaneval.py
+#   │   └── math.py
+#   └── utils/
+#       ├── metrics.py
+#       └── logging.py
+#
+# Example run_all.py:
+#
+# import argparse
+# from benchmarks import mmlu, hellaswag, truthfulqa, gsm8k, humaneval, math_bench
+# import wandb
+#
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--model', required=True)
+# parser.add_argument('--output', required=True)
+# args = parser.parse_args()
+#
+# wandb.init(project="benchmarks", name=args.model)
+#
+# results = {}
+# results['mmlu'] = mmlu.evaluate(args.model)
+# results['hellaswag'] = hellaswag.evaluate(args.model)
+# results['truthfulqa'] = truthfulqa.evaluate(args.model)
+# results['gsm8k'] = gsm8k.evaluate(args.model)
+# results['humaneval'] = humaneval.evaluate(args.model)
+# results['math'] = math_bench.evaluate(args.model)
+#
+# wandb.log(results)
+#
+# # Save detailed results
+# import json
+# with open(f"{args.output}/benchmark_results.json", 'w') as f:
+#     json.dump(results, f, indent=2)

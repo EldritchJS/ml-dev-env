@@ -45,7 +45,7 @@ if [ "$1" == "--all" ]; then
 
     # Also delete PVCs
     echo "Deleting PVCs..."
-    oc delete pvc -l app=ml-dev-env -n "$NAMESPACE" 2>/dev/null || true
+    oc delete pvc -l app={app_name} -n "$NAMESPACE" 2>/dev/null || true
 else
     make clean-cluster CLUSTER="$CLUSTER" PROJECT="$PROJECT_NAME"
 fi

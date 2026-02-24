@@ -1,0 +1,103 @@
+# Hyperparameter Sweep
+# Grid search over learning rates and batch sizes
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/research/hyperparameter-sweep.yaml --project lr-sweep
+
+deployment:
+  cluster: barcelona
+  mode: multi-node
+  network_mode: rdma
+  num_nodes: 4
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: true
+  wandb: true
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: single_file
+  name: lr-sweep
+  source:
+    path: ./train.py
+  execution:
+    mode: job  # Each experiment is a separate job
+    arguments: "--epochs 20"  # Base arguments (sweep params will be added)
+    sweep:
+      enabled: true
+      strategy: grid
+      max_concurrent: 3
+      parameters:
+        - name: lr
+          flag: --lr
+          values: [0.0001, 0.001, 0.01]
+        - name: batch_size
+          flag: --batch-size
+          values: [16, 32, 64]
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - torch
+      - transformers
+      - wandb
+      - datasets
+  runtime:
+    working_dir: /workspace/lr-sweep
+
+resources:
+  gpus_per_node: 4
+  total_gpus: 16
+
+storage:
+  workspace_size: 100
+  datasets_size: 500
+
+# Hyperparameter Sweep Automation
+#
+# This configuration enables automated sweep over:
+#   - 3 learning rates: [0.0001, 0.001, 0.01]
+#   - 3 batch sizes: [16, 32, 64]
+#   - Total jobs: 9 (3 × 3)
+#   - Max concurrent: 3
+#
+# After deployment:
+#
+# 1. Deploy the project:
+#    cd deployments/lr-sweep/
+#    ./scripts/deploy.sh
+#
+# 2. Submit all sweep jobs (automatically generates 9 jobs):
+#    ./scripts/submit-sweep.sh
+#    # Submits: lr-sweep-job-lr1e-04-bs16, lr-sweep-job-lr1e-04-bs32, ...
+#
+# 3. Monitor sweep progress:
+#    ./scripts/watch-sweep.sh
+#    # Shows status table with all 9 jobs
+#
+# 4. View specific job logs:
+#    ./scripts/watch-sweep.sh --job lr0.001-bs32
+#
+# 5. Follow all running jobs:
+#    ./scripts/watch-sweep.sh --follow
+#
+# 6. View results in wandb:
+#    # All experiments tagged with: lr-sweep
+#    # Each job has parameters in its name for easy identification
+#
+# Job naming convention:
+#   lr-sweep-job-lr0.0001-bs16   (lr=0.0001, batch_size=16)
+#   lr-sweep-job-lr0.001-bs32    (lr=0.001, batch_size=32)
+#   etc.
+#
+# Advantages over manual scripting:
+#   ✓ One command to submit all jobs
+#   ✓ Automatic parameter value embedding in job names
+#   ✓ Concurrency control (max 3 jobs running simultaneously)
+#   ✓ Beautiful status table with real-time monitoring
+#   ✓ No manual bash scripting required

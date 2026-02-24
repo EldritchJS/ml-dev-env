@@ -1,0 +1,53 @@
+# Text Generation Inference (TGI) - Mistral-7B
+# Hugging Face optimized inference server
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/inference/tgi-mistral.yaml --project mistral-inference
+
+deployment:
+  cluster: nerc-production
+  mode: single-node
+  network_mode: tcp
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: false
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: custom_command
+  name: mistral-inference
+  source:
+    # TGI uses Docker, so we'll use the Python client wrapper
+    path: "python -m text_generation.server --model-id mistralai/Mistral-7B-Instruct-v0.2 --port 8000 --max-input-length 4096 --max-total-tokens 8192"
+  execution:
+    mode: auto_start
+    arguments: ""
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - text-generation>=0.6.0
+      - transformers>=4.38.0
+  runtime:
+    working_dir: /workspace/mistral-inference
+
+resources:
+  gpus: 1
+
+storage:
+  workspace_size: 50
+  datasets_size: 0
+
+# Features:
+# - Continuous batching
+# - Flash Attention
+# - Paged Attention
+# - Quantization support (GPTQ, AWQ)
+#
+# Access:
+# curl http://localhost:8000/generate -X POST -d '{"inputs":"What is Deep Learning?","parameters":{"max_new_tokens":100}}' -H 'Content-Type: application/json'

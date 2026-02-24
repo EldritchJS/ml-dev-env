@@ -1,0 +1,87 @@
+# Reproducibility Check
+# Re-run published experiments to verify results
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/research/reproducibility-check.yaml --project reproduce-paper
+
+deployment:
+  cluster: barcelona
+  mode: multi-node
+  network_mode: rdma
+  num_nodes: 2
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: true
+  wandb: true
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: directory
+  name: reproduce-paper
+  source:
+    path: ./paper_reimplementation/
+    entry_point: train.py
+  execution:
+    mode: job
+    arguments: "--config paper_config.yaml --seed 42"
+  requirements:
+    install_mode: pod_startup
+    file: ./paper_reimplementation/requirements.txt
+    packages: []  # From requirements.txt
+  runtime:
+    working_dir: /workspace/reproduce-paper
+
+resources:
+  gpus_per_node: 4
+  total_gpus: 8
+
+storage:
+  workspace_size: 200
+  datasets_size: 500
+
+# Reproducibility best practices:
+#
+# 1. Pin all dependencies:
+#    requirements.txt:
+#      torch==2.1.0
+#      transformers==4.36.0
+#      datasets==2.16.0
+#
+# 2. Set all random seeds:
+#    import torch
+#    import numpy as np
+#    import random
+#
+#    seed = 42
+#    torch.manual_seed(seed)
+#    np.random.seed(seed)
+#    random.seed(seed)
+#    torch.cuda.manual_seed_all(seed)
+#    torch.backends.cudnn.deterministic = True
+#
+# 3. Document exact configuration:
+#    config.yaml with all hyperparameters
+#
+# 4. Track everything:
+#    wandb.config.update({
+#        'seed': 42,
+#        'pytorch_version': torch.__version__,
+#        'cuda_version': torch.version.cuda,
+#        'git_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'])
+#    })
+#
+# 5. Save checkpoints:
+#    Regular checkpointing to PVC
+#
+# Run experiment:
+# 1. Clone paper repository
+# 2. Copy to workspace/
+# 3. Deploy and run
+# 4. Compare results with paper
+# 5. Document differences

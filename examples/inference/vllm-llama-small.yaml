@@ -1,0 +1,50 @@
+# vLLM Inference Server - LLaMA-3-8B
+# Smaller model for faster inference and lower resource usage
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/inference/vllm-llama-small.yaml --project llama-8b-inference
+
+deployment:
+  cluster: nerc-production  # Lower GPU requirement
+  mode: single-node
+  network_mode: tcp
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: false
+  pvc_browser: false
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: custom_command
+  name: llama-8b-inference
+  source:
+    path: "python -m vllm.entrypoints.openai.api_server --model meta-llama/Llama-3-8b-hf --host 0.0.0.0 --port 8000"
+  execution:
+    mode: auto_start
+    arguments: ""
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - vllm>=0.3.0
+      - transformers>=4.38.0
+  runtime:
+    working_dir: /workspace/llama-8b-inference
+
+resources:
+  gpus: 1  # 8B model fits on 1 GPU
+
+storage:
+  workspace_size: 50  # Smaller model cache
+  datasets_size: 0
+
+# Deployment notes:
+# - Much faster to load than 70B (~30 seconds)
+# - Higher throughput per GPU
+# - Good for development/testing
+# - Can run multiple instances for load balancing

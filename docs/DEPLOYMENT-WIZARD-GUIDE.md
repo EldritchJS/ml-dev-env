@@ -10,9 +10,11 @@ The deployment wizard guides you through:
 2. ✅ **Choosing deployment mode** (single-node or multi-node)
 3. ✅ **Selecting features** (VSCode, Jupyter, file browser, etc.)
 4. ✅ **Selecting/building container image** (pre-built or custom packages)
-5. ✅ **Configuring resources** (GPUs, memory, storage)
-6. ✅ **Generating deployment commands** ready to execute
-7. ✅ **Saving configurations** for reuse
+5. ✅ **Configuring your application** (optional - application-aware deployment)
+6. ✅ **Configuring hyperparameter sweep** (optional - for Job mode, automated sweep)
+7. ✅ **Configuring resources** (GPUs, memory, storage)
+8. ✅ **Generating deployment commands** ready to execute
+9. ✅ **Saving configurations** for reuse
 
 ## Quick Start
 
@@ -339,6 +341,267 @@ Falling back to pre-built image...
 | **network** | Timeout or connection failure | Retry, check cluster network |
 | **disk_space** | Insufficient build storage | Contact admin to increase quota |
 
+### Application Configuration (Optional - NEW!)
+
+Configure the wizard to deploy your **specific ML application** with customized naming and execution modes.
+
+**Application Types:**
+
+- ✅ **Single Python file** - One training script (e.g., `train.py`)
+- ✅ **Directory with multiple files** - Full project with entry point
+- ✅ **Custom command** - Advanced execution (e.g., `accelerate launch train.py`)
+
+**Execution Modes:**
+
+- **Manual** - Scripts provided, run when ready (`./scripts/run-app.sh`)
+- **Auto-start** - Application starts automatically when pods launch
+- **Job** - Run as Kubernetes Job (one-time execution, batch processing)
+
+**What you choose:**
+
+- Application type and source path
+- Application name (used for ALL resource naming)
+- Execution mode
+- CLI arguments for your application
+- How to handle requirements.txt
+
+**Resource Naming:**
+
+When you configure an application named "gpt-training":
+- Pods: `gpt-training-0`, `gpt-training-1`, `gpt-training-2`
+- Service: `gpt-training-headless`
+- Routes: `gpt-training-vscode`, `gpt-training-jupyter`
+- Working directory: `/workspace/gpt-training`
+
+**Example: Single File Application**
+
+```
+Step 4.5: Application Configuration
+====================================
+
+🚀 Application Deployment
+
+Configure application deployment? [y/N]: y
+
+📝 Step 1: Application Type
+  1. Single Python file
+  2. Directory with multiple files
+  3. Custom command
+
+Enter choice [1-3]: 1
+
+📁 Step 2: Application Source
+Enter path to Python file: ./train.py
+
+✓ File found: ./train.py
+
+🏷️ Step 3: Application Name
+Extracted name: train
+(This will be used for all resource names)
+
+Custom name (or Enter to use 'train'): gpt-training
+
+✓ Application name: gpt-training
+
+⚙️ Step 4: Execution Mode
+  1. Manual - Scripts provided, run when ready
+  2. Auto-start - Application starts automatically
+  3. Job - Run as Kubernetes Job
+
+Enter choice [1-3]: 1
+
+🔧 Step 5: Command-Line Arguments
+Enter CLI arguments: --epochs 100 --batch-size 32
+
+✓ Arguments: --epochs 100 --batch-size 32
+
+📦 Step 6: Requirements
+Found requirements.txt at: ./requirements.txt
+Found 15 packages in requirements.txt
+
+How to handle requirements:
+  1. Install at pod startup (pip install on each pod start)
+  2. Skip (manually manage dependencies)
+
+Enter choice [1-2]: 1
+
+✓ Requirements mode: pod_startup
+
+📋 Application Configuration Summary:
+  Type: single_file
+  Name: gpt-training
+  Source: ./train.py
+  Execution: manual
+  Arguments: --epochs 100 --batch-size 32
+  Working dir: /workspace/gpt-training
+  Requirements: 15 packages (pod_startup)
+
+✓ Application configuration complete!
+```
+
+**Example: Directory Application**
+
+```
+📝 Step 1: Application Type
+Enter choice [1-3]: 2
+
+📁 Step 2: Application Source
+Enter path to directory: ./my-ml-project
+
+Enter entry point file: train.py
+
+🏷️ Step 3: Application Name
+Extracted name: my-ml-project
+Custom name: llm-training
+
+✓ Application name: llm-training
+```
+
+**Example: Job Mode**
+
+```
+⚙️ Step 4: Execution Mode
+Enter choice [1-3]: 3
+
+✓ Execution mode: job
+```
+
+When deployed, you can submit jobs with:
+```bash
+cd deployments/gpt-training/
+./scripts/submit-job.sh  # Submits Kubernetes Job
+./scripts/watch-job.sh <job-id>  # Monitor execution
+```
+
+**Example: Hyperparameter Sweep (Job Mode Only)**
+
+When Job mode is selected, the wizard offers automatic hyperparameter sweep:
+
+```
+Step 4.5: Hyperparameter Sweep (Optional)
+==========================================
+
+🔬 Hyperparameter Sweep Automation
+
+Enable sweep to automatically submit multiple jobs with different
+parameter combinations (e.g., learning rates, batch sizes).
+
+Enable hyperparameter sweep? [y/N]: y
+
+📊 Sweep Parameters
+Define parameters to sweep over
+
+--- Parameter 1 ---
+Parameter name (e.g., 'lr', 'batch_size') or Enter to finish: lr
+CLI flag (default: --lr):
+Enter values for lr (comma-separated):
+  Example: 0.0001,0.001,0.01  or  16,32,64
+Values: 0.0001,0.001,0.01
+
+✓ Added parameter: lr with 3 values
+
+--- Parameter 2 ---
+Parameter name: batch_size
+CLI flag (default: --batch-size):
+Values: 16,32,64
+
+✓ Added parameter: batch_size with 3 values
+
+Parameter name or Enter to finish:
+
+⚙️  Sweep Strategy
+  1. Grid - Try all combinations (full grid search)
+
+Enter choice: 1
+
+📈 Total jobs to submit: 9
+
+Maximum concurrent jobs (1-9)? [5]: 3
+
+📋 Sweep Configuration Summary:
+  Strategy: grid search
+  Parameters: 2
+    - lr: 3 values (--lr)
+    - batch_size: 3 values (--batch-size)
+  Total jobs: 9
+  Max concurrent: 3
+
+✓ Sweep configuration complete!
+```
+
+This generates scripts for automated sweep:
+
+```bash
+cd deployments/gpt-training/
+
+# Submit all 9 jobs (3 LRs × 3 batch sizes)
+./scripts/submit-sweep.sh
+
+# Monitor with beautiful status table
+./scripts/watch-sweep.sh
+
+# Follow specific job logs
+./scripts/watch-sweep.sh --job lr0.001-bs32
+
+# Follow all running jobs
+./scripts/watch-sweep.sh --follow
+```
+
+**Sweep features:**
+- ✅ One command to submit all jobs
+- ✅ Automatic job naming with parameter values
+- ✅ Concurrency control (max parallel jobs)
+- ✅ Status table monitoring with colors
+- ✅ Log streaming from running jobs
+- ✅ No bash scripting required
+
+See `examples/research/hyperparameter-sweep.yaml` for a complete example.
+
+**Requirements Handling:**
+
+- **Pod startup**: Installs packages when pods start (works with any image)
+- **Skip**: Manually manage dependencies
+
+**What Gets Generated:**
+
+1. **Application-specific scripts:**
+   - `run-app.sh` - Execute your application in pods
+   - `submit-job.sh` - Submit Kubernetes Jobs (Job mode only)
+   - `watch-job.sh` - Monitor job execution (Job mode only)
+   - `submit-sweep.sh` - Submit hyperparameter sweep jobs (Sweep enabled only)
+   - `watch-sweep.sh` - Monitor sweep progress (Sweep enabled only)
+
+2. **Customized QUICKSTART.md:**
+   - Application details section
+   - Mode-specific execution instructions
+   - Application-specific environment info
+
+3. **Project structure:**
+   ```
+   deployments/gpt-training/
+   ├── config.yaml          # Includes application config
+   ├── QUICKSTART.md        # Personalized for your app
+   ├── workspace/           # Your code syncs here
+   ├── scripts/
+   │   ├── run-app.sh       # Execute your application
+   │   ├── submit-job.sh    # Submit jobs (if Job mode)
+   │   ├── watch-job.sh     # Monitor jobs (if Job mode)
+   │   ├── submit-sweep.sh  # Submit sweep jobs (if sweep enabled)
+   │   ├── watch-sweep.sh   # Monitor sweep (if sweep enabled)
+   │   └── ...              # Standard scripts (all use app name)
+   ```
+
+**Backward Compatibility:**
+
+Skip application configuration to use generic "ml-dev-env" naming:
+```
+Configure application deployment? [y/N]: n
+```
+
+All resources use default names:
+- Pods: `ml-dev-env-0`, `ml-dev-env-1`
+- Routes: `ml-dev-vscode`, `ml-dev-jupyter`
+
 ### Resource Configuration
 
 **GPUs:**
@@ -405,6 +668,24 @@ features:
 image:
   type: prebuilt
   url: image-registry.openshift-image-registry.svc:5000/coops-767192/ml-dev-env:pytorch-2.9-numpy2
+application:
+  enabled: true
+  type: single_file
+  name: gpt-training
+  source:
+    path: ./train.py
+  execution:
+    mode: manual
+    arguments: "--epochs 100 --batch-size 32"
+  requirements:
+    file: ./requirements.txt
+    install_mode: pod_startup
+    packages:
+      - torch
+      - transformers
+      - datasets
+  runtime:
+    working_dir: /workspace/gpt-training
 resources:
   gpus_per_node: 4
   total_gpus: 16
@@ -799,7 +1080,178 @@ make wizard
 ./deploy-barcelona.sh
 ```
 
-### Example 6: Custom Image with Requirements File
+### Example 6: Application-Aware Deployment (Manual Execution)
+
+**Goal:** Deploy a specific training script with custom naming
+
+```bash
+make wizard --project gpt-training
+
+# Selections:
+# - Cluster: nerc-production
+# - Mode: Multi-node, 4 nodes
+# - Features: VSCode, TensorBoard
+# - Image: PyTorch 2.9 (pre-built)
+# - Application: YES
+#   - Type: Single Python file
+#   - Source: ./train.py
+#   - Name: gpt-training
+#   - Mode: Manual
+#   - Arguments: --epochs 100 --batch-size 32
+#   - Requirements: pod_startup (./requirements.txt)
+# - Storage: 200 GB workspace
+
+# Generated project structure:
+cd deployments/gpt-training/
+
+# Copy your code
+cp ~/my-project/train.py workspace/
+cp ~/my-project/requirements.txt workspace/
+
+# Deploy
+./scripts/deploy.sh
+
+# This creates:
+# - Pods: gpt-training-0, gpt-training-1, gpt-training-2, gpt-training-3
+# - Service: gpt-training-headless
+# - Routes: gpt-training-vscode, gpt-training-jupyter
+
+# Sync code
+./scripts/sync.sh  # Syncs to /workspace/gpt-training/
+
+# Run application
+./scripts/run-app.sh              # Run on all pods
+./scripts/run-app.sh --node 0     # Run only on pod-0
+./scripts/run-app.sh --watch      # Stream logs while running
+
+# Access VSCode
+./scripts/vscode.sh  # Opens gpt-training-vscode route
+```
+
+**Generated QUICKSTART.md includes:**
+```markdown
+## Your Application
+
+- **Name:** gpt-training
+- **Type:** single_file
+- **Source:** ./train.py
+- **Working directory:** /workspace/gpt-training
+- **Execution mode:** manual
+- **Arguments:** --epochs 100 --batch-size 32
+
+## Running Your Application
+
+Your application is configured for **manual execution**. Use:
+
+\`\`\`bash
+./scripts/run-app.sh              # Run on all pods
+./scripts/run-app.sh --node 0     # Run only on pod-0
+./scripts/run-app.sh --watch      # Stream logs
+\`\`\`
+```
+
+### Example 7: Auto-Start Application
+
+**Goal:** Application starts automatically when pods launch
+
+```bash
+make wizard --project llm-finetuning
+
+# Selections:
+# - Application:
+#   - Type: Directory
+#   - Source: ./my-ml-project/
+#   - Entry point: train.py
+#   - Name: llm-finetuning
+#   - Mode: Auto-start ← Automatic execution
+#   - Arguments: --config config.yaml
+#   - Requirements: pod_startup
+
+# Deploy
+cd deployments/llm-finetuning/
+cp -r ~/my-ml-project/* workspace/
+./scripts/deploy.sh
+
+# Application starts automatically!
+# Just monitor logs
+./scripts/logs.sh -f
+
+# Training is already running
+```
+
+**StatefulSet includes auto-start code:**
+```bash
+# In pod startup:
+cd /workspace/llm-finetuning
+pip install -r /workspace/llm-finetuning/requirements.txt
+exec python train.py --config config.yaml
+```
+
+### Example 8: Job-Based Execution
+
+**Goal:** Run training as batch Kubernetes Jobs
+
+```bash
+make wizard --project batch-training
+
+# Selections:
+# - Application:
+#   - Name: batch-training
+#   - Mode: Job ← One-time execution
+#   - Arguments: --dataset /datasets/coco --epochs 50
+
+# Deploy infrastructure
+cd deployments/batch-training/
+./scripts/deploy.sh
+
+# Submit training job
+./scripts/submit-job.sh
+
+# Output:
+# 🚀 Submitting Kubernetes Job
+#    App: batch-training
+#    Job ID: 20260224-153045
+#
+# ✅ Job submitted successfully!
+#    Job name: batch-training-job-20260224-153045
+#
+# 📊 Monitor job:
+#    ./scripts/watch-job.sh 20260224-153045
+
+# Watch job execution
+./scripts/watch-job.sh 20260224-153045
+
+# Submit multiple experiments
+./scripts/submit-job.sh  # Job 1
+./scripts/submit-job.sh  # Job 2
+
+# List all jobs
+oc get jobs -n <namespace> -l app=batch-training
+```
+
+### Example 9: Custom Command Application
+
+**Goal:** Use advanced launch tools (accelerate, torchrun, etc.)
+
+```bash
+make wizard --project accelerate-training
+
+# Selections:
+# - Application:
+#   - Type: Custom command
+#   - Command: accelerate launch --multi_gpu train.py --config deepspeed.yaml
+#   - Name: accelerate-training
+
+# Deploy
+cd deployments/accelerate-training/
+./scripts/deploy.sh
+
+# Run application (executes custom command)
+./scripts/run-app.sh
+# Runs: accelerate launch --multi_gpu train.py --config deepspeed.yaml
+```
+
+### Example 10: Custom Image with Requirements File
 
 **Goal:** Build image from existing requirements.txt
 
@@ -841,6 +1293,8 @@ make wizard
 
 ## Best Practices
 
+### General
+
 1. **Save configurations** - Always save for documentation and reuse
 2. **Version control** - Commit deployment configs to git
 3. **Test first** - Try single-node before multi-node
@@ -849,19 +1303,30 @@ make wizard
 6. **Review commands** - Always review generated commands before executing
 7. **Incremental deployment** - Deploy base environment first, add features later
 
+### Application-Specific
+
+8. **Use project mode** - Use `--project` flag for application deployments
+9. **Meaningful names** - Choose descriptive app names (gpt-training, llm-finetuning)
+10. **Start with manual** - Use manual execution mode first, switch to auto-start when stable
+11. **Test locally** - Verify your application runs locally before deploying
+12. **Keep code synced** - Use `./scripts/sync.sh --watch` during development
+13. **Job for experiments** - Use Job mode for hyperparameter sweeps and batch experiments
+14. **Isolate projects** - One project per application/experiment for clean separation
+
 ### Custom Image Best Practices
 
-8. **Start with pre-built** - Use pre-built images unless you need specific packages
-9. **Test locally first** - Verify package compatibility locally before building
-10. **Pin critical versions** - Pin important packages (transformers==4.38.0) but allow dependencies to resolve
-11. **Keep builds minimal** - Only include packages you actually need
-12. **Document requirements** - Keep requirements.txt in version control
-13. **Reuse custom images** - Save image URL from successful builds for reuse
-14. **Monitor build times** - Builds typically take 5-15 minutes; >30 min may indicate issues
-15. **Have a fallback** - Always know which pre-built image you can fall back to
+15. **Start with pre-built** - Use pre-built images unless you need specific packages
+16. **Test locally first** - Verify package compatibility locally before building
+17. **Pin critical versions** - Pin important packages (transformers==4.38.0) but allow dependencies to resolve
+18. **Keep builds minimal** - Only include packages you actually need
+19. **Document requirements** - Keep requirements.txt in version control
+20. **Reuse custom images** - Save image URL from successful builds for reuse
+21. **Monitor build times** - Builds typically take 5-15 minutes; >30 min may indicate issues
+22. **Have a fallback** - Always know which pre-built image you can fall back to
 
 ## Related Documentation
 
+- **[APPLICATION-DEPLOYMENT-GUIDE.md](APPLICATION-DEPLOYMENT-GUIDE.md)** - Dedicated guide for application-aware deployments
 - [CLUSTER-DISCOVERY-GUIDE.md](CLUSTER-DISCOVERY-GUIDE.md) - Auto-discover clusters
 - [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) - Cluster configuration reference
 - [MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md) - Multi-node deployment
@@ -870,9 +1335,13 @@ make wizard
 ## Command Reference
 
 ```bash
-# Interactive wizard
+# Interactive wizard (generic deployment)
 make wizard
 ./scripts/deployment-wizard.py
+
+# Project-based deployment (creates deployments/<name>/ directory)
+make wizard PROJECT=my-project
+./scripts/deployment-wizard.py --project my-project
 
 # Load saved configuration
 make wizard-load CONFIG=my-config.yaml
@@ -881,8 +1350,47 @@ make wizard-load CONFIG=my-config.yaml
 # Non-interactive mode
 ./scripts/deployment-wizard.py --config my-config.yaml --non-interactive
 
+# Reload project configuration
+./scripts/deployment-wizard.py --config deployments/my-project/config.yaml --project my-project
+
 # Help
 ./scripts/deployment-wizard.py --help
+```
+
+### Within a Project
+
+Once deployed, all scripts use your application name:
+
+```bash
+cd deployments/gpt-training/
+
+# Deploy
+./scripts/deploy.sh                # Deploys gpt-training resources
+
+# Run application
+./scripts/run-app.sh                # Execute in gpt-training pods
+./scripts/run-app.sh --watch        # Stream logs
+./scripts/run-app.sh --node 0       # Run on specific pod
+
+# Submit jobs (if Job mode)
+./scripts/submit-job.sh             # Submit gpt-training-job-<id>
+./scripts/watch-job.sh <job-id>     # Monitor job
+
+# Access tools
+./scripts/vscode.sh                 # Open gpt-training-vscode route
+./scripts/jupyter.sh                # Open gpt-training-jupyter
+./scripts/shell.sh                  # Shell into gpt-training-0
+
+# Monitor
+./scripts/status.sh                 # Status of gpt-training pods
+./scripts/logs.sh -f                # Follow logs from gpt-training-0
+
+# Sync code
+./scripts/sync.sh                   # Sync to /workspace/gpt-training/
+./scripts/sync.sh --watch           # Auto-sync on changes
+
+# Cleanup
+./scripts/cleanup.sh                # Remove gpt-training resources
 ```
 
 ## Summary
@@ -890,19 +1398,25 @@ make wizard-load CONFIG=my-config.yaml
 The deployment wizard simplifies ML environment deployment by:
 
 - ✅ Guiding you through all configuration options
+- ✅ **Deploying your specific applications** with customized naming and execution
 - ✅ Validating choices against cluster capabilities
 - ✅ Building custom images with your packages on-demand
 - ✅ Generating correct deployment commands
 - ✅ Creating reusable configurations
+- ✅ **Providing application-specific scripts** (run-app.sh, submit-job.sh, etc.)
+- ✅ **Supporting multiple execution modes** (manual, auto-start, job)
 - ✅ Providing executable deployment scripts
 
 Perfect for:
 
 - New users getting started
+- **Deploying specific training scripts or ML applications**
+- **Running batch experiments with Kubernetes Jobs**
 - Teams standardizing deployments
 - Quickly deploying to new clusters
 - Documenting deployment configurations
 - Creating custom environments with specific package versions
+- **Project-based workflows** with isolated directories
 
 ## Cluster Discovery Integration
 

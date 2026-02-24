@@ -557,3 +557,228 @@ class TestDeploymentWizard:
         # Should include --image parameter
         assert any("--image" in cmd for cmd in commands)
         assert any("sha256:abc123" in cmd for cmd in commands)
+
+    def test_configure_sweep_disabled_not_job_mode(self, wizard):
+        """Test that sweep configuration is skipped when not in job mode."""
+        wizard.config["application"] = {
+            "enabled": True,
+            "execution": {"mode": "manual"}
+        }
+
+        # Should return early without prompting
+        wizard.configure_sweep()
+
+        # No sweep config should be added
+        assert "sweep" not in wizard.config.get("application", {}).get("execution", {})
+
+    def test_configure_sweep_disabled_no_application(self, wizard):
+        """Test that sweep configuration is skipped when application is disabled."""
+        wizard.config["application"] = {"enabled": False}
+
+        wizard.configure_sweep()
+
+        # No sweep config should be added
+        assert "sweep" not in wizard.config.get("application", {}).get("execution", {})
+
+    def test_configure_sweep_basic_config(self, wizard):
+        """Test basic sweep configuration with parameters."""
+        wizard.non_interactive = False  # Enable interactive mode for this test
+        wizard.config["application"] = {
+            "enabled": True,
+            "execution": {"mode": "job", "arguments": "--epochs 100"}
+        }
+
+        # Mock user inputs for interactive sweep configuration
+        with patch.object(wizard, "_prompt_yes_no", return_value=True):
+            with patch("builtins.input", side_effect=[
+                "lr",  # Parameter 1 name
+                "",    # Use default flag --lr
+                "0.001,0.01,0.1",  # Parameter 1 values
+                "batch_size",  # Parameter 2 name
+                "--batch-size",  # CLI flag
+                "16,32,64",  # Parameter 2 values
+                "",  # No more parameters
+            ]):
+                with patch.object(wizard, "_prompt_choice", return_value=0):  # Grid strategy
+                    with patch.object(wizard, "_prompt_number", return_value=3):  # Max concurrent
+                        wizard.configure_sweep()
+
+        # Verify sweep config was added
+        sweep = wizard.config["application"]["execution"]["sweep"]
+        assert sweep["enabled"] is True
+        assert sweep["strategy"] == "grid"
+        assert sweep["max_concurrent"] == 3
+        assert len(sweep["parameters"]) == 2
+
+        # Verify first parameter
+        assert sweep["parameters"][0]["name"] == "lr"
+        assert sweep["parameters"][0]["flag"] == "--lr"
+        assert sweep["parameters"][0]["values"] == [0.001, 0.01, 0.1]
+
+        # Verify second parameter
+        assert sweep["parameters"][1]["name"] == "batch_size"
+        assert sweep["parameters"][1]["flag"] == "--batch-size"
+        assert sweep["parameters"][1]["values"] == [16, 32, 64]
+
+    def test_configure_sweep_type_conversion(self, wizard):
+        """Test that sweep values are correctly typed (int, float, string)."""
+        wizard.non_interactive = False  # Enable interactive mode
+        wizard.config["application"] = {
+            "enabled": True,
+            "execution": {"mode": "job"}
+        }
+
+        with patch.object(wizard, "_prompt_yes_no", return_value=True):
+            with patch("builtins.input", side_effect=[
+                "lr", "", "0.0001,0.001",  # Floats (values with decimal points)
+                "batch_size", "", "16,32",  # Ints
+                "optimizer", "", "adam,sgd",  # Strings
+                "",  # No more parameters
+            ]):
+                with patch.object(wizard, "_prompt_choice", return_value=0):
+                    with patch.object(wizard, "_prompt_number", return_value=2):
+                        wizard.configure_sweep()
+
+        params = wizard.config["application"]["execution"]["sweep"]["parameters"]
+
+        # Float values
+        assert isinstance(params[0]["values"][0], float)
+        assert params[0]["values"] == [0.0001, 0.001]
+
+        # Int values
+        assert isinstance(params[1]["values"][0], int)
+        assert params[1]["values"] == [16, 32]
+
+        # String values
+        assert isinstance(params[2]["values"][0], str)
+        assert params[2]["values"] == ["adam", "sgd"]
+
+    def test_configure_sweep_skip_empty_parameter(self, wizard):
+        """Test that empty parameter values are skipped."""
+        wizard.non_interactive = False  # Enable interactive mode
+        wizard.config["application"] = {
+            "enabled": True,
+            "execution": {"mode": "job"}
+        }
+
+        with patch.object(wizard, "_prompt_yes_no", return_value=True):
+            with patch("builtins.input", side_effect=[
+                "lr", "", "",  # Empty values - should skip and decrement param_count
+                "batch_size", "", "16,32",  # Valid parameter
+                "",  # No more parameters
+            ]):
+                with patch.object(wizard, "_prompt_choice", return_value=0):
+                    with patch.object(wizard, "_prompt_number", return_value=2):
+                        wizard.configure_sweep()
+
+        params = wizard.config["application"]["execution"]["sweep"]["parameters"]
+
+        # Should only have one parameter (batch_size)
+        assert len(params) == 1
+        assert params[0]["name"] == "batch_size"
+
+    def test_configure_sweep_non_interactive_skip(self, wizard):
+        """Test that sweep is skipped in non-interactive mode."""
+        wizard.config["application"] = {
+            "enabled": True,
+            "execution": {"mode": "job"}
+        }
+        wizard.non_interactive = True
+
+        wizard.configure_sweep()
+
+        # No sweep should be configured in non-interactive mode
+        assert "sweep" not in wizard.config.get("application", {}).get("execution", {})
+
+    def test_sweep_script_generation(self, wizard, tmp_path):
+        """Test that sweep scripts are generated when sweep is enabled."""
+        wizard.project_dir = tmp_path
+        wizard.project_name = "test-sweep"
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+
+        # Set up config with sweep enabled
+        wizard.config = {
+            "cluster": "test-cluster",
+            "cluster_config": wizard.available_clusters["test-cluster"],
+            "mode": "multi-node",
+            "network_mode": "rdma",
+            "application": {
+                "enabled": True,
+                "name": "test-sweep",
+                "execution": {
+                    "mode": "job",
+                    "arguments": "--epochs 100",
+                    "sweep": {
+                        "enabled": True,
+                        "strategy": "grid",
+                        "max_concurrent": 3,
+                        "parameters": [
+                            {"name": "lr", "flag": "--lr", "values": [0.001, 0.01]},
+                            {"name": "bs", "flag": "--batch-size", "values": [16, 32]}
+                        ]
+                    }
+                },
+                "runtime": {"working_dir": "/workspace/test-sweep"}
+            }
+        }
+
+        # Generate scripts
+        wizard._generate_project_scripts()
+
+        # Verify sweep scripts were created
+        assert (scripts_dir / "submit-sweep.sh").exists()
+        assert (scripts_dir / "watch-sweep.sh").exists()
+
+        # Verify scripts are executable
+        submit_script = scripts_dir / "submit-sweep.sh"
+        watch_script = scripts_dir / "watch-sweep.sh"
+        assert submit_script.stat().st_mode & 0o111  # Has execute bit
+        assert watch_script.stat().st_mode & 0o111
+
+        # Verify script content has correct app_name
+        submit_content = submit_script.read_text()
+        assert 'APP_NAME="test-sweep"' in submit_content
+
+        watch_content = watch_script.read_text()
+        assert 'APP_NAME="test-sweep"' in watch_content
+
+    def test_save_and_load_sweep_config(self, wizard, tmp_path):
+        """Test that sweep config is correctly saved and loaded."""
+        config_file = tmp_path / "config.yaml"
+
+        wizard.config = {
+            "cluster": "test-cluster",
+            "mode": "single-node",
+            "application": {
+                "enabled": True,
+                "name": "test-app",
+                "execution": {
+                    "mode": "job",
+                    "sweep": {
+                        "enabled": True,
+                        "strategy": "grid",
+                        "max_concurrent": 5,
+                        "parameters": [
+                            {"name": "lr", "flag": "--lr", "values": [0.001, 0.01, 0.1]}
+                        ]
+                    }
+                }
+            }
+        }
+
+        # Save config
+        with open(config_file, "w") as f:
+            yaml.dump(wizard.config, f)
+
+        # Load config
+        with open(config_file) as f:
+            loaded_config = yaml.safe_load(f)
+
+        # Verify sweep config is preserved
+        sweep = loaded_config["application"]["execution"]["sweep"]
+        assert sweep["enabled"] is True
+        assert sweep["strategy"] == "grid"
+        assert sweep["max_concurrent"] == 5
+        assert len(sweep["parameters"]) == 1
+        assert sweep["parameters"][0]["values"] == [0.001, 0.01, 0.1]

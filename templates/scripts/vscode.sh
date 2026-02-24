@@ -7,7 +7,7 @@ NAMESPACE="{namespace}"
 
 echo "Getting VSCode URL for $PROJECT_NAME..."
 
-VSCODE_URL=$(oc get route ml-dev-vscode -n "$NAMESPACE" -o jsonpath='https://{{.spec.host}}' 2>/dev/null)
+VSCODE_URL=$(oc get route {app_name}-vscode -n "$NAMESPACE" -o jsonpath='https://{{.spec.host}}' 2>/dev/null)
 
 if [ -z "$VSCODE_URL" ]; then
     echo "✗ VSCode route not found"

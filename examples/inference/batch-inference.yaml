@@ -1,0 +1,72 @@
+# Batch Inference Job
+# Process large datasets with model predictions
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/inference/batch-inference.yaml --project batch-predictions
+
+deployment:
+  cluster: barcelona
+  mode: single-node
+  network_mode: tcp
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: false
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: single_file
+  name: batch-predictions
+  source:
+    path: ./batch_predict.py  # Your inference script
+  execution:
+    mode: job  # One-time batch processing
+    arguments: "--input /datasets/unlabeled --output /workspace/predictions --batch-size 128 --model /models/my-model.pt"
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - torch
+      - transformers
+      - datasets
+  runtime:
+    working_dir: /workspace/batch-predictions
+
+resources:
+  gpus: 4  # Parallel batch processing
+
+storage:
+  workspace_size: 100  # For predictions
+  datasets_size: 500   # Input data
+
+# Example batch_predict.py:
+#
+# import torch
+# from transformers import AutoModelForCausalLM, AutoTokenizer
+# from datasets import load_dataset
+# import argparse
+#
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--input', required=True)
+# parser.add_argument('--output', required=True)
+# parser.add_argument('--batch-size', type=int, default=32)
+# args = parser.parse_args()
+#
+# model = AutoModelForCausalLM.from_pretrained("gpt2")
+# tokenizer = AutoTokenizer.from_pretrained("gpt2")
+#
+# dataset = load_dataset(args.input)
+# predictions = []
+#
+# for batch in dataset.batch(args.batch_size):
+#     outputs = model.generate(**tokenizer(batch['text'], return_tensors='pt'))
+#     predictions.extend(tokenizer.batch_decode(outputs))
+#
+# # Save predictions
+# with open(f"{args.output}/predictions.txt", 'w') as f:
+#     for pred in predictions:
+#         f.write(pred + '\n')

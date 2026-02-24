@@ -12,6 +12,7 @@
 - **Image:** {image_type}
 {image_details}- **Storage:** {workspace_size}GB workspace{datasets_storage}
 - **Features:** {enabled_features}
+{app_details}
 
 ## Quick Start
 
@@ -62,6 +63,7 @@ Drops you into a terminal on your {shell_target}.
 # Watches for file changes and syncs automatically
 ./scripts/sync.sh --watch
 ```
+{app_instructions}
 
 ### 4. Run Your Training
 
@@ -107,6 +109,8 @@ Your code lives in:
 - **Remote:** `/workspace` (in pods)
 - **Storage:** Backed by {workspace_size}GB PVC
 {datasets_info}
+
+{app_environment}
 
 **Recommended structure:**
 ```

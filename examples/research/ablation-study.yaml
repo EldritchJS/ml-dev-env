@@ -1,0 +1,84 @@
+# Ablation Study
+# Test importance of model components
+#
+# Usage:
+#   ./scripts/deployment-wizard.py --config examples/research/ablation-study.yaml --project ablation
+
+deployment:
+  cluster: nerc-production
+  mode: multi-node
+  network_mode: tcp
+  num_nodes: 2
+
+features:
+  vscode: true
+  jupyter: false
+  tensorboard: true
+  wandb: true
+
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+
+application:
+  enabled: true
+  type: single_file
+  name: ablation
+  source:
+    path: ./train.py
+  execution:
+    mode: job
+    arguments: "--use-attention --use-layer-norm --use-residual --use-dropout"
+  requirements:
+    install_mode: pod_startup
+    packages:
+      - torch
+      - transformers
+      - wandb
+  runtime:
+    working_dir: /workspace/ablation
+
+resources:
+  gpus_per_node: 4
+  total_gpus: 8
+
+storage:
+  workspace_size: 100
+  datasets_size: 200
+
+# Ablation experiments to run:
+#
+# 1. Full model (baseline):
+#    --use-attention --use-layer-norm --use-residual --use-dropout
+#
+# 2. No attention:
+#    --use-layer-norm --use-residual --use-dropout
+#
+# 3. No layer normalization:
+#    --use-attention --use-residual --use-dropout
+#
+# 4. No residual connections:
+#    --use-attention --use-layer-norm --use-dropout
+#
+# 5. No dropout:
+#    --use-attention --use-layer-norm --use-residual
+#
+# 6. Minimal (no regularization):
+#    --use-attention --use-residual
+#
+# Script to run all:
+#
+# configs=(
+#   "--use-attention --use-layer-norm --use-residual --use-dropout"
+#   "--use-layer-norm --use-residual --use-dropout"
+#   "--use-attention --use-residual --use-dropout"
+#   "--use-attention --use-layer-norm --use-dropout"
+#   "--use-attention --use-layer-norm --use-residual"
+#   "--use-attention --use-residual"
+# )
+#
+# for i in "${!configs[@]}"; do
+#   sed -i "s/arguments: .*/arguments: \"${configs[$i]}\"/" config.yaml
+#   ./scripts/submit-job.sh
+#   echo "Submitted ablation experiment $((i+1))/6"
+# done

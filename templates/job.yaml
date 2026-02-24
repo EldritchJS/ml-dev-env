@@ -1,0 +1,165 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {app_name}-job-{job_id}
+  namespace: {namespace}
+  labels:
+    app: {app_name}
+    job-id: "{job_id}"
+spec:
+  # For multi-node jobs, set parallelism and completions
+  parallelism: {num_nodes}
+  completions: {num_nodes}
+
+  # Backoff limit for retries
+  backoffLimit: 2
+
+  # Clean up finished jobs automatically (optional)
+  ttlSecondsAfterFinished: 86400  # 24 hours
+
+  template:
+    metadata:
+      labels:
+        app: {app_name}
+        job-id: "{job_id}"
+
+    spec:
+      restartPolicy: OnFailure
+
+      # Node selector to ensure placement on GPU nodes
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      # Tolerate GPU node taints
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      containers:
+      - name: {app_name}-worker
+        image: {image_url}
+        imagePullPolicy: Always
+
+        # Resource requests
+        resources:
+          requests:
+            nvidia.com/gpu: {gpus_per_node}
+            memory: {memory_request}
+            cpu: {cpu_request}
+          limits:
+            nvidia.com/gpu: {gpus_per_node}
+            memory: {memory_limit}
+            cpu: {cpu_limit}
+
+        # Security context
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+
+        # Environment variables
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+
+        # NCCL configuration
+        - name: NCCL_DEBUG
+          value: "{nccl_debug}"
+        - name: NCCL_IB_DISABLE
+          value: "{nccl_ib_disable}"
+        - name: NCCL_SOCKET_IFNAME
+          value: "{nccl_socket_ifname}"
+
+        # Pod identity
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # Multi-node configuration
+        - name: WORLD_SIZE
+          value: "{world_size}"
+        - name: GPUS_PER_NODE
+          value: "{gpus_per_node}"
+        - name: MASTER_ADDR
+          value: "{app_name}-job-{job_id}-0"
+        - name: MASTER_PORT
+          value: "29500"
+
+        # Application environment
+        {app_env}
+
+        # Volume mounts
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: datasets
+          mountPath: /datasets
+        - name: dshm
+          mountPath: /dev/shm
+
+        # Ports
+        ports:
+        - containerPort: 29500
+          name: master
+          protocol: TCP
+
+        # Command
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+
+          echo "=========================================="
+          echo "Job: {app_name}-job-{job_id}"
+          echo "=========================================="
+          echo "Pod: $POD_NAME"
+          echo "Namespace: $POD_NAMESPACE"
+          echo ""
+
+          # Show GPU info
+          nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
+          echo ""
+
+          # Navigate to working directory
+          cd {working_dir}
+          echo "Working directory: {working_dir}"
+          echo ""
+
+          # Install requirements if needed
+          {requirements_install}
+
+          # Run application
+          echo "Starting application..."
+          echo "Entry point: {entry_point}"
+          echo "Arguments: {arguments}"
+          echo ""
+
+          python {entry_point} {arguments}
+
+          echo ""
+          echo "✓ Job completed successfully!"
+
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: {pvc_workspace}
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: {pvc_datasets}
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
