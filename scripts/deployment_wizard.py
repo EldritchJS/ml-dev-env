@@ -22,6 +22,9 @@ Features:
 from __future__ import annotations
 
 import argparse
+import datetime
+import random
+import string
 from pathlib import Path
 import sys
 
@@ -30,10 +33,12 @@ import yaml
 # Import cluster discovery for on-the-fly cluster detection
 try:
     from discover_cluster import ClusterDiscovery
+    from image_builder import ImageBuilder, BuildMonitor, BuildErrorHandler
 except ImportError:
     # If running from different directory, try adding scripts to path
     sys.path.insert(0, str(Path(__file__).parent))
     from discover_cluster import ClusterDiscovery
+    from image_builder import ImageBuilder, BuildMonitor, BuildErrorHandler
 
 
 class DeploymentWizard:
@@ -336,9 +341,239 @@ class DeploymentWizard:
             f"\n✓ Enabled features: {', '.join(enabled_features) if enabled_features else 'none'}"
         )
 
+    def select_image(self):
+        """Select or build container image"""
+        self._print_header("Step 4: Container Image")
+
+        print("\nChoose how to provide the container image:")
+        print("")
+
+        options = [
+            "Use pre-built image (PyTorch 2.8, 2.9, or custom URL)",
+            "Build custom image (specify packages)",
+        ]
+
+        choice = self._prompt_choice("Select image option:", options, default=0)
+
+        if choice == 0:
+            self._select_prebuilt_image()
+        else:
+            self._build_custom_image()
+
+    def _select_prebuilt_image(self):
+        """Select a pre-built image from registry or custom URL"""
+        print("\n📦 Pre-built Image Selection")
+        print("")
+
+        namespace = self.config["cluster_config"]["cluster"]["namespace"]
+
+        options = [
+            f"PyTorch 2.8 + NumPy 1.x (image-registry.../{namespace}/ml-dev-env:pytorch-2.8-numpy1)",
+            f"PyTorch 2.9 + NumPy 2.x (image-registry.../{namespace}/ml-dev-env:pytorch-2.9-numpy2)",
+            "Custom image URL (enter manually)",
+        ]
+
+        choice = self._prompt_choice("Select pre-built image:", options, default=1)
+
+        if choice == 0:
+            image_url = f"image-registry.openshift-image-registry.svc:5000/{namespace}/ml-dev-env:pytorch-2.8-numpy1"
+        elif choice == 1:
+            image_url = f"image-registry.openshift-image-registry.svc:5000/{namespace}/ml-dev-env:pytorch-2.9-numpy2"
+        else:
+            # Custom URL
+            if self.non_interactive:
+                image_url = f"image-registry.openshift-image-registry.svc:5000/{namespace}/ml-dev-env:pytorch-2.9-numpy2"
+            else:
+                image_url = input("\nEnter custom image URL: ").strip()
+                if not image_url:
+                    print("No URL provided, using default PyTorch 2.9")
+                    image_url = f"image-registry.openshift-image-registry.svc:5000/{namespace}/ml-dev-env:pytorch-2.9-numpy2"
+
+        self.config["image"] = {"type": "prebuilt", "url": image_url}
+
+        print(f"\n✓ Selected image: {image_url}")
+
+    def _build_custom_image(self):
+        """Build a custom image with user-specified packages"""
+        print("\n🔨 Custom Image Build")
+        print("")
+
+        namespace = self.config["cluster_config"]["cluster"]["namespace"]
+
+        # Step 1: Select base image
+        print("Step 1: Select base PyTorch image")
+        print("")
+
+        base_options = [
+            "PyTorch 2.8 (nvcr.io/nvidia/pytorch:25.08-py3)",
+            "PyTorch 2.9 (nvcr.io/nvidia/pytorch:25.09-py3)",
+            "PyTorch 3.0 (nvcr.io/nvidia/pytorch:26.01-py3)",
+            "Custom base image URL",
+        ]
+
+        base_choice = self._prompt_choice("Select base image:", base_options, default=1)
+
+        if base_choice == 0:
+            base_image = ImageBuilder.BASE_IMAGES["pytorch-2.8"]
+        elif base_choice == 1:
+            base_image = ImageBuilder.BASE_IMAGES["pytorch-2.9"]
+        elif base_choice == 2:
+            base_image = ImageBuilder.BASE_IMAGES["pytorch-3.0"]
+        else:
+            if self.non_interactive:
+                base_image = ImageBuilder.BASE_IMAGES["pytorch-2.9"]
+            else:
+                base_image = input("\nEnter custom base image URL: ").strip()
+                if not base_image:
+                    base_image = ImageBuilder.BASE_IMAGES["pytorch-2.9"]
+
+        print(f"\n✓ Base image: {base_image}")
+
+        # Step 2: Package specification
+        print("\n\nStep 2: Specify packages to install")
+        print("")
+
+        package_options = [
+            "Enter packages interactively (one by one)",
+            "Upload requirements.txt file",
+        ]
+
+        pkg_choice = self._prompt_choice("How to specify packages:", package_options, default=0)
+
+        packages = None
+        requirements_file = None
+
+        if pkg_choice == 0:
+            # Interactive package entry
+            packages = []
+            if not self.non_interactive:
+                print("\nEnter package names (one per line). Press Enter with empty line when done.")
+                while True:
+                    try:
+                        pkg = input(f"Package {len(packages) + 1} (or Enter to finish): ").strip()
+                        if not pkg:
+                            break
+                        packages.append(pkg)
+                    except KeyboardInterrupt:
+                        print("\n\nCancelled")
+                        return
+
+            if not packages:
+                print("\n⚠️  No packages specified. Build will use base image packages only.")
+                if not self._prompt_yes_no("Continue anyway?", default=False):
+                    return self._select_prebuilt_image()
+        else:
+            # Requirements file
+            if self.non_interactive:
+                print("⚠️  Requirements file upload not supported in non-interactive mode")
+                return self._select_prebuilt_image()
+
+            requirements_file = input("\nEnter path to requirements.txt: ").strip()
+            if not requirements_file or not Path(requirements_file).exists():
+                print(f"✗ File not found: {requirements_file}")
+                return self._select_prebuilt_image()
+
+            print(f"✓ Requirements file: {requirements_file}")
+
+        # Step 3: Generate build configuration
+        print("\n\nStep 3: Build Configuration")
+        print("")
+
+        # Generate unique build name
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+        random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        build_name = f"ml-dev-custom-{timestamp}-{random_suffix}"
+        image_tag = f"custom-{self.config['cluster']}-{timestamp}"
+
+        print(f"Build name: {build_name}")
+        print(f"Image tag: {image_tag}")
+        if packages:
+            print(f"Packages: {', '.join(packages)}")
+        if requirements_file:
+            print(f"Requirements: {requirements_file}")
+        print("")
+
+        if not self._prompt_yes_no("Start build now?", default=True):
+            print("Build cancelled. Using pre-built image instead.")
+            return self._select_prebuilt_image()
+
+        # Step 4: Execute build
+        print("\n\nStep 4: Building Image")
+        print("=" * 60)
+
+        try:
+            builder = ImageBuilder(namespace)
+
+            # Generate BuildConfig
+            print("\nGenerating BuildConfig...")
+            buildconfig_yaml = builder.generate_buildconfig(
+                base_image=base_image,
+                packages=packages,
+                requirements_file=requirements_file,
+                build_name=build_name,
+                image_tag=image_tag,
+            )
+
+            # Apply to cluster
+            print("Applying BuildConfig to cluster...")
+            builder.apply_buildconfig(buildconfig_yaml)
+
+            # Start build
+            print(f"Starting build: {build_name}")
+            build_instance = builder.start_build(build_name)
+            print(f"Build instance: {build_instance}")
+
+            # Monitor build
+            monitor = BuildMonitor(build_instance, namespace)
+            result = monitor.monitor_with_progress()
+
+            if result.success:
+                # Get final image reference
+                if result.image_ref:
+                    image_url = result.image_ref
+                else:
+                    # Fallback: construct from ImageStream
+                    image_url = builder.get_image_reference("ml-dev-env", image_tag)
+
+                self.config["image"] = {
+                    "type": "custom_build",
+                    "url": image_url,
+                    "build": {
+                        "base_image": base_image,
+                        "packages": packages,
+                        "requirements_file": requirements_file,
+                        "build_name": build_name,
+                        "image_tag": image_tag,
+                    },
+                }
+
+                print(f"\n✓ Custom image built successfully!")
+                print(f"  Image: {image_url}")
+
+            else:
+                # Handle build failure
+                handler = BuildErrorHandler()
+                error = handler.analyze_failure(result.logs or "", result.phase or "Failed")
+                action = handler.handle_failure(build_instance, error)
+
+                if action == "retry":
+                    print("\nRetrying build...")
+                    return self._build_custom_image()
+                elif action == "use_prebuilt":
+                    print("\nFalling back to pre-built image...")
+                    return self._select_prebuilt_image()
+                else:
+                    print("\nExiting due to build failure")
+                    sys.exit(1)
+
+        except Exception as e:
+            print(f"\n✗ Build failed with error: {e}")
+            print("\nFalling back to pre-built image...")
+            return self._select_prebuilt_image()
+
     def configure_resources(self):
         """Configure resource requirements"""
-        self._print_header("Step 4: Configure Resources")
+        self._print_header("Step 5: Configure Resources")
 
         cluster_config = self.config["cluster_config"]
         gpus_per_node = cluster_config.get("gpus", {}).get("per_node", 4)
@@ -401,12 +636,18 @@ class DeploymentWizard:
         # 3. Main deployment
         if self.config["mode"] == "single-node":
             commands.append("# 3. Deploy single-node environment")
-            commands.append("make deploy")
+            if self.config.get("image", {}).get("url"):
+                commands.append(f"# Using custom image: {self.config['image']['url']}")
+                commands.append(f"./scripts/deploy_cluster.py {cluster} --mode tcp --image {self.config['image']['url']}")
+            else:
+                commands.append("make deploy")
         else:
             commands.append("# 3. Deploy multi-node environment")
-            commands.append(
-                f"make deploy-cluster CLUSTER={cluster} MODE={self.config['network_mode']}"
-            )
+            deploy_cmd = f"./scripts/deploy_cluster.py {cluster} --mode {self.config['network_mode']}"
+            if self.config.get("image", {}).get("url"):
+                commands.append(f"# Using custom image: {self.config['image']['url']}")
+                deploy_cmd += f" --image {self.config['image']['url']}"
+            commands.append(deploy_cmd)
 
         commands.append("")
 
@@ -489,6 +730,7 @@ class DeploymentWizard:
                 "num_nodes": self.config.get("num_nodes"),
             },
             "features": self.config["features"],
+            "image": self.config.get("image", {}),
             "resources": self.config["resources"],
             "storage": self.config["storage"],
         }
@@ -512,6 +754,7 @@ class DeploymentWizard:
         self.config["network_mode"] = deployment.get("network_mode")
         self.config["num_nodes"] = deployment.get("num_nodes")
         self.config["features"] = loaded_config.get("features", {})
+        self.config["image"] = loaded_config.get("image", {})
         self.config["resources"] = loaded_config.get("resources", {})
         self.config["storage"] = loaded_config.get("storage", {})
 
@@ -529,6 +772,7 @@ class DeploymentWizard:
         self.select_cluster()
         self.select_deployment_mode()
         self.select_features()
+        self.select_image()
         self.configure_resources()
 
         # Generate commands

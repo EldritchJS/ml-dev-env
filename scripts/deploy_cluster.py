@@ -41,7 +41,7 @@ def load_cluster_config(cluster_name: str) -> dict[str, Any]:
     return config
 
 
-def generate_statefulset(config: dict[str, Any], mode: str, output_file: str):
+def generate_statefulset(config: dict[str, Any], mode: str, output_file: str, image_url: str | None = None):
     """Generate StatefulSet YAML with cluster-specific configuration"""
 
     # Check if RDMA is enabled on this cluster
@@ -81,6 +81,10 @@ def generate_statefulset(config: dict[str, Any], mode: str, output_file: str):
         # NCCL debug
         'value: "INFO"': f'value: "{config["nccl"]["debug"]}"',
     }
+
+    # Add custom image URL if provided
+    if image_url:
+        replacements["image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2"] = f"image: {image_url}"
 
     # Add RDMA-specific replacements only if RDMA is enabled
     if rdma_enabled and mode == "rdma":
@@ -260,6 +264,10 @@ def main():
         default="/tmp",
         help="Output directory for generated configs (default: /tmp)",
     )
+    parser.add_argument(
+        "--image",
+        help="Container image URL (overrides default image)",
+    )
 
     args = parser.parse_args()
 
@@ -304,7 +312,7 @@ def main():
 
     # Generate StatefulSet
     statefulset_file = output_dir / f"{cluster_name}-statefulset-{args.mode}.yaml"
-    generate_statefulset(config, args.mode, str(statefulset_file))
+    generate_statefulset(config, args.mode, str(statefulset_file), image_url=args.image)
 
     # Print setup instructions
     print_setup_instructions(config)
