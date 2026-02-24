@@ -84,7 +84,7 @@ echo ""
 echo "🔄 Starting continuous code sync..."
 if command -v fswatch >/dev/null 2>&1; then
     (
-        fswatch -o "$LOCAL_DIR" | while read -r change; do
+        fswatch -o "$LOCAL_DIR" | while read -r _; do
             echo "🔄 [$(date +%H:%M:%S)] Syncing changes..."
             oc rsync "$LOCAL_DIR/" "$POD_NAME:$REMOTE_DIR/" -n "$NAMESPACE" --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' --exclude='.DS_Store' 2>&1 | grep -v "^building file list"
         done
