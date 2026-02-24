@@ -27,6 +27,14 @@ import sys
 
 import yaml
 
+# Import cluster discovery for on-the-fly cluster detection
+try:
+    from discover_cluster import ClusterDiscovery
+except ImportError:
+    # If running from different directory, try adding scripts to path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from discover_cluster import ClusterDiscovery
+
 
 class DeploymentWizard:
     """Interactive deployment configuration wizard"""
@@ -131,16 +139,74 @@ class DeploymentWizard:
                 print("\n\nCancelled by user")
                 sys.exit(0)
 
+    def discover_and_add_cluster(self) -> str | None:
+        """Discover a new cluster and add it to available clusters"""
+        print("\n🔍 Cluster Discovery")
+        print("\nThis will auto-discover your currently connected cluster.")
+        print("Make sure you're logged in with 'oc login' first.")
+        print("")
+
+        if not self._prompt_yes_no("Proceed with cluster discovery?", default=True):
+            return None
+
+        # Get cluster name
+        default_name = "discovered-cluster"
+        cluster_name = input(f"\nCluster name [{default_name}]: ").strip() or default_name
+
+        # Get namespace (optional)
+        use_current_ns = self._prompt_yes_no("Use current namespace?", default=True)
+        namespace = None if use_current_ns else input("Namespace: ").strip()
+
+        print(f"\n🔍 Discovering cluster '{cluster_name}'...")
+        try:
+            discovery = ClusterDiscovery(namespace=namespace)
+            config = discovery.generate_config(cluster_name)
+
+            # Save to clusters directory
+            clusters_dir = Path("clusters")
+            clusters_dir.mkdir(exist_ok=True)
+            output_file = clusters_dir / f"{cluster_name}.yaml"
+
+            with open(output_file, "w") as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+            print(f"✅ Cluster configuration saved to {output_file}")
+
+            # Add to available clusters
+            self.available_clusters[cluster_name] = config
+
+            return cluster_name
+
+        except Exception as e:
+            print(f"\n❌ Error during cluster discovery: {e}")
+            print("\nMake sure you're logged in with 'oc login'")
+            return None
+
     def select_cluster(self) -> str:
         """Select cluster to deploy to"""
         self._print_header("Step 1: Select Cluster")
 
         if not self.available_clusters:
             print("\n⚠️  No cluster configurations found in clusters/ directory")
-            print("\nCreate a cluster configuration:")
+            print("\nYou can discover a new cluster now.")
+            if self._prompt_yes_no("Discover a new cluster?", default=True):
+                discovered = self.discover_and_add_cluster()
+                if discovered:
+                    self.config["cluster"] = discovered
+                    self.config["cluster_config"] = self.available_clusters[discovered]
+                    return discovered
+            print("\nOr create one manually:")
             print("  1. Auto-discover: make discover-cluster NAME=my-cluster")
             print("  2. Manual: cp clusters/template.yaml clusters/my-cluster.yaml")
             sys.exit(1)
+
+        # Ask if user wants to discover a new cluster or use existing
+        if self._prompt_yes_no("\nDiscover a new cluster (vs. use existing)?", default=False):
+            discovered = self.discover_and_add_cluster()
+            if discovered:
+                self.config["cluster"] = discovered
+                self.config["cluster_config"] = self.available_clusters[discovered]
+                return discovered
 
         cluster_names = sorted(self.available_clusters.keys())
         cluster_descriptions = []

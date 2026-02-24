@@ -256,3 +256,40 @@ class TestDeploymentWizard:
         assert len(commands) > 0
         assert any("oc login" in cmd for cmd in commands)
         assert any("rdma" in cmd.lower() for cmd in commands)
+
+    def test_discover_and_add_cluster(self, wizard, tmp_path):
+        """Test cluster discovery integration."""
+        from pathlib import Path
+        import sys
+
+        # Add scripts directory to path for discover_cluster import
+        sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+        from discover_cluster import ClusterDiscovery
+
+        # Mock the discovery process
+        mock_config = {
+            "cluster": {"name": "new-cluster", "api": "api.new.com", "namespace": "test"},
+            "gpus": {"per_node": 4},
+            "network": {"rdma": {"enabled": False}},
+            "storage": {"mode": "rwx", "class_rwx": "nfs"},
+        }
+
+        with patch.object(ClusterDiscovery, "generate_config", return_value=mock_config):
+            with patch("builtins.input", side_effect=["new-cluster", "test"]):
+                with patch.object(wizard, "_prompt_yes_no", side_effect=[True, True]):
+                    # Change to tmp directory for test
+                    import os
+
+                    original_dir = os.getcwd()
+                    os.chdir(tmp_path)
+
+                    try:
+                        cluster_name = wizard.discover_and_add_cluster()
+
+                        assert cluster_name == "new-cluster"
+                        assert "new-cluster" in wizard.available_clusters
+                        assert wizard.available_clusters["new-cluster"] == mock_config
+                        assert (tmp_path / "clusters" / "new-cluster.yaml").exists()
+                    finally:
+                        os.chdir(original_dir)

@@ -552,3 +552,93 @@ Perfect for:
 - Teams standardizing deployments
 - Quickly deploying to new clusters
 - Documenting deployment configurations
+
+## Cluster Discovery Integration
+
+The wizard now includes built-in cluster discovery, so you don't need to run `make discover-cluster` separately.
+
+### When to Use Discovery
+
+**Discover a new cluster when:**
+- You're connecting to a cluster for the first time
+- You want to create a configuration for the currently connected cluster
+- Cluster configuration has changed (new GPUs, RDMA enabled, etc.)
+
+**Use existing cluster when:**
+- You've already discovered/configured this cluster
+- You want to use a pre-configured cluster from `clusters/` directory
+
+### Discovery Workflow
+
+When you run the wizard:
+
+```bash
+make wizard
+```
+
+You'll be prompted:
+
+```
+Step 1: Select Cluster
+======================
+
+Discover a new cluster (vs. use existing)? [y/N]:
+```
+
+**If you choose YES (discover):**
+
+1. Enter cluster name (e.g., "my-cluster")
+2. Choose to use current namespace or specify a custom one
+3. The wizard auto-discovers:
+   - Cluster API endpoint
+   - GPU nodes and specifications
+   - RDMA/InfiniBand devices
+   - Storage classes (RWX/RWO)
+   - Security requirements
+4. Saves configuration to `clusters/my-cluster.yaml`
+5. Proceeds with deployment configuration using the discovered cluster
+
+**If you choose NO (use existing):**
+
+1. Lists all available cluster configurations
+2. You select from the list
+3. Proceeds with deployment configuration
+
+### Example: Discover and Deploy
+
+```bash
+# 1. Log in to your cluster
+oc login https://api.my-cluster.com
+
+# 2. Run the wizard
+make wizard
+
+# 3. When prompted, choose to discover:
+Discover a new cluster (vs. use existing)? [y/N]: y
+
+# 4. Name your cluster:
+Cluster name [discovered-cluster]: production
+
+# 5. Use current namespace:
+Use current namespace? [Y/n]: y
+
+# 6. Discovery runs automatically:
+🔍 Discovering cluster 'production'...
+✅ Cluster configuration saved to clusters/production.yaml
+
+# 7. Continue with deployment configuration...
+```
+
+### What Gets Discovered
+
+The wizard discovers the same information as `make discover-cluster`:
+
+- **Cluster Info**: API endpoint, namespace
+- **GPU Nodes**: Node names, GPU type, GPUs per node
+- **RDMA/InfiniBand**: Mellanox devices, interfaces, configuration
+- **Storage**: RWX and RWO storage classes
+- **Security**: Service account requirements, SCC needs
+- **Network**: TCP interface configuration
+
+All of this is saved to a reusable cluster configuration file.
+
