@@ -11,6 +11,8 @@ Examples:
     ./scripts/deploy-cluster.py barcelona --mode tcp --dry-run
 """
 
+from __future__ import annotations
+
 import argparse
 from pathlib import Path
 import subprocess

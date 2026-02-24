@@ -19,12 +19,14 @@ Examples:
     ./scripts/discover-cluster.py --name prod --output clusters/prod.yaml
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
 import subprocess
 import sys
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -32,7 +34,7 @@ import yaml
 class ClusterDiscovery:
     """Discover cluster configuration"""
 
-    def __init__(self, namespace: Optional[str] = None):
+    def __init__(self, namespace: str | None = None):
         self.namespace = namespace or self._get_current_namespace()
         self.config = {}
 
