@@ -53,7 +53,9 @@ help:
 	@echo ""
 	@echo "Cluster-based deployment (centralized configuration):"
 	@echo "  make wizard                                         - Interactive deployment wizard"
+	@echo "  make wizard PROJECT=<name>                          - Create project-based deployment"
 	@echo "  make list-clusters                                  - List available cluster configs"
+	@echo "  make list-projects                                  - List all project deployments"
 	@echo "  make discover-cluster NAME=<name>                   - Auto-discover cluster config"
 	@echo "  make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>  - Deploy to cluster"
 	@echo "  make clean-cluster CLUSTER=<name>                   - Clean cluster deployment"
@@ -352,7 +354,12 @@ discover-cluster:
 
 wizard:
 	@echo "🚀 Starting deployment wizard..."
+ifdef PROJECT
+	@echo "Project: $(PROJECT)"
+	@python3 scripts/deployment_wizard.py --project $(PROJECT)
+else
 	@python3 scripts/deployment_wizard.py
+endif
 
 wizard-load:
 	@if [ -z "$(CONFIG)" ]; then \
@@ -360,7 +367,26 @@ wizard-load:
 		echo "Usage: make wizard-load CONFIG=<config-file.yaml>"; \
 		exit 1; \
 	fi
+ifdef PROJECT
+	@python3 scripts/deployment_wizard.py --config $(CONFIG) --project $(PROJECT)
+else
 	@python3 scripts/deployment_wizard.py --config $(CONFIG)
+endif
+
+list-projects:
+	@echo "Available projects:"
+	@if [ -d "deployments" ]; then \
+		for dir in deployments/*/; do \
+			if [ -d "$$dir" ]; then \
+				project=$$(basename "$$dir"); \
+				if [ -f "$$dir/config.yaml" ]; then \
+					echo "  - $$project"; \
+				fi; \
+			fi; \
+		done; \
+	else \
+		echo "  No projects found (deployments/ directory does not exist)"; \
+	fi
 
 # Development tools
 .PHONY: dev-setup format lint pre-commit
