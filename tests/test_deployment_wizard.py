@@ -184,3 +184,75 @@ class TestDeploymentWizard:
             wizard.load_config("test.yaml")
             assert wizard.config["cluster"] == "test-cluster"
             assert wizard.config["mode"] == "multi-node"
+
+    def test_display_summary(self, wizard, capsys):
+        """Test deployment summary display."""
+        wizard.config = {
+            "cluster": "test-cluster",
+            "cluster_config": wizard.available_clusters["test-cluster"],
+            "mode": "single-node",
+            "network_mode": "tcp",
+            "features": {
+                "vscode": True,
+                "jupyter": False,
+                "tensorboard": True,
+                "pvc_browser": False,
+                "wandb": False,
+            },
+            "resources": {"gpus": 4},
+            "storage": {"workspace_size": 100},
+        }
+
+        commands = ["oc login", "make deploy"]
+        wizard.display_summary(commands)
+
+        # Capture printed output
+        captured = capsys.readouterr()
+        assert "Configuration:" in captured.out
+        assert "test-cluster" in captured.out
+        assert "Features:" in captured.out
+        assert "Storage:" in captured.out
+
+    def test_select_deployment_mode_multi_node_tcp(self, wizard):
+        """Test multi-node TCP deployment mode selection."""
+        wizard.config["cluster_config"] = wizard.available_clusters["test-cluster"]
+
+        # Select multi-node (option 1), decline RDMA, choose 2 nodes
+        with patch.object(wizard, "_prompt_choice", return_value=1):
+            with patch.object(wizard, "_prompt_yes_no", return_value=False):
+                with patch.object(wizard, "_prompt_number", return_value=2):
+                    wizard.select_deployment_mode()
+                    assert wizard.config["mode"] == "multi-node"
+                    assert wizard.config["network_mode"] == "tcp"
+                    assert wizard.config["num_nodes"] == 2
+
+    def test_print_header(self, wizard, capsys):
+        """Test header printing."""
+        wizard._print_header("Test Header")
+        captured = capsys.readouterr()
+        assert "Test Header" in captured.out
+        assert "=" in captured.out
+
+    def test_generate_deployment_plan_multinode_rdma(self, wizard):
+        """Test deployment plan for multi-node RDMA."""
+        wizard.config = {
+            "cluster": "test-cluster",
+            "cluster_config": wizard.available_clusters["test-cluster"],
+            "mode": "multi-node",
+            "network_mode": "rdma",
+            "num_nodes": 2,
+            "features": {
+                "vscode": False,
+                "jupyter": False,
+                "tensorboard": False,
+                "pvc_browser": False,
+                "wandb": False,
+            },
+            "resources": {"total_gpus": 8},
+            "storage": {"workspace_size": 100},
+        }
+
+        commands = wizard.generate_deployment_plan()
+        assert len(commands) > 0
+        assert any("oc login" in cmd for cmd in commands)
+        assert any("rdma" in cmd.lower() for cmd in commands)

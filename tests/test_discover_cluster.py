@@ -177,3 +177,46 @@ class TestClusterDiscovery:
                             assert config["cluster"]["api"] == "test.com"
                             assert config["gpus"]["per_node"] == 4
                             assert config["storage"]["mode"] == "rwx"
+
+    def test_discover_gpu_nodes_multiple_gpu_types(self, discovery):
+        """Test GPU node discovery with mixed GPU types."""
+        nodes_data = {
+            "items": [
+                {
+                    "metadata": {"name": "gpu-node-1", "labels": {"gpu-type": "H100"}},
+                    "status": {"capacity": {"nvidia.com/gpu": "4"}},
+                },
+                {
+                    "metadata": {"name": "gpu-node-2", "labels": {"gpu-type": "H100"}},
+                    "status": {"capacity": {"nvidia.com/gpu": "4"}},
+                },
+            ]
+        }
+
+        with patch.object(discovery, "_run_command", return_value=json.dumps(nodes_data)):
+            result = discovery.discover_gpu_nodes()
+            assert len(result["nodes"]) == 2
+            assert result["gpus_per_node"] == 4
+            assert "H100" in result.get("gpu_type", "")
+
+    def test_discover_storage_no_storage_classes(self, discovery):
+        """Test storage discovery when no storage classes exist."""
+        sc_data = {"items": []}
+
+        with patch.object(discovery, "_run_command", return_value=json.dumps(sc_data)):
+            result = discovery.discover_storage()
+            assert result["mode"] == "volumeClaimTemplates"
+
+    def test_generate_notes(self, discovery):
+        """Test notes generation."""
+        cluster_info = {"api": "test.com", "namespace": "test-ns"}
+        gpu_info = {"nodes": ["node1"], "gpu_type": "H100", "gpus_per_node": 4}
+        rdma_info = {"enabled": True}
+        storage_info = {"mode": "rwx"}
+
+        notes = discovery._generate_notes(cluster_info, gpu_info, rdma_info, storage_info)
+
+        assert "test.com" in notes
+        assert "H100" in notes
+        assert "4" in notes
+        assert "Enabled" in notes or "RDMA" in notes

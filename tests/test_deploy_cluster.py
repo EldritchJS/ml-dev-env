@@ -10,8 +10,11 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from deploy_cluster import (  # noqa: E402
+    generate_pvcs,
+    generate_service_account,
     generate_statefulset,
     load_cluster_config,
+    print_setup_instructions,
 )
 
 
@@ -129,3 +132,125 @@ kind: StatefulSet
                 # Should use TCP template even if mode is 'rdma'
                 generate_statefulset(mock_config, "rdma", output_file)
                 assert mock_file.call_count >= 1
+
+
+class TestGeneratePVCs:
+    """Test generate_pvcs function."""
+
+    def test_generate_pvcs_rwx_mode(self, tmp_path):
+        """Test generating PVCs in RWX mode."""
+        config = {
+            "cluster": {"namespace": "test-ns"},
+            "storage": {
+                "mode": "rwx",
+                "class_rwx": "nfs-storage",
+                "class_rwo": "ceph-rbd",
+                "workspace_size": "100Gi",
+                "datasets_size": "500Gi",
+            },
+        }
+
+        output_file = str(tmp_path / "pvcs.yaml")
+        generate_pvcs(config, output_file)
+
+        # Verify file was created
+        assert Path(output_file).exists()
+
+        # Verify content
+        with open(output_file) as f:
+            content = f.read()
+            assert "ReadWriteMany" in content
+            assert "nfs-storage" in content
+            assert "100Gi" in content
+            assert "500Gi" in content
+            assert "ml-dev-workspace" in content
+            assert "ml-datasets" in content
+
+    def test_generate_pvcs_rwo_mode(self, tmp_path):
+        """Test generating PVCs in RWO mode."""
+        config = {
+            "cluster": {"namespace": "test-ns"},
+            "storage": {
+                "mode": "volumeClaimTemplates",
+                "class_rwx": "nfs-storage",
+                "class_rwo": "ceph-rbd",
+                "workspace_size": "100Gi",
+                "datasets_size": "500Gi",
+            },
+        }
+
+        output_file = str(tmp_path / "pvcs.yaml")
+        generate_pvcs(config, output_file)
+
+        # Verify file was created
+        assert Path(output_file).exists()
+
+        # Verify content uses RWO
+        with open(output_file) as f:
+            content = f.read()
+            assert "ReadWriteOnce" in content
+            assert "ceph-rbd" in content
+
+
+class TestGenerateServiceAccount:
+    """Test generate_service_account function."""
+
+    def test_generate_service_account_when_configured(self, tmp_path):
+        """Test generating ServiceAccount when configured."""
+        config = {
+            "cluster": {"namespace": "test-ns"},
+            "security": {"service_account": "ml-dev-sa"},
+        }
+
+        output_file = str(tmp_path / "serviceaccount.yaml")
+        generate_service_account(config, output_file)
+
+        # Verify file was created
+        assert Path(output_file).exists()
+
+        # Verify content
+        with open(output_file) as f:
+            content = f.read()
+            assert "ServiceAccount" in content
+            assert "ml-dev-sa" in content
+            assert "test-ns" in content
+
+    def test_generate_service_account_when_not_configured(self, tmp_path):
+        """Test that no file is generated when service account not configured."""
+        config = {
+            "cluster": {"namespace": "test-ns"},
+            "security": {},
+        }
+
+        output_file = str(tmp_path / "serviceaccount.yaml")
+        generate_service_account(config, output_file)
+
+        # Verify file was NOT created
+        assert not Path(output_file).exists()
+
+
+class TestPrintSetupInstructions:
+    """Test print_setup_instructions function."""
+
+    def test_print_setup_instructions(self, capsys):
+        """Test printing setup instructions."""
+        config = {
+            "cluster": {
+                "name": "test-cluster",
+                "api": "api.test.com",
+                "namespace": "test-ns",
+            },
+            "network": {"rdma": {"enabled": True}},
+            "storage": {"mode": "rwx"},
+            "gpus": {"per_node": 4, "default_nodes": 2},
+            "notes": "Auto-discovered configuration\nTest notes",
+            "security": {"service_account": "ml-dev-sa", "requires_privileged_scc": True},
+        }
+
+        print_setup_instructions(config)
+
+        # Capture printed output
+        captured = capsys.readouterr()
+        assert "Setup Instructions" in captured.out
+        assert "test-cluster" in captured.out or "TEST-CLUSTER" in captured.out
+        assert "Deploy" in captured.out or "deploy" in captured.out
