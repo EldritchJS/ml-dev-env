@@ -1,0 +1,6 @@
+# Python dependencies for ML Dev Environment tools
+#
+# Install with: pip install -r requirements.txt
+
+# YAML configuration parsing
+PyYAML>=6.0,<7.0

@@ -67,6 +67,12 @@ help:
 	@echo "  REMOTE_DIR=<path>    - Remote code directory (default: /workspace)"
 	@echo "  DEBUG_PORT=<port>    - Debug port (default: 5678)"
 	@echo ""
+	@echo "Development tools:"
+	@echo "  make dev-setup       - Install development dependencies and pre-commit"
+	@echo "  make format          - Format Python code with black and isort"
+	@echo "  make lint            - Run all linters (flake8, shellcheck, yamllint)"
+	@echo "  make pre-commit      - Run pre-commit hooks on all files"
+	@echo ""
 	@echo "Examples:"
 	@echo "  make build                                      # Build with defaults"
 	@echo "  NAMESPACE=ml-prod make deploy                   # Deploy to ml-prod"
@@ -355,3 +361,46 @@ wizard-load:
 		exit 1; \
 	fi
 	@python3 scripts/deployment-wizard.py --config $(CONFIG)
+
+# Development tools
+.PHONY: dev-setup format lint pre-commit
+
+dev-setup:
+	@echo "Setting up development environment..."
+	@echo "Installing Python dependencies..."
+	pip install -r requirements.txt
+	pip install -r requirements-dev.txt
+	@echo ""
+	@echo "Installing pre-commit hooks..."
+	pre-commit install
+	@echo ""
+	@echo "✓ Development environment ready!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  - Run 'make format' to format code"
+	@echo "  - Run 'make lint' to check code quality"
+	@echo "  - Run 'make pre-commit' to test all hooks"
+
+format:
+	@echo "Formatting Python code..."
+	black scripts/*.py
+	isort scripts/*.py
+	@echo "✓ Code formatted"
+
+lint:
+	@echo "Running linters..."
+	@echo ""
+	@echo "=== Python (flake8) ==="
+	-flake8 scripts/*.py
+	@echo ""
+	@echo "=== Shell scripts (shellcheck) ==="
+	-find scripts -name "*.sh" -exec shellcheck {} \;
+	@echo ""
+	@echo "=== YAML (yamllint) ==="
+	-yamllint clusters/*.yaml k8s/*.yaml .pre-commit-config.yaml
+	@echo ""
+	@echo "✓ Linting complete"
+
+pre-commit:
+	@echo "Running pre-commit hooks on all files..."
+	pre-commit run --all-files

@@ -688,11 +688,28 @@ This example configuration is provided as-is for educational and development pur
 
 ## 🤝 Contributing
 
-To add a new cluster configuration:
-1. Copy `clusters/template.yaml` to `clusters/<your-cluster>.yaml`
-2. Fill in cluster-specific settings
-3. Test with `make deploy-cluster-dry-run`
-4. Deploy with `make deploy-cluster`
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+
+### Quick Start for Contributors
+
+```bash
+# Install dependencies
+pip install -r requirements-dev.txt
+
+# Install pre-commit hooks
+pre-commit install
+
+# Make changes and commit (hooks run automatically)
+git add <files>
+git commit -m "Your changes"
+```
+
+### Adding a New Cluster
+
+1. Auto-discover: `make discover-cluster NAME=<cluster>`
+2. Or copy template: `cp clusters/template.yaml clusters/<cluster>.yaml`
+3. Test: `make deploy-cluster-dry-run CLUSTER=<cluster> MODE=tcp`
+4. Deploy: `make deploy-cluster CLUSTER=<cluster> MODE=tcp`
 
 See [CLUSTER-CONFIG-GUIDE.md](docs/CLUSTER-CONFIG-GUIDE.md) for details.
 
