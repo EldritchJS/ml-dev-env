@@ -9,9 +9,10 @@ The deployment wizard guides you through:
 1. ✅ **Selecting a cluster** from available configurations
 2. ✅ **Choosing deployment mode** (single-node or multi-node)
 3. ✅ **Selecting features** (VSCode, Jupyter, file browser, etc.)
-4. ✅ **Configuring resources** (GPUs, memory, storage)
-5. ✅ **Generating deployment commands** ready to execute
-6. ✅ **Saving configurations** for reuse
+4. ✅ **Selecting/building container image** (pre-built or custom packages)
+5. ✅ **Configuring resources** (GPUs, memory, storage)
+6. ✅ **Generating deployment commands** ready to execute
+7. ✅ **Saving configurations** for reuse
 
 ## Quick Start
 
@@ -92,7 +93,30 @@ Select which features to enable:
 ✓ Enabled features: vscode, jupyter, tensorboard, pvc_browser
 
 ==============================================================
-  Step 4: Configure Resources
+  Step 4: Container Image
+==============================================================
+
+Choose how to provide the container image:
+
+  1. Use pre-built image (PyTorch 2.8, 2.9, or custom URL)
+  2. Build custom image (specify packages)
+
+Select image option:
+Enter choice [1-2] (default: 1): 1
+
+📦 Pre-built Image Selection
+
+Select pre-built image:
+  1. PyTorch 2.8 + NumPy 1.x (image-registry.../ml-dev-env:pytorch-2.8-numpy1)
+  2. PyTorch 2.9 + NumPy 2.x (image-registry.../ml-dev-env:pytorch-2.9-numpy2)
+  3. Custom image URL (enter manually)
+
+Enter choice [1-3] (default: 2): 2
+
+✓ Selected image: image-registry.openshift-image-registry.svc:5000/coops-767192/ml-dev-env:pytorch-2.9-numpy2
+
+==============================================================
+  Step 5: Configure Resources
 ==============================================================
 
 🖥️  Resource Configuration:
@@ -164,6 +188,157 @@ The wizard automatically discovers available cluster configurations from `cluste
 
 - Which tools to enable/configure
 
+### Container Image Selection
+
+Choose between pre-built images or build custom images with your specific package requirements.
+
+**Pre-built Images:**
+
+- ✅ **PyTorch 2.8 + NumPy 1.x** - Compatible with legacy NumPy 1.x packages
+- ✅ **PyTorch 2.9 + NumPy 2.x** - Latest PyTorch with NumPy 2.x (recommended)
+- ✅ **Custom URL** - Provide your own image from any registry
+
+**Custom Image Building:**
+
+Build a container image with custom packages on-demand:
+
+- Choose base PyTorch version (2.8, 2.9, 3.0, or custom)
+- Specify packages interactively or via requirements.txt
+- Real-time build monitoring with progress
+- Automatic error detection and recovery
+- Build completes before deployment
+
+**When to use custom builds:**
+
+- Need specific package versions not in pre-built images
+- Require additional ML libraries (e.g., JAX, MXNet)
+- Want to pre-install proprietary or internal packages
+- Need different versions of transformers, datasets, etc.
+
+**What you choose:**
+
+- Pre-built image or custom build
+- Base PyTorch version (if building)
+- Additional packages to install
+
+#### Custom Image Building Process
+
+When you choose to build a custom image, the wizard:
+
+1. **Selects base image:**
+   - PyTorch 2.8 (nvcr.io/nvidia/pytorch:25.08-py3)
+   - PyTorch 2.9 (nvcr.io/nvidia/pytorch:25.09-py3) - Recommended
+   - PyTorch 3.0 (nvcr.io/nvidia/pytorch:26.01-py3)
+   - Custom base image URL
+
+2. **Specifies packages:**
+   - **Interactive:** Enter packages one by one
+   - **File-based:** Upload requirements.txt
+
+3. **Builds immediately:**
+   - Generates OpenShift BuildConfig
+   - Triggers build on cluster
+   - Monitors progress in real-time
+   - Shows build steps (Step 5/12, etc.)
+
+4. **Validates completion:**
+   - Waits for build to finish
+   - Retrieves final image reference
+   - Uses image in deployment
+
+5. **Handles errors:**
+   - Detects network, disk space, or package errors
+   - Suggests recovery actions
+   - Offers retry or fallback to pre-built
+
+**Example: Interactive Package Entry**
+
+```
+Step 2: Specify packages to install
+
+How to specify packages:
+  1. Enter packages interactively (one by one)
+  2. Upload requirements.txt file
+
+Enter choice [1-2] (default: 1): 1
+
+Enter package names (one per line). Press Enter with empty line when done.
+Package 1 (or Enter to finish): transformers==4.38.0
+Package 2 (or Enter to finish): datasets
+Package 3 (or Enter to finish): wandb
+Package 4 (or Enter to finish):
+
+Build Configuration
+===================
+Build name: ml-dev-custom-20260224143022-a4b9
+Image tag: custom-barcelona-20260224143022
+Packages: transformers==4.38.0, datasets, wandb
+
+Start build now? [Y/n]: y
+
+Building Image
+==============
+[00:15] [2/12] Step 2/12: FROM nvcr.io/nvidia/pytorch:25.09-py3
+[00:42] [5/12] Step 5/12: RUN pip install --no-cache-dir transformers==4.38.0
+[01:20] [8/12] Step 8/12: Installing datasets
+[02:05] [12/12] Step 12/12: Push successful
+
+✓ Build completed successfully!
+  Image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env@sha256:abc123...
+```
+
+**Example: Requirements File**
+
+```
+How to specify packages:
+  1. Enter packages interactively (one by one)
+  2. Upload requirements.txt file
+
+Enter choice [1-2] (default: 1): 2
+
+Enter path to requirements.txt: ./my-requirements.txt
+✓ Requirements file: ./my-requirements.txt
+
+Build Configuration
+===================
+Build name: ml-dev-custom-20260224143145-k7x2
+Image tag: custom-barcelona-20260224143145
+Requirements: ./my-requirements.txt
+
+Start build now? [Y/n]: y
+```
+
+**Build Error Handling**
+
+If the build fails, the wizard analyzes the error and suggests recovery:
+
+```
+BUILD FAILED
+============
+
+Error Type: package_not_found
+Message: Package not found: invalid-pkg-name
+Recovery: Check package name spelling and version requirements
+
+Options:
+  1. Retry build
+  2. Use a pre-built image instead
+  3. Exit
+
+Enter choice [1-3]: 2
+
+Falling back to pre-built image...
+```
+
+**Common Build Errors:**
+
+| Error Type | Cause | Recovery |
+|------------|-------|----------|
+| **package_not_found** | Typo in package name or version doesn't exist | Fix package name/version, retry |
+| **dependency_conflict** | Incompatible package versions | Adjust versions, check compatibility |
+| **network** | Timeout or connection failure | Retry, check cluster network |
+| **disk_space** | Insufficient build storage | Contact admin to increase quota |
+
 ### Resource Configuration
 
 **GPUs:**
@@ -227,6 +402,9 @@ features:
   tensorboard: true
   pvc_browser: true
   wandb: false
+image:
+  type: prebuilt
+  url: image-registry.openshift-image-registry.svc:5000/coops-767192/ml-dev-env:pytorch-2.9-numpy2
 resources:
   gpus_per_node: 4
   total_gpus: 16
@@ -423,6 +601,83 @@ python3 -c "import yaml; yaml.safe_load(open('my-config.yaml'))"
 cat my-config.yaml
 ```
 
+### Custom Image Build Failures
+
+**Issue: Build fails with "package not found"**
+
+```
+ERROR: Could not find a version that satisfies the requirement my-package
+```
+
+**Solution:**
+- Check package name spelling on PyPI
+- Verify version exists: https://pypi.org/project/my-package/
+- Try without version specifier first
+- Check for typos in requirements.txt
+
+**Issue: Build fails with dependency conflict**
+
+```
+ERROR: transformers 4.38.0 requires tokenizers>=0.19.0, but you have tokenizers 0.15.0
+```
+
+**Solution:**
+- Remove conflicting version pins
+- Let pip resolve dependencies automatically
+- Check package compatibility matrix
+- Use a different base image version
+
+**Issue: Build timeout**
+
+```
+Build timed out after 30 minutes
+```
+
+**Solution:**
+- Reduce number of packages being installed
+- Split into multiple smaller builds
+- Check cluster build timeout limits
+- Consider pre-built image with most packages
+
+**Issue: Network errors during build**
+
+```
+ERROR: Connection refused when trying to fetch package
+```
+
+**Solution:**
+- Retry the build (network issue may be temporary)
+- Check cluster internet connectivity
+- Verify PyPI is accessible from cluster
+- Contact cluster administrator
+
+**Issue: Disk space errors**
+
+```
+ERROR: No space left on device
+```
+
+**Solution:**
+- Contact cluster administrator to increase build storage quota
+- Use pre-built image as fallback
+- Reduce number of packages in custom build
+
+**Issue: Build succeeds but pod won't start**
+
+**Solution:**
+Check image reference in deployment:
+
+```bash
+# Verify image was pushed
+oc get imagestream ml-dev-env -o yaml
+
+# Check pod events
+oc get events --sort-by='.lastTimestamp'
+
+# Verify image pull
+oc describe pod <pod-name>
+```
+
 ## Examples
 
 ### Example 1: Development Setup
@@ -501,6 +756,89 @@ vim new-cluster-deployment.yaml
 make wizard-load CONFIG=new-cluster-deployment.yaml
 ```
 
+### Example 5: Custom Image with Specific Packages
+
+**Goal:** Build custom image with specific transformers and LLaMA Factory versions
+
+```bash
+make wizard
+
+# Selections:
+# - Cluster: barcelona
+# - Mode: Single-node
+# - Features: VSCode, Jupyter
+# - Image: Build custom image
+#   - Base: PyTorch 2.9
+#   - Packages (interactive):
+#     * transformers==4.38.2
+#     * datasets==2.18.0
+#     * llamafactory==0.7.1
+#     * peft
+#     * trl
+# - GPUs: 4
+# - Storage: 100 GB workspace
+
+# Build starts immediately
+# Monitor progress: [02:15] [8/12] Step 8/12: Installing packages...
+# ✓ Build complete
+
+# Generated config includes:
+# image:
+#   type: custom_build
+#   url: image-registry.../ml-dev-env@sha256:abc123...
+#   build:
+#     base_image: nvcr.io/nvidia/pytorch:25.09-py3
+#     packages:
+#       - transformers==4.38.2
+#       - datasets==2.18.0
+#       - llamafactory==0.7.1
+#       - peft
+#       - trl
+
+# Deploy with custom image
+./deploy-barcelona.sh
+```
+
+### Example 6: Custom Image with Requirements File
+
+**Goal:** Build image from existing requirements.txt
+
+Create `my-requirements.txt`:
+```
+# Custom ML packages
+transformers>=4.38.0
+datasets>=2.18.0
+accelerate>=0.27.0
+peft>=0.9.0
+trl>=0.7.10
+
+# Additional tools
+wandb
+tensorboard
+jupyterlab
+```
+
+Run wizard:
+```bash
+make wizard
+
+# Selections:
+# - Cluster: nerc-production
+# - Mode: Multi-node, 2 nodes
+# - Features: VSCode, TensorBoard, W&B
+# - Image: Build custom image
+#   - Base: PyTorch 2.9
+#   - Packages: Upload requirements.txt file
+#   - File: ./my-requirements.txt
+# - Storage: 200 GB workspace
+
+# Build processes all packages from file
+# ✓ Build complete: all 10 packages installed
+
+# Deploy
+./deploy-nerc-production.sh
+```
+
 ## Best Practices
 
 1. **Save configurations** - Always save for documentation and reuse
@@ -510,6 +848,17 @@ make wizard-load CONFIG=new-cluster-deployment.yaml
 5. **Document choices** - Add comments to saved configs explaining decisions
 6. **Review commands** - Always review generated commands before executing
 7. **Incremental deployment** - Deploy base environment first, add features later
+
+### Custom Image Best Practices
+
+8. **Start with pre-built** - Use pre-built images unless you need specific packages
+9. **Test locally first** - Verify package compatibility locally before building
+10. **Pin critical versions** - Pin important packages (transformers==4.38.0) but allow dependencies to resolve
+11. **Keep builds minimal** - Only include packages you actually need
+12. **Document requirements** - Keep requirements.txt in version control
+13. **Reuse custom images** - Save image URL from successful builds for reuse
+14. **Monitor build times** - Builds typically take 5-15 minutes; >30 min may indicate issues
+15. **Have a fallback** - Always know which pre-built image you can fall back to
 
 ## Related Documentation
 
@@ -542,6 +891,7 @@ The deployment wizard simplifies ML environment deployment by:
 
 - ✅ Guiding you through all configuration options
 - ✅ Validating choices against cluster capabilities
+- ✅ Building custom images with your packages on-demand
 - ✅ Generating correct deployment commands
 - ✅ Creating reusable configurations
 - ✅ Providing executable deployment scripts
@@ -552,6 +902,7 @@ Perfect for:
 - Teams standardizing deployments
 - Quickly deploying to new clusters
 - Documenting deployment configurations
+- Creating custom environments with specific package versions
 
 ## Cluster Discovery Integration
 
