@@ -280,7 +280,7 @@ deploy-cluster:
 		exit 1; \
 	fi
 	@echo "Deploying to cluster: $(CLUSTER) (mode: $(MODE))"
-	@python3 scripts/deploy-cluster.py $(CLUSTER) --mode $(MODE)
+	@python3 scripts/deploy_cluster.py $(CLUSTER) --mode $(MODE)
 
 deploy-cluster-dry-run:
 	@if [ -z "$(CLUSTER)" ]; then \
@@ -289,7 +289,7 @@ deploy-cluster-dry-run:
 		exit 1; \
 	fi
 	@echo "Dry run for cluster: $(CLUSTER) (mode: $(MODE))"
-	@python3 scripts/deploy-cluster.py $(CLUSTER) --mode $(MODE) --dry-run
+	@python3 scripts/deploy_cluster.py $(CLUSTER) --mode $(MODE) --dry-run
 
 clean-cluster:
 	@if [ -z "$(CLUSTER)" ]; then \
@@ -345,14 +345,14 @@ discover-cluster:
 	fi
 	@echo "🔍 Discovering cluster configuration..."
 	@if [ -n "$(NAMESPACE)" ]; then \
-		python3 scripts/discover-cluster.py --name $(NAME) --namespace $(NAMESPACE); \
+		python3 scripts/discover_cluster.py --name $(NAME) --namespace $(NAMESPACE); \
 	else \
-		python3 scripts/discover-cluster.py --name $(NAME); \
+		python3 scripts/discover_cluster.py --name $(NAME); \
 	fi
 
 wizard:
 	@echo "🚀 Starting deployment wizard..."
-	@python3 scripts/deployment-wizard.py
+	@python3 scripts/deployment_wizard.py
 
 wizard-load:
 	@if [ -z "$(CONFIG)" ]; then \
@@ -360,7 +360,7 @@ wizard-load:
 		echo "Usage: make wizard-load CONFIG=<config-file.yaml>"; \
 		exit 1; \
 	fi
-	@python3 scripts/deployment-wizard.py --config $(CONFIG)
+	@python3 scripts/deployment_wizard.py --config $(CONFIG)
 
 # Development tools
 .PHONY: dev-setup format lint pre-commit

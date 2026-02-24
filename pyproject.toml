@@ -47,3 +47,55 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=scripts --cov-report=term-missing"
+
+[tool.ruff]
+# Same line length as Black
+line-length = 100
+target-version = "py39"
+
+# Exclude directories
+exclude = [
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Enable pycodestyle (E, W), Pyflakes (F), isort (I), and other useful rules
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+
+# Ignore specific rules
+ignore = [
+    "E203",  # Whitespace before ':' (conflicts with Black)
+    "E501",  # Line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow unused imports in __init__.py files
+"__init__.py" = ["F401"]
+# Allow print statements and complexity in scripts
+"scripts/*.py" = ["T201"]
+# Allow nested with statements in tests (common pattern for mocking)
+"tests/*.py" = ["SIM117"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["scripts"]
+force-single-line = false
+force-sort-within-sections = true
