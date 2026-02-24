@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import argparse
 import datetime
+from pathlib import Path
 import random
 import string
-from pathlib import Path
 import sys
 
 import yaml
@@ -33,12 +33,12 @@ import yaml
 # Import cluster discovery for on-the-fly cluster detection
 try:
     from discover_cluster import ClusterDiscovery
-    from image_builder import ImageBuilder, BuildMonitor, BuildErrorHandler
+    from image_builder import BuildErrorHandler, BuildMonitor, ImageBuilder
 except ImportError:
     # If running from different directory, try adding scripts to path
     sys.path.insert(0, str(Path(__file__).parent))
     from discover_cluster import ClusterDiscovery
-    from image_builder import ImageBuilder, BuildMonitor, BuildErrorHandler
+    from image_builder import BuildErrorHandler, BuildMonitor, ImageBuilder
 
 
 class DeploymentWizard:
@@ -531,11 +531,7 @@ class DeploymentWizard:
 
             if result.success:
                 # Get final image reference
-                if result.image_ref:
-                    image_url = result.image_ref
-                else:
-                    # Fallback: construct from ImageStream
-                    image_url = builder.get_image_reference("ml-dev-env", image_tag)
+                image_url = result.image_ref or builder.get_image_reference("ml-dev-env", image_tag)
 
                 self.config["image"] = {
                     "type": "custom_build",
@@ -549,7 +545,7 @@ class DeploymentWizard:
                     },
                 }
 
-                print(f"\n✓ Custom image built successfully!")
+                print("\n✓ Custom image built successfully!")
                 print(f"  Image: {image_url}")
 
             else:

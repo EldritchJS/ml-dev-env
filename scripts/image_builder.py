@@ -29,13 +29,12 @@ Usage:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
 import re
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
 
 import yaml
 
@@ -145,13 +144,11 @@ class ImageBuilder:
         result_lines = []
 
         # Find the section to replace (between "Install transformers" and "Install VideoLLaMA2")
-        in_package_section = False
         skip_section = False
 
-        for i, line in enumerate(lines):
+        for line in lines:
             # Start of package section
             if "Install transformers and related libraries" in line:
-                in_package_section = True
                 skip_section = True
 
                 # Add custom package installation
@@ -202,7 +199,6 @@ class ImageBuilder:
                 or "Install code-server" in line
             ):
                 skip_section = False
-                in_package_section = False
 
             # Skip original package installation
             if skip_section:
@@ -439,7 +435,7 @@ class BuildMonitor:
                     if phase == "Complete":
                         # Extract image reference
                         image_ref = self._extract_image_from_logs(logs)
-                        print(f"\n✓ Build completed successfully!")
+                        print("\n✓ Build completed successfully!")
                         if image_ref:
                             print(f"  Image: {image_ref}")
                         return BuildResult(

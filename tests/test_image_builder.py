@@ -5,9 +5,9 @@ Tests for image_builder module
 Tests ImageBuilder, BuildMonitor, and BuildErrorHandler classes.
 """
 
-import tempfile
 from pathlib import Path
-from unittest.mock import Mock, call, mock_open, patch
+import tempfile
+from unittest.mock import Mock, mock_open, patch
 
 import pytest
 import yaml
@@ -15,7 +15,6 @@ import yaml
 from scripts.image_builder import (
     BuildErrorHandler,
     BuildMonitor,
-    BuildResult,
     ErrorAnalysis,
     ImageBuilder,
 )
@@ -280,8 +279,6 @@ class TestBuildMonitor:
 
     def test_parse_step_progress(self):
         """Test parsing step progress from logs"""
-        monitor = BuildMonitor("test-build-1", "test-ns")
-
         log_line = "Step 5/12: RUN pip install transformers"
         import re
 
