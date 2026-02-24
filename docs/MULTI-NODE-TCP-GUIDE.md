@@ -35,13 +35,11 @@ The cluster configuration system supports **two networking modes** for multi-nod
 # List available clusters
 make list-clusters
 
-# RDMA Mode (high performance - both clusters support it)
-make deploy-cluster CLUSTER=cairo MODE=rdma
+# RDMA Mode (high performance)
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 
 # TCP Mode (fallback - if RDMA unavailable)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
-make deploy-cluster CLUSTER=cairo MODE=tcp
 ```
 
 ### What the Cluster Config Handles
@@ -98,18 +96,18 @@ make deploy-cluster CLUSTER=barcelona MODE=tcp
 
 ### RDMA Mode Configuration
 
-Example cluster config (Cairo):
+Example cluster config (Barcelona):
 ```yaml
 cluster:
-  name: cairo
-  api: api.cairo.test.nerc.mghpcc.org
+  name: barcelona
+  api: barcelona.nerc.mghpcc.org
   namespace: nccl-test
 
 network:
   rdma:
     enabled: true
     # Active InfiniBand devices (verify with ibstat)
-    devices: "mlx5_2,mlx5_3,mlx5_4,mlx5_5"
+    devices: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
     interfaces: "net1,net2,net3,net4"
     gid_index: "3"
     gdr_level: "5"  # GPUDirect RDMA
@@ -130,7 +128,7 @@ security:
 
 Deploy with:
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 ## 🌍 When to Use Each Mode
@@ -183,7 +181,7 @@ cd /workspace && ./launch_deepspeed.sh
 make list-clusters
 
 # 2. Deploy with RDMA
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 
 # 3. Wait for pods
 oc get pods -n nccl-test -l app=ml-dev-env-multi -w
@@ -356,14 +354,14 @@ Compare bandwidth results:
 make clean-cluster CLUSTER=barcelona
 
 # Deploy with RDMA
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 ### From RDMA to TCP
 
 ```bash
 # Clean up RDMA deployment
-make clean-cluster CLUSTER=cairo
+make clean-cluster CLUSTER=barcelona
 
 # Deploy with TCP
 make deploy-cluster CLUSTER=barcelona MODE=tcp
@@ -458,7 +456,6 @@ gpus:
 - [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) - Complete cluster config guide
 - [MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md) - Quick deployment
 - [MULTI-NODE-GUIDE.md](MULTI-NODE-GUIDE.md) - Detailed multi-node guide
-- [CAIRO_CLUSTER_RWX_RESULTS.md](CAIRO_CLUSTER_RWX_RESULTS.md) - Test results
 
 ### External Resources
 - [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/)
@@ -477,7 +474,7 @@ make deploy-cluster CLUSTER=barcelona MODE=tcp
 
 **RDMA Mode** (High Performance):
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 - Requires InfiniBand
 - 2-5x faster communication

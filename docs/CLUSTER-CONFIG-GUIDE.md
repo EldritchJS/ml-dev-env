@@ -24,54 +24,28 @@ make list-clusters
 
 ```bash
 # Deploy with RDMA
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 
 # Deploy with TCP (fallback)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
 
 # Dry run (preview generated configs)
-make deploy-cluster-dry-run CLUSTER=cairo MODE=rdma
+make deploy-cluster-dry-run CLUSTER=barcelona MODE=rdma
 ```
 
 ### 3. Check Status
 
 ```bash
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 ```
 
 ### 4. Clean Up
 
 ```bash
-make clean-cluster CLUSTER=cairo
+make clean-cluster CLUSTER=barcelona
 ```
 
 ## Available Clusters
-
-### Cairo
-**Location**: NERC Cairo cluster (api.cairo.test.nerc.mghpcc.org)
-
-**Configuration Highlights**:
-- **Storage**: RWX via NFS (nfs-csi)
-- **RDMA Devices**: mlx5_2, mlx5_3, mlx5_4, mlx5_5 (400 Gb/s)
-- **Security**: Requires privileged SCC for IPC_LOCK
-- **Nodes**: moc-r4pcc02u15, moc-r4pcc02u16
-- **GPUs**: 4x H100 per node
-
-**Setup Required**:
-```bash
-# Service account with privileged SCC
-oc create serviceaccount ml-dev-sa -n nccl-test
-oc adm policy add-scc-to-user privileged -z ml-dev-sa -n nccl-test
-
-# Create RWX PVCs (auto-created by deploy script)
-# Verify NFS server is running
-oc get pods -n nfs
-```
-
-**Deploy**:
-```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
-```
 
 ### Barcelona
 **Location**: NERC Barcelona cluster (barcelona.nerc.mghpcc.org)
@@ -174,8 +148,8 @@ make deploy-cluster CLUSTER=my-cluster MODE=rdma
 
 ```yaml
 cluster:
-  name: cairo                          # Cluster identifier
-  api: api.cairo.test.nerc.mghpcc.org # Cluster API endpoint
+  name: my-cluster                     # Cluster identifier
+  api: api.example.com                 # Cluster API endpoint
   namespace: nccl-test                 # Deployment namespace
   description: "Brief description"     # Documentation
 ```
@@ -345,14 +319,14 @@ python3 scripts/deploy-cluster.py <cluster-name> [--mode tcp|rdma] [--dry-run] [
 
 **Examples**:
 ```bash
-# Deploy Cairo with RDMA
-python3 scripts/deploy-cluster.py cairo --mode rdma
+# Deploy Barcelona with RDMA
+python3 scripts/deploy-cluster.py barcelona --mode rdma
 
 # Dry run for Barcelona with TCP
 python3 scripts/deploy-cluster.py barcelona --mode tcp --dry-run
 
 # Generate configs to custom directory
-python3 scripts/deploy-cluster.py cairo --mode rdma --dry-run --output-dir ./configs
+python3 scripts/deploy-cluster.py barcelona --mode rdma --dry-run --output-dir ./configs
 ```
 
 ## Makefile Integration
@@ -364,17 +338,17 @@ The Makefile provides convenient targets:
 make list-clusters
 
 # Deploy
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 make deploy-cluster CLUSTER=barcelona MODE=tcp
 
 # Dry run
-make deploy-cluster-dry-run CLUSTER=cairo MODE=rdma
+make deploy-cluster-dry-run CLUSTER=barcelona MODE=rdma
 
 # Status
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 
 # Clean up
-make clean-cluster CLUSTER=cairo
+make clean-cluster CLUSTER=barcelona
 ```
 
 ## Clusters Without RDMA
@@ -496,7 +470,6 @@ For most training workloads, TCP mode is sufficient. Use RDMA when:
 Error: Cluster configuration not found: clusters/my-cluster.yaml
 Available clusters:
   - barcelona
-  - cairo
   - template
 ```
 
@@ -545,12 +518,10 @@ oc get scc privileged
 ## Examples
 
 See the following files for complete examples:
-- `clusters/cairo.yaml` - RWX storage, RDMA, privileged SCC
-- `clusters/barcelona.yaml` - Per-pod storage, no privileged SCC
+- `clusters/barcelona.yaml` - Per-pod storage, RDMA, no privileged SCC
 - `clusters/template.yaml` - Fully documented template
 
 ## Related Documentation
 
 - [Multi-Node Quickstart](MULTI-NODE-QUICKSTART.md) - Multi-node deployment guide
 - [Multi-Node TCP Guide](MULTI-NODE-TCP-GUIDE.md) - TCP/Ethernet mode
-- [Cairo Cluster Results](CAIRO_CLUSTER_RWX_RESULTS.md) - Cairo test results

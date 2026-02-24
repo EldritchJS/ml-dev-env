@@ -27,15 +27,12 @@ make list-clusters
 ```
 
 Example clusters:
-- **cairo** - NERC Cairo cluster (RDMA + RWX storage)
 - **barcelona** - NERC Barcelona cluster (RDMA + per-pod storage)
 
 ### Step 2: Deploy Multi-Node Environment
 
-**Option A: Use RDMA (High Performance - Both Clusters)**
+**Option A: Use RDMA (High Performance)**
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
-# or
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
@@ -83,12 +80,12 @@ The cluster config defines:
 - **Security**: Privileged SCC if needed for IPC_LOCK
 - **Resources**: GPU count, memory, CPU per pod
 
-Example architecture (Cairo cluster, 2 nodes):
+Example architecture (Barcelona cluster, 2 nodes):
 ```
-ml-dev-env-0  (moc-r4pcc02u15)  - Rank 0-3   (Master)
-ml-dev-env-1  (moc-r4pcc02u16)  - Rank 4-7
+ml-dev-env-0  (moc-r4pcc04u25-nairr)  - Rank 0-3   (Master)
+ml-dev-env-1  (moc-r4pcc04u23-nairr)  - Rank 4-7
 
-Total: 8 H100 GPUs with RDMA over mlx5_2,3,4,5
+Total: 8 H100 GPUs with RDMA over mlx5_6,7,10,11
 ```
 
 ### Deployment Components
@@ -145,7 +142,7 @@ network:
 
 **Deploy:**
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 ### TCP Mode (Fallback Option)
@@ -172,7 +169,7 @@ network:
 ```bash
 # TCP fallback (works on any cluster)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
-make deploy-cluster CLUSTER=cairo MODE=tcp
+make deploy-cluster CLUSTER=barcelona MODE=tcp
 ```
 
 ## 💾 Storage Modes
@@ -371,7 +368,7 @@ deepspeed \
 
 ```bash
 # Via Make
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 
 # Via oc
 oc get pods -n nccl-test -l app=ml-dev-env-multi -o wide
@@ -521,7 +518,7 @@ oc get pod ml-dev-env-0 -n nccl-test -o yaml | grep -A 10 securityContext
 
 ```bash
 # Via Make
-make clean-cluster CLUSTER=cairo
+make clean-cluster CLUSTER=barcelona
 
 # Manual cleanup
 oc delete statefulset ml-dev-env -n nccl-test
@@ -547,7 +544,6 @@ oc delete pvc -l app=ml-dev-env-multi -n nccl-test
 - [MULTI-NODE-QUICKSTART.md](MULTI-NODE-QUICKSTART.md) - Quick 5-minute setup
 - [MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md) - TCP mode details
 - [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) - Cluster configuration
-- [CAIRO_CLUSTER_RWX_RESULTS.md](CAIRO_CLUSTER_RWX_RESULTS.md) - Test results
 
 ### External Resources
 - [DeepSpeed Documentation](https://www.deepspeed.ai/)
@@ -558,7 +554,7 @@ oc delete pvc -l app=ml-dev-env-multi -n nccl-test
 
 **Deploy:**
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
 **Sync Code:**
@@ -579,7 +575,7 @@ oc logs -f ml-dev-env-0 -n nccl-test
 
 **Cleanup:**
 ```bash
-make clean-cluster CLUSTER=cairo
+make clean-cluster CLUSTER=barcelona
 ```
 
 Happy distributed training! 🚀

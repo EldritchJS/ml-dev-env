@@ -55,7 +55,7 @@ help:
 	@echo "  make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>  - Deploy to cluster"
 	@echo "  make clean-cluster CLUSTER=<name>                   - Clean cluster deployment"
 	@echo "  make status-cluster CLUSTER=<name>                  - Show cluster deployment status"
-	@echo "  Available clusters: cairo, barcelona"
+	@echo "  Available clusters: barcelona"
 	@echo ""
 	@echo "Configuration options (via environment variables):"
 	@echo "  NAMESPACE=<name>     - OpenShift namespace (default: nccl-test)"
@@ -252,8 +252,8 @@ status-multi-node:
 	@oc get statefulset ml-dev-env -n $(NAMESPACE) 2>/dev/null || echo "StatefulSet not found"
 
 # Cluster-based Deployment (using cluster config files)
-# Usage: make deploy-cluster CLUSTER=cairo MODE=rdma
-CLUSTER ?= cairo
+# Usage: make deploy-cluster CLUSTER=barcelona MODE=rdma
+CLUSTER ?= barcelona
 MODE ?= tcp
 
 deploy-cluster:

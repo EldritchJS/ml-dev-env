@@ -11,8 +11,8 @@ Train on **multiple H100 GPUs across nodes** in 5 minutes using cluster-based de
 # 1. List available clusters
 make list-clusters
 
-# 2. Deploy to cluster (e.g., Cairo with RDMA)
-make deploy-cluster CLUSTER=cairo MODE=rdma
+# 2. Deploy to cluster (e.g., Barcelona with RDMA)
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 
 # 3. Wait for pods (2-3 minutes)
 oc get pods -n nccl-test -l app=ml-dev-env-multi -w
@@ -55,15 +55,13 @@ make list-clusters
 ```
 
 Example clusters:
-- **cairo** - NERC Cairo cluster with RDMA and RWX storage
 - **barcelona** - NERC Barcelona cluster with RDMA and per-pod storage
 
 ## 📊 Deployment Modes
 
 ### RDMA Mode (High Performance - Recommended)
-Best for production training with InfiniBand hardware (both clusters support it):
+Best for production training with InfiniBand hardware:
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
@@ -76,7 +74,6 @@ make deploy-cluster CLUSTER=barcelona MODE=rdma
 Use only if RDMA is unavailable or troubleshooting:
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=tcp
-make deploy-cluster CLUSTER=cairo MODE=tcp
 ```
 
 **Features**:
@@ -113,7 +110,7 @@ for i in 0 1; do
 done
 
 # Check deployment status
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 ```
 
 ## 🎓 Run Your Own Model
@@ -184,10 +181,10 @@ make shell-multi-node
 make sync-multi-node
 
 # Check status
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 
 # Clean up
-make clean-cluster CLUSTER=cairo
+make clean-cluster CLUSTER=barcelona
 ```
 
 ## 🐛 Quick Debug
@@ -239,13 +236,12 @@ See [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md) for details.
 - **Cluster Configuration:** [CLUSTER-CONFIG-GUIDE.md](CLUSTER-CONFIG-GUIDE.md)
 - **RDMA Details:** [MULTI-NODE-GUIDE.md](MULTI-NODE-GUIDE.md)
 - **TCP Mode:** [MULTI-NODE-TCP-GUIDE.md](MULTI-NODE-TCP-GUIDE.md)
-- **Cairo Test Results:** [CAIRO_CLUSTER_RWX_RESULTS.md](CAIRO_CLUSTER_RWX_RESULTS.md)
 
 ## ✅ Summary
 
 **List clusters:** `make list-clusters`
 
-**Deploy:** `make deploy-cluster CLUSTER=cairo MODE=rdma`
+**Deploy:** `make deploy-cluster CLUSTER=barcelona MODE=rdma`
 
 **Sync:** `make sync-multi-node`
 

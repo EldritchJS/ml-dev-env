@@ -63,16 +63,16 @@ Each cluster has a YAML config defining all infrastructure-specific settings:
 
 ```yaml
 cluster:
-  name: cairo
-  api: api.cairo.test.nerc.mghpcc.org
+  name: barcelona
+  api: barcelona.nerc.mghpcc.org
   namespace: nccl-test
 
 nodes:
-  gpu_nodes: [moc-r4pcc02u15, moc-r4pcc02u16]
+  gpu_nodes: [moc-r4pcc04u25-nairr, moc-r4pcc04u23-nairr]
 
 storage:
-  mode: rwx  # or "volumeClaimTemplates"
-  class_rwx: nfs-csi
+  mode: volumeClaimTemplates  # Per-pod storage
+  class_rwo: ocs-external-storagecluster-ceph-rbd
   workspace_size: 100Gi
 
 network:
@@ -105,11 +105,11 @@ gpus:
 
 **Workflow:**
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
   ↓
-scripts/deploy-cluster.py cairo --mode rdma
+scripts/deploy-cluster.py barcelona --mode rdma
   ↓
-Loads clusters/cairo.yaml
+Loads clusters/barcelona.yaml
   ↓
 Selects k8s/statefulset-multi-node-rdma.yaml
   ↓
@@ -225,7 +225,6 @@ GPU 0 → PCIe → System Memory → Ethernet → System Memory → PCIe → GPU
 
 **Pros**: Code synced once, visible to all pods
 **Cons**: Requires NFS server, potential performance bottleneck
-**Used by**: Cairo cluster
 
 ### Option 2: VolumeClaimTemplates - Per-Pod Storage
 ```
@@ -250,7 +249,7 @@ GPU 0 → PCIe → System Memory → Ethernet → System Memory → PCIe → GPU
 
 ### 1. Deploy
 ```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 → Creates StatefulSet with 2 pods (8 GPUs total)
 
@@ -387,7 +386,7 @@ make vscode             # Get VSCode URL
 - Avoids manual YAML editing and copy-paste errors
 - Version control for cluster-specific differences
 - Automatic RDMA fallback to TCP when not supported
-- Single command deployment: `make deploy-cluster CLUSTER=cairo MODE=rdma`
+- Single command deployment: `make deploy-cluster CLUSTER=barcelona MODE=rdma`
 
 ### 4. NVIDIA Base Image
 **Benefits:**
@@ -584,7 +583,7 @@ gpus:
   default_nodes: 4  # Change from 2 to 4
 
 # Or override during deploy
-make deploy-cluster CLUSTER=cairo MODE=rdma NODES=8
+make deploy-cluster CLUSTER=barcelona MODE=rdma NODES=8
 ```
 
 **Considerations:**
@@ -635,7 +634,7 @@ For someone new to this system:
    - Explore VSCode and Jupyter
 
 2. **Learn cluster configs** (`clusters/*.yaml`)
-   - Compare cairo vs barcelona configs
+   - Study barcelona cluster config
    - Understand storage modes
    - See how RDMA settings work
 

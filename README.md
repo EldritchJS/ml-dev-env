@@ -61,18 +61,12 @@ make list-clusters
 Example output:
 ```
 Available cluster configurations:
-  - cairo      (NERC Cairo - RDMA + RWX storage)
   - barcelona  (NERC Barcelona - RDMA + per-pod storage)
 ```
 
 ### 2. Deploy to a Cluster
 
 **Multi-Node with RDMA (High Performance):**
-```bash
-make deploy-cluster CLUSTER=cairo MODE=rdma
-```
-
-**Multi-Node with RDMA (Barcelona):**
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
@@ -84,7 +78,7 @@ make deploy-cluster CLUSTER=barcelona MODE=tcp
 
 **Preview before deploying:**
 ```bash
-make deploy-cluster-dry-run CLUSTER=cairo MODE=rdma
+make deploy-cluster-dry-run CLUSTER=barcelona MODE=rdma
 ```
 
 ### 3. Sync Your Code
@@ -108,7 +102,7 @@ cd /workspace
 
 ```bash
 # View deployment status
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 
 # Follow training logs
 oc logs -f ml-dev-env-0 -n nccl-test
@@ -154,7 +148,7 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
 - **[REMOTE-DEBUG-WALKTHROUGH.md](docs/REMOTE-DEBUG-WALKTHROUGH.md)** - Remote debugging
 
 ### Test Results
-- **[CAIRO_CLUSTER_RWX_RESULTS.md](docs/CAIRO_CLUSTER_RWX_RESULTS.md)** - Cairo cluster test results
+- Test results documented in multi-node guides above
 
 ## 🔧 Cluster-Based Deployment
 
@@ -170,18 +164,12 @@ Cluster config approach:
 - ✅ All settings in one YAML file per cluster
 - ✅ Automatic substitution of cluster-specific values
 - ✅ Version control cluster configurations
-- ✅ Single command deployment: `make deploy-cluster CLUSTER=cairo MODE=rdma`
+- ✅ Single command deployment: `make deploy-cluster CLUSTER=barcelona MODE=rdma`
 - ✅ **Automatic RDMA detection**: Clusters indicate if RDMA/InfiniBand is available
   - RDMA mode automatically falls back to TCP if cluster doesn't support RDMA
   - No need to remember which clusters have InfiniBand
 
 ### Available Clusters
-
-**Cairo** - NERC Cairo cluster:
-- RWX storage via NFS
-- RDMA: mlx5_2,3,4,5 (400 Gb/s InfiniBand)
-- Requires privileged SCC for IPC_LOCK
-- Nodes: moc-r4pcc02u15, moc-r4pcc02u16
 
 **Barcelona** - NERC Barcelona cluster:
 - Per-pod storage (volumeClaimTemplates)
@@ -195,21 +183,20 @@ Cluster config approach:
 # List clusters
 make list-clusters
 
-# Deploy with RDMA (both clusters support RDMA)
-make deploy-cluster CLUSTER=cairo MODE=rdma
+# Deploy with RDMA (high performance)
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 
 # Deploy with TCP fallback (if RDMA unavailable)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
 
 # Dry run (preview)
-make deploy-cluster-dry-run CLUSTER=cairo MODE=rdma
+make deploy-cluster-dry-run CLUSTER=barcelona MODE=rdma
 
 # Check status
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 
 # Clean up
-make clean-cluster CLUSTER=cairo
+make clean-cluster CLUSTER=barcelona
 ```
 
 ### Create a New Cluster Config
@@ -411,7 +398,6 @@ ml-dev-env/
 ├── Makefile                   # Build and deployment automation
 │
 ├── clusters/                  # Cluster configuration files
-│   ├── cairo.yaml             # Cairo cluster config
 │   ├── barcelona.yaml         # Barcelona cluster config
 │   └── template.yaml          # Template for new clusters
 │
@@ -433,7 +419,7 @@ ml-dev-env/
 │   ├── sync-multi-node.sh
 │   └── debug-remote.sh
 │
-├── docs/                      # Documentation (14 files)
+├── docs/                      # Documentation
 │   ├── CLUSTER-CONFIG-GUIDE.md
 │   ├── MULTI-NODE-QUICKSTART.md
 │   ├── MULTI-NODE-GUIDE.md
@@ -446,8 +432,7 @@ ml-dev-env/
 │   ├── VSCODE-SETUP.md
 │   ├── VSCODE-DEBUG-GUIDE.md
 │   ├── VSCODE-DEBUG-TROUBLESHOOTING.md
-│   ├── REMOTE-DEBUG-WALKTHROUGH.md
-│   └── CAIRO_CLUSTER_RWX_RESULTS.md
+│   └── REMOTE-DEBUG-WALKTHROUGH.md
 │
 ├── examples/                  # Example code and configs
 │   ├── test_multi_gpu.py
@@ -554,7 +539,7 @@ oc exec ml-dev-env -- nvidia-smi
 
 **Multi-node pods not starting:**
 ```bash
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 oc describe pod ml-dev-env-0 -n nccl-test
 ```
 
@@ -613,7 +598,7 @@ Best practices:
 
 ### For Multi-Node Training
 1. Choose cluster: `make list-clusters`
-2. Deploy: `make deploy-cluster CLUSTER=cairo MODE=rdma`
+2. Deploy: `make deploy-cluster CLUSTER=barcelona MODE=rdma`
 3. Sync code: `make sync-multi-node`
 4. Shell in: `make shell-multi-node`
 5. Run training: `./launch_deepspeed.sh`
@@ -664,7 +649,7 @@ See [CLUSTER-CONFIG-GUIDE.md](docs/CLUSTER-CONFIG-GUIDE.md) for details.
 make list-clusters
 
 # Deploy multi-node
-make deploy-cluster CLUSTER=cairo MODE=rdma
+make deploy-cluster CLUSTER=barcelona MODE=rdma
 
 # Sync code
 make sync-multi-node
@@ -673,7 +658,7 @@ make sync-multi-node
 make shell-multi-node
 
 # Check status
-make status-cluster CLUSTER=cairo
+make status-cluster CLUSTER=barcelona
 
 # Single-node dev
 make dev-session
