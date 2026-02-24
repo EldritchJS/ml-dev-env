@@ -56,6 +56,7 @@ make list-clusters
 
 Example clusters:
 - **barcelona** - NERC Barcelona cluster with RDMA and per-pod storage
+- **nerc-production** - NERC Production cluster with TCP and RWX storage
 
 ## 📊 Deployment Modes
 
@@ -70,10 +71,14 @@ make deploy-cluster CLUSTER=barcelona MODE=rdma
 - Higher bandwidth, lower latency
 - Requires InfiniBand adapters (mlx5_*)
 
-### TCP Mode (Fallback)
-Use only if RDMA is unavailable or troubleshooting:
+### TCP Mode (Universal Compatibility)
+Use for clusters without RDMA or for wider compatibility:
 ```bash
+# Barcelona with TCP fallback
 make deploy-cluster CLUSTER=barcelona MODE=tcp
+
+# NERC Production (TCP only, no RDMA available)
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
 
 **Features**:

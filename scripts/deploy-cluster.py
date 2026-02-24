@@ -7,6 +7,7 @@ Usage:
 
 Examples:
     ./scripts/deploy-cluster.py barcelona --mode rdma
+    ./scripts/deploy-cluster.py nerc-production --mode tcp
     ./scripts/deploy-cluster.py barcelona --mode tcp --dry-run
 """
 
@@ -234,7 +235,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Deploy ML Dev Environment with cluster-specific configuration'
     )
-    parser.add_argument('cluster', help='Cluster name (e.g., barcelona)')
+    parser.add_argument('cluster', help='Cluster name (e.g., barcelona, nerc-production)')
     parser.add_argument('--mode', choices=['tcp', 'rdma'], default='tcp',
                        help='Network mode: tcp or rdma (default: tcp)')
     parser.add_argument('--dry-run', action='store_true',

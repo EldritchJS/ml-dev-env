@@ -28,17 +28,22 @@ make list-clusters
 
 Example clusters:
 - **barcelona** - NERC Barcelona cluster (RDMA + per-pod storage)
+- **nerc-production** - NERC Production cluster (TCP + RWX storage)
 
 ### Step 2: Deploy Multi-Node Environment
 
-**Option A: Use RDMA (High Performance)**
+**Option A: Use RDMA (High Performance - Barcelona only)**
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
-**Option B: Use TCP (Fallback - If RDMA Unavailable)**
+**Option B: Use TCP (Universal Compatibility)**
 ```bash
+# Barcelona with TCP
 make deploy-cluster CLUSTER=barcelona MODE=tcp
+
+# NERC Production (TCP only, no RDMA)
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
 
 ### Step 3: Wait for Pods

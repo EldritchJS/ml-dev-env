@@ -55,7 +55,7 @@ help:
 	@echo "  make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>  - Deploy to cluster"
 	@echo "  make clean-cluster CLUSTER=<name>                   - Clean cluster deployment"
 	@echo "  make status-cluster CLUSTER=<name>                  - Show cluster deployment status"
-	@echo "  Available clusters: barcelona"
+	@echo "  Available clusters: barcelona, nerc-production"
 	@echo ""
 	@echo "Configuration options (via environment variables):"
 	@echo "  NAMESPACE=<name>     - OpenShift namespace (default: nccl-test)"

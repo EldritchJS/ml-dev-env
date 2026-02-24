@@ -35,11 +35,12 @@ The cluster configuration system supports **two networking modes** for multi-nod
 # List available clusters
 make list-clusters
 
-# RDMA Mode (high performance)
+# RDMA Mode (high performance - Barcelona only)
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 
-# TCP Mode (fallback - if RDMA unavailable)
+# TCP Mode (universal compatibility)
 make deploy-cluster CLUSTER=barcelona MODE=tcp
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
 
 ### What the Cluster Config Handles
@@ -93,6 +94,46 @@ Deploy with:
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=tcp
 ```
+
+### TCP-Only Clusters (No RDMA Hardware)
+
+Some clusters like NERC Production don't have InfiniBand/RDMA hardware and only support TCP:
+
+```yaml
+cluster:
+  name: nerc-production
+  api: api.shift.nerc.mghpcc.org
+  namespace: coops-767192
+
+network:
+  rdma:
+    enabled: false  # No RDMA hardware available
+  tcp:
+    interface_exclude: "^lo,docker0"
+    p2p_level: "NVL"
+
+storage:
+  # TCP-only clusters often have RWX via NFS
+  mode: rwx
+  class_rwx: nfs-csi
+  workspace_size: 100Gi
+
+security:
+  requires_privileged_scc: false
+  ipc_lock: false
+```
+
+Deploy with:
+```bash
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
+```
+
+**Features**:
+- 25 GPU nodes available (wrk-97 through wrk-128)
+- 4x H100 80GB HBM3 per node
+- Shared RWX storage via NFS
+- Standard Ethernet networking
+- No special security requirements
 
 ### RDMA Mode Configuration
 

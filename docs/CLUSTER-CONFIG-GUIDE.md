@@ -47,6 +47,20 @@ make clean-cluster CLUSTER=barcelona
 
 ## Available Clusters
 
+### Quick Comparison
+
+| Feature | Barcelona | NERC Production |
+|---------|-----------|-----------------|
+| **Location** | barcelona.nerc.mghpcc.org | api.shift.nerc.mghpcc.org |
+| **Namespace** | nccl-test | coops-767192 |
+| **Storage** | Per-pod (volumeClaimTemplates) | RWX (NFS) |
+| **Networking** | RDMA + TCP | TCP only |
+| **RDMA Devices** | mlx5_6,7,10,11 | None |
+| **GPU Nodes** | 2 nodes | 25 nodes (wrk-97 to wrk-128) |
+| **GPUs per Node** | 4x H100 80GB HBM3 | 4x H100 80GB HBM3 |
+| **Privileged SCC** | Not required | Not required |
+| **Best For** | High-performance RDMA training | Large-scale TCP training, shared storage |
+
 ### Barcelona
 **Location**: NERC Barcelona cluster (barcelona.nerc.mghpcc.org)
 
@@ -65,7 +79,31 @@ oc create serviceaccount ml-dev-sa -n nccl-test
 
 **Deploy**:
 ```bash
-make deploy-cluster CLUSTER=barcelona MODE=tcp
+make deploy-cluster CLUSTER=barcelona MODE=rdma
+```
+
+### NERC Production
+**Location**: NERC Production cluster (api.shift.nerc.mghpcc.org)
+
+**Configuration Highlights**:
+- **Storage**: RWX shared storage via NFS (nfs-csi)
+- **RDMA**: Not available - TCP only
+- **Security**: No privileged SCC required, no IPC_LOCK
+- **Nodes**: 25 GPU nodes (wrk-97 through wrk-128)
+- **GPUs**: 4x H100 80GB HBM3 per node
+
+**Setup Required**:
+```bash
+# Service account (no privileged SCC)
+oc create serviceaccount ml-dev-sa -n coops-767192
+
+# Verify NFS server is running
+oc get pods -n nfs
+```
+
+**Deploy**:
+```bash
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
 
 ## Creating a New Cluster Configuration
@@ -322,6 +360,9 @@ python3 scripts/deploy-cluster.py <cluster-name> [--mode tcp|rdma] [--dry-run] [
 # Deploy Barcelona with RDMA
 python3 scripts/deploy-cluster.py barcelona --mode rdma
 
+# Deploy NERC Production with TCP
+python3 scripts/deploy-cluster.py nerc-production --mode tcp
+
 # Dry run for Barcelona with TCP
 python3 scripts/deploy-cluster.py barcelona --mode tcp --dry-run
 
@@ -339,7 +380,7 @@ make list-clusters
 
 # Deploy
 make deploy-cluster CLUSTER=barcelona MODE=rdma
-make deploy-cluster CLUSTER=barcelona MODE=tcp
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
 
 # Dry run
 make deploy-cluster-dry-run CLUSTER=barcelona MODE=rdma
@@ -470,6 +511,7 @@ For most training workloads, TCP mode is sufficient. Use RDMA when:
 Error: Cluster configuration not found: clusters/my-cluster.yaml
 Available clusters:
   - barcelona
+  - nerc-production
   - template
 ```
 
@@ -519,6 +561,7 @@ oc get scc privileged
 
 See the following files for complete examples:
 - `clusters/barcelona.yaml` - Per-pod storage, RDMA, no privileged SCC
+- `clusters/nerc-production.yaml` - RWX storage, TCP only, no privileged SCC
 - `clusters/template.yaml` - Fully documented template
 
 ## Related Documentation

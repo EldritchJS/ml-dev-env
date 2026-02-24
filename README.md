@@ -61,19 +61,20 @@ make list-clusters
 Example output:
 ```
 Available cluster configurations:
-  - barcelona  (NERC Barcelona - RDMA + per-pod storage)
+  - barcelona       (NERC Barcelona - RDMA + per-pod storage)
+  - nerc-production (NERC Production - TCP + RWX storage)
 ```
 
 ### 2. Deploy to a Cluster
 
-**Multi-Node with RDMA (High Performance):**
+**Multi-Node with RDMA (High Performance - Barcelona):**
 ```bash
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 ```
 
-**Multi-Node with TCP (Fallback):**
+**Multi-Node with TCP (Production cluster):**
 ```bash
-make deploy-cluster CLUSTER=barcelona MODE=tcp
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
 ```
 
 **Preview before deploying:**
@@ -177,17 +178,24 @@ Cluster config approach:
 - No privileged SCC required
 - Nodes: moc-r4pcc04u25-nairr, moc-r4pcc04u23-nairr
 
+**NERC Production** - NERC Production cluster (shift.nerc.mghpcc.org):
+- RWX storage via NFS (nfs-csi)
+- TCP only (no RDMA/InfiniBand)
+- No privileged SCC required
+- 25 GPU nodes available (wrk-97 through wrk-128)
+- 4x H100 80GB HBM3 per node
+
 ### Deploy to a Cluster
 
 ```bash
 # List clusters
 make list-clusters
 
-# Deploy with RDMA (high performance)
+# Deploy with RDMA (high performance - Barcelona)
 make deploy-cluster CLUSTER=barcelona MODE=rdma
 
-# Deploy with TCP fallback (if RDMA unavailable)
-make deploy-cluster CLUSTER=barcelona MODE=tcp
+# Deploy with TCP (Production cluster)
+make deploy-cluster CLUSTER=nerc-production MODE=tcp
 
 # Dry run (preview)
 make deploy-cluster-dry-run CLUSTER=barcelona MODE=rdma
@@ -399,6 +407,7 @@ ml-dev-env/
 │
 ├── clusters/                  # Cluster configuration files
 │   ├── barcelona.yaml         # Barcelona cluster config
+│   ├── nerc-production.yaml   # NERC Production cluster config
 │   └── template.yaml          # Template for new clusters
 │
 ├── k8s/                       # Kubernetes/OpenShift manifests
