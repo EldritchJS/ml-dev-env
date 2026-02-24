@@ -969,7 +969,7 @@ env | grep NCCL  # Check NCCL configuration
         with open(quickstart_path, "w") as f:
             f.write(quickstart)
 
-        print(f"  ✓ Created: QUICKSTART.md")
+        print("  ✓ Created: QUICKSTART.md")
 
     def _generate_project_scripts(self):
         """Generate convenience scripts from templates"""
