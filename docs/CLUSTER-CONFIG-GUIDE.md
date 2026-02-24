@@ -108,6 +108,68 @@ make deploy-cluster CLUSTER=nerc-production MODE=tcp
 
 ## Creating a New Cluster Configuration
 
+### Method 1: Auto-Discovery (Recommended)
+
+The easiest way to create a cluster configuration is to use the auto-discovery tool. This tool connects to your cluster and automatically detects:
+
+- GPU nodes and specifications
+- RDMA/InfiniBand devices
+- Storage classes (RWX and RWO)
+- Security requirements
+- Network configuration
+
+**Usage:**
+
+```bash
+# Make sure you're logged into the cluster
+oc login https://api.your-cluster.com:6443
+
+# Switch to the namespace you'll use for ML training
+oc project my-ml-namespace
+
+# Discover and generate configuration
+make discover-cluster NAME=my-cluster
+
+# Or specify a custom namespace
+make discover-cluster NAME=my-cluster NAMESPACE=ml-training
+
+# Review the generated configuration
+cat clusters/my-cluster.yaml
+
+# Deploy
+make deploy-cluster CLUSTER=my-cluster MODE=tcp
+```
+
+**What it discovers:**
+
+- ✅ **Cluster API** endpoint
+- ✅ **GPU nodes** - finds all nodes with nvidia.com/gpu.present=true label
+- ✅ **GPU specifications** - count and type (H100, A100, etc.)
+- ✅ **RDMA devices** - detects Mellanox InfiniBand (mlx5_*) devices
+- ✅ **Storage classes** - finds RWX (NFS, CephFS) and RWO (RBD) storage
+- ✅ **Security** - determines if privileged SCC is needed
+- ✅ **Network** - configures TCP or RDMA based on available hardware
+
+**Direct script usage:**
+
+```bash
+# Basic discovery
+./scripts/discover-cluster.py --name my-cluster
+
+# With custom namespace
+./scripts/discover-cluster.py --name my-cluster --namespace ml-training
+
+# Custom output path
+./scripts/discover-cluster.py --name my-cluster --output /path/to/config.yaml
+
+# Dry run (print to stdout)
+./scripts/discover-cluster.py --name my-cluster --dry-run
+```
+
+### Method 2: Manual Configuration (Template)
+
+If auto-discovery doesn't work or you need more control:
+
 ### Step 1: Copy Template
 
 ```bash

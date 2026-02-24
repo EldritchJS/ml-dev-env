@@ -119,11 +119,16 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
 - **[BUILD-ON-CLUSTER.md](docs/BUILD-ON-CLUSTER.md)** - Building container images
 
 ### Cluster Configuration
+- **[CLUSTER-DISCOVERY-GUIDE.md](docs/CLUSTER-DISCOVERY-GUIDE.md)** - Auto-discover cluster config
+  - Automatic cluster detection
+  - GPU and RDMA discovery
+  - Storage and network configuration
+  - Troubleshooting
 - **[CLUSTER-CONFIG-GUIDE.md](docs/CLUSTER-CONFIG-GUIDE.md)** - Complete cluster config guide
   - Creating cluster configurations
   - Configuration reference
   - Deployment workflows
-  - Troubleshooting
+  - Manual configuration
 
 ### Multi-Node Training
 - **[MULTI-NODE-GUIDE.md](docs/MULTI-NODE-GUIDE.md)** - Detailed multi-node guide
@@ -209,6 +214,23 @@ make clean-cluster CLUSTER=barcelona
 
 ### Create a New Cluster Config
 
+**Option 1: Auto-Discovery (Recommended)**
+```bash
+# Login to your cluster
+oc login https://api.your-cluster.com:6443
+oc project my-namespace
+
+# Auto-discover configuration
+make discover-cluster NAME=my-cluster
+
+# Review and edit if needed
+vim clusters/my-cluster.yaml
+
+# Deploy
+make deploy-cluster CLUSTER=my-cluster MODE=rdma
+```
+
+**Option 2: Manual Configuration**
 ```bash
 # 1. Copy template
 cp clusters/template.yaml clusters/my-cluster.yaml
@@ -420,6 +442,7 @@ ml-dev-env/
 │   └── statefulset-multi-node-tcp.yaml   # Multi-node TCP
 │
 ├── scripts/                   # Automation scripts
+│   ├── discover-cluster.py    # Auto-discover cluster config
 │   ├── deploy-cluster.py      # Cluster-based deployment
 │   ├── deploy-multi-node-rdma.sh
 │   ├── deploy-multi-node-tcp.sh
@@ -429,6 +452,7 @@ ml-dev-env/
 │   └── debug-remote.sh
 │
 ├── docs/                      # Documentation
+│   ├── CLUSTER-DISCOVERY-GUIDE.md
 │   ├── CLUSTER-CONFIG-GUIDE.md
 │   ├── MULTI-NODE-QUICKSTART.md
 │   ├── MULTI-NODE-GUIDE.md

@@ -52,6 +52,8 @@ help:
 	@echo "  make clean-multi-node   - Remove multi-node deployment"
 	@echo ""
 	@echo "Cluster-based deployment (centralized configuration):"
+	@echo "  make list-clusters                                  - List available cluster configs"
+	@echo "  make discover-cluster NAME=<name>                   - Auto-discover cluster config"
 	@echo "  make deploy-cluster CLUSTER=<name> MODE=<tcp|rdma>  - Deploy to cluster"
 	@echo "  make clean-cluster CLUSTER=<name>                   - Clean cluster deployment"
 	@echo "  make status-cluster CLUSTER=<name>                  - Show cluster deployment status"
@@ -323,3 +325,20 @@ status-cluster:
 list-clusters:
 	@echo "Available cluster configurations:"
 	@ls -1 clusters/*.yaml | sed 's/clusters\//  - /' | sed 's/.yaml//'
+
+discover-cluster:
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME not specified."; \
+		echo "Usage: make discover-cluster NAME=<cluster-name> [NAMESPACE=<namespace>]"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make discover-cluster NAME=my-cluster"; \
+		echo "  make discover-cluster NAME=prod NAMESPACE=ml-training"; \
+		exit 1; \
+	fi
+	@echo "🔍 Discovering cluster configuration..."
+	@if [ -n "$(NAMESPACE)" ]; then \
+		python3 scripts/discover-cluster.py --name $(NAME) --namespace $(NAMESPACE); \
+	else \
+		python3 scripts/discover-cluster.py --name $(NAME); \
+	fi
