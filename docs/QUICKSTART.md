@@ -179,6 +179,53 @@ oc cp nccl-test/ml-dev-env:/workspace/model.pt ./local_model.pt
 oc cp my_project/ nccl-test/ml-dev-env:/workspace/
 ```
 
+### Download Data from URLs
+
+Download datasets directly to the pod (faster than local download + upload):
+
+```bash
+# Using wget
+oc exec ml-dev-env -n nccl-test -- \
+  wget -P /datasets/ https://example.com/dataset.tar.gz
+
+# Using curl with progress bar
+oc exec ml-dev-env -n nccl-test -- \
+  curl -# -L -o /datasets/data.zip https://example.com/data.zip
+
+# Download and extract in one step
+oc exec ml-dev-env -n nccl-test -- \
+  bash -c "wget -O- https://example.com/data.tar.gz | tar -xzf - -C /datasets/"
+```
+
+**From HuggingFace:**
+
+```bash
+# Install huggingface-hub if needed
+oc exec ml-dev-env -n nccl-test -- pip install huggingface-hub
+
+# Download dataset
+oc exec ml-dev-env -n nccl-test -- \
+  python3 -c "
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id='username/dataset-name',
+    repo_type='dataset',
+    local_dir='/datasets/my-dataset'
+)
+"
+```
+
+**From Google Drive:**
+
+```bash
+# Install gdown
+oc exec ml-dev-env -n nccl-test -- pip install gdown
+
+# Download file (replace FILE_ID)
+oc exec ml-dev-env -n nccl-test -- \
+  gdown https://drive.google.com/uc?id=FILE_ID -O /datasets/file.zip
+```
+
 ### Monitor Training
 
 ```bash
@@ -266,30 +313,100 @@ oc start-build ml-dev-env
 # If flash-attn fails, you can remove it from the BuildConfig
 ```
 
-## VSCode Debugging Setup
+## Development Workflow with Makefile
 
-### 1. Inside VSCode (Browser)
+The fastest way to develop and debug is using the Makefile commands:
 
-1. Click Extensions icon (left sidebar)
-2. Install:
-   - Python
-   - Pylance
-   - Jupyter
-
-### 2. Configure Workspace
+### Quick Start - Automated Dev Session
 
 ```bash
-# Copy debug configs
-oc cp examples/vscode/launch.json nccl-test/ml-dev-env:/workspace/.vscode/
-oc cp examples/vscode/settings.json nccl-test/ml-dev-env:/workspace/.vscode/
+# Start everything in one command (sync + port-forward + watch)
+make dev-session
 ```
 
-### 3. Debug Your Code
+This automatically:
+1. Syncs your local code to the pod
+2. Watches for changes and auto-syncs
+3. Sets up port-forwarding for debugging (port 5678)
+4. Keeps everything running
 
-1. Open your Python file
-2. Set breakpoints (click left of line numbers)
-3. Press F5
-4. Select "Python: Current File" or "Python: Multi-GPU Training"
+**See [QUICK-DEV-GUIDE.md](QUICK-DEV-GUIDE.md) for complete details**
+
+### Individual Commands
+
+```bash
+# One-time code sync
+make sync-once
+
+# Auto-sync on file changes (watch mode)
+make sync-code
+
+# Port-forward for debugging
+make port-forward
+
+# Shell into pod
+make shell
+```
+
+### Configuration
+
+Customize namespace, pod name, directories:
+
+```bash
+# Set environment variables
+export NAMESPACE=nccl-test
+export POD_NAME=ml-dev-env
+export LOCAL_DIR=./workspace
+export REMOTE_DIR=/workspace
+export DEBUG_PORT=5678
+
+# Then use Makefile commands
+make dev-session
+```
+
+## VSCode Debugging Setup
+
+### Quick Setup
+
+1. **Install VSCode Python extension** - See [VSCODE-SETUP.md](VSCODE-SETUP.md)
+2. **Start dev session** - `make dev-session` (auto-syncs code + port-forwards)
+3. **Set breakpoints** in your Python files
+4. **Press F5** in VSCode to attach debugger
+
+### Debugging Controls
+
+Once attached to the debugger:
+
+- **F10** - Step Over (execute current line)
+- **F11** - Step Into (enter function calls)
+- **Shift+F11** - Step Out (exit current function)
+- **F5** - Continue (run until next breakpoint)
+- **Shift+F5** - Stop Debugging
+
+### Debug Console
+
+At the bottom, use the Debug Console to run commands while paused:
+
+```python
+# Check GPU memory
+>>> import torch
+>>> torch.cuda.memory_allocated(0) / 1024**3  # GB
+
+# Inspect variables
+>>> print(tensor.shape)
+>>> type(model)
+
+# Check all GPUs
+>>> for i in range(4):
+...     print(f"GPU {i}: {torch.cuda.memory_allocated(i) / 1024**3:.2f} GB")
+```
+
+### Detailed Guides
+
+For step-by-step debugging tutorials, see:
+- **[REMOTE-DEBUG-WALKTHROUGH.md](REMOTE-DEBUG-WALKTHROUGH.md)** - Complete walkthrough
+- **[VSCODE-DEBUG-GUIDE.md](VSCODE-DEBUG-GUIDE.md)** - All debugging methods
+- **[VSCODE-DEBUG-TROUBLESHOOTING.md](VSCODE-DEBUG-TROUBLESHOOTING.md)** - Common issues
 
 ## Example Workflows
 

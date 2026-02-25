@@ -382,33 +382,44 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for complete single-node guide.
 
 ## 💻 Development Workflow
 
-### Automated Development Session
+### Automated Development Session (Recommended)
+
+The fastest way to develop and debug on the cluster:
 
 ```bash
-# Start dev session (sync + port-forward + watch)
+# Start everything in one command
 make dev-session
 ```
 
 This automatically:
 
-1. Syncs your local code to the pod
-2. Watches for changes and auto-syncs
-3. Sets up port-forwarding for debugging
-4. Waits for you to run your script
+1. ✅ Syncs your local code to the pod
+2. ✅ Watches for changes and auto-syncs every 2 seconds
+3. ✅ Sets up port-forwarding for VSCode debugging (port 5678)
+4. ✅ Keeps everything running while you develop
 
-See [QUICK-DEV-GUIDE.md](docs/QUICK-DEV-GUIDE.md) for details.
+Then in VSCode:
+- Set breakpoints in your code
+- Press **F5** to attach debugger
+- Edit code locally - it auto-syncs to the pod
+- Debug live on the cluster GPUs
 
-### Manual Workflow
+See [QUICK-DEV-GUIDE.md](docs/QUICK-DEV-GUIDE.md) for complete workflow guide.
+
+### Individual Commands
 
 ```bash
-# Sync code once
+# One-time code sync
 make sync-once
 
-# Shell into pod
-make shell
+# Auto-sync on file changes (watch mode)
+make sync-code
 
 # Port-forward for debugging
 make port-forward
+
+# Shell into pod
+make shell
 ```
 
 ### Configuration
@@ -419,8 +430,9 @@ Customize namespace, pod name, directories:
 # Environment variables
 export NAMESPACE=my-namespace
 export POD_NAME=my-pod
-export LOCAL_DIR=./src
-export REMOTE_DIR=/app
+export LOCAL_DIR=./workspace
+export REMOTE_DIR=/workspace
+export DEBUG_PORT=5678
 
 make dev-session
 ```

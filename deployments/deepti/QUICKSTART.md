@@ -2,6 +2,12 @@
 
 Qwen2.5-Omni multimodal model testing on OpenShift with GPU acceleration.
 
+> **For general VSCode setup, debugging, and development workflows, see the main documentation:**
+> - **[QUICKSTART.md](../../docs/QUICKSTART.md)** - General quickstart guide
+> - **[QUICK-DEV-GUIDE.md](../../docs/QUICK-DEV-GUIDE.md)** - Makefile development workflow
+> - **[REMOTE-DEBUG-WALKTHROUGH.md](../../docs/REMOTE-DEBUG-WALKTHROUGH.md)** - VSCode debugging tutorial
+> - **[VSCODE-DEBUG-GUIDE.md](../../docs/VSCODE-DEBUG-GUIDE.md)** - Complete debugging guide
+
 ## 🚀 Quick Deploy (2 Steps)
 
 ### 1. Deploy Test Pod
@@ -125,16 +131,6 @@ python deepti.py
 python deepti-simple.py
 ```
 
-### Delete Test Pod
-
-```bash
-# Delete pod
-oc delete pod deepti-test
-
-# Verify deletion
-oc get pod deepti-test
-```
-
 ---
 
 ## 🧪 Test Scripts
@@ -191,19 +187,6 @@ oc exec deepti-test -- python -c "import flash_attn; print(f'Flash Attention {fl
 oc exec deepti-test -- python -c "import torch; print(f'CUDA: {torch.version.cuda}, PyTorch: {torch.__version__}')"
 ```
 
-### Check Model Loading
-
-```bash
-# Model cache location
-oc exec deepti-test -- ls -lh ~/.cache/huggingface/hub/
-
-# Available disk space
-oc exec deepti-test -- df -h /
-
-# Memory usage
-oc exec deepti-test -- free -h
-```
-
 ### RDMA Verification (Barcelona Only)
 
 ```bash
@@ -215,6 +198,43 @@ oc exec deepti-test -- env | grep NCCL
 
 # Expected devices: mlx5_6, mlx5_7, mlx5_10, mlx5_11
 ```
+
+---
+
+## 🛠️ Development Workflow
+
+For developing and debugging on this deployment:
+
+### Quick Start
+
+```bash
+# Configure environment for deepti deployment
+export NAMESPACE=mllm-interpretation-and-failure-investigation-c8fa7f  # or your namespace
+export POD_NAME=deepti-debug  # or deepti-test
+export LOCAL_DIR=./workspace
+export REMOTE_DIR=/workspace
+
+# Start automated dev session
+make dev-session
+```
+
+This gives you:
+- Auto-sync of code changes
+- Port-forwarding for VSCode debugging
+- Live debugging on cluster GPUs
+
+### VSCode Debugging
+
+1. **Start dev session:** `make dev-session`
+2. **Set breakpoints** in `workspace/deepti.py` or your test scripts
+3. **Press F5** in VSCode to attach debugger
+4. **Debug controls:**
+   - **F10** - Step over
+   - **F11** - Step into
+   - **F5** - Continue
+   - **Shift+F5** - Stop
+
+**See [QUICK-DEV-GUIDE.md](../../docs/QUICK-DEV-GUIDE.md) for complete workflow details**
 
 ---
 
@@ -231,19 +251,6 @@ oc exec deepti-test -- nvidia-smi --query-gpu=memory.used,memory.total --format=
 
 # All GPU stats
 oc exec deepti-test -- nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv
-```
-
-### System Resources
-
-```bash
-# CPU/Memory
-oc exec deepti-test -- top -b -n 1 | head -20
-
-# Disk usage
-oc exec deepti-test -- df -h
-
-# Process list
-oc exec deepti-test -- ps aux | grep python
 ```
 
 ---
@@ -305,33 +312,6 @@ oc exec deepti-test -- nvidia-smi
 # - Use BF16 instead of FP32
 # - Enable Flash Attention
 # - Use device_map="auto" for model sharding
-```
-
-### Flash Attention Not Working
-
-```bash
-# Check if installed
-oc exec deepti-test -- pip show flash-attn
-
-# GPU architecture check (needs Ampere or newer)
-oc exec deepti-test -- nvidia-smi --query-gpu=compute_cap --format=csv
-
-# Ampere (A100) = 8.0
-# Hopper (H100) = 9.0
-# Flash Attention 2 requires >= 8.0
-```
-
-### ffmpeg Errors
-
-```bash
-# Check ffmpeg installation
-oc exec deepti-test -- ffmpeg -version
-
-# Test video creation
-oc exec deepti-test -- ffmpeg -f lavfi -i testsrc=size=224x224:rate=5 -t 2 -pix_fmt yuv420p /tmp/test.mp4
-
-# Verify video created
-oc exec deepti-test -- ls -lh /tmp/test.mp4
 ```
 
 ---
@@ -410,9 +390,23 @@ Adjust in YAML if needed for your workload.
 2. **Modify test scripts** in workspace/ for your use case
 3. **Try different models** from HuggingFace
 4. **Optimize configuration** for your workload
-5. **Scale to multi-node** if needed (see h-kim/yunshi deployments)
+5. **Use VSCode debugging** for development (see main docs)
 
-For more details, see [README.md](README.md).
+For more details, see [README.md](README.md) and main documentation.
+
+---
+
+## 📚 Additional Documentation
+
+### Main Documentation (General Workflows)
+- **[QUICKSTART.md](../../docs/QUICKSTART.md)** - General quickstart
+- **[QUICK-DEV-GUIDE.md](../../docs/QUICK-DEV-GUIDE.md)** - Development workflow
+- **[REMOTE-DEBUG-WALKTHROUGH.md](../../docs/REMOTE-DEBUG-WALKTHROUGH.md)** - Debugging tutorial
+- **[VSCODE-DEBUG-GUIDE.md](../../docs/VSCODE-DEBUG-GUIDE.md)** - Debugging reference
+
+### Deployment-Specific
+- **[README.md](README.md)** - Deepti deployment overview
+- **[MIGRATION.md](MIGRATION.md)** - Migration from old structure
 
 ---
 
@@ -448,3 +442,9 @@ oc cp local-file.py deepti-test:/workspace/
 # Copy results from pod
 oc cp deepti-test:/workspace/output.txt ./output.txt
 ```
+
+---
+
+Happy testing! 🚀
+
+For data management, file downloads, and PVC workflows, see the main [QUICKSTART.md](../../docs/QUICKSTART.md).
