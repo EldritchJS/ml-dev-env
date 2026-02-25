@@ -13,7 +13,8 @@ MODE="rdma"
 DEPLOYMENT_TYPE="multi"
 IMAGE_SOURCE="quay"
 DRY_RUN=false
-NODES="moc-r4pcc04u23-nairr,moc-r4pcc04u25-nairr"
+#NODES="moc-r4pcc04u23-nairr,moc-r4pcc04u25-nairr"
+NODES="moc-r4pcc04u09-nairr,moc-r4pcc04u11-nairr,moc-r4pcc04u12-nairr,moc-r4pcc04u16-nairr,moc-r4pcc04u25-nairr,moc-r4pcc04u36-nairr"
 
 # Colors for output
 RED='\033[0;31m'
@@ -200,11 +201,108 @@ else
     fi
 fi
 
+# Deploy NCCL IB auto-detection ConfigMap
+log_info "Deploying NCCL InfiniBand auto-detection ConfigMap..."
+configmap=$(cat << 'EOFCONFIGMAP'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nccl-ib-autodetect
+  labels:
+    app: ml-training
+    component: nccl-config
+data:
+  nccl-wrapper.sh: |
+    #!/bin/bash
+
+    # Set unlimited locked memory (critical for RDMA)
+    ulimit -l unlimited 2>/dev/null || echo "Warning: Could not set unlimited memlock"
+
+    echo "=== NCCL InfiniBand Auto-Detection ==="
+
+    # Check memory lock limit
+    MEMLOCK_LIMIT=$(ulimit -l)
+    if [ "$MEMLOCK_LIMIT" != "unlimited" ]; then
+        echo "⚠ WARNING: Memory lock limit is $MEMLOCK_LIMIT KB (should be unlimited for RDMA)"
+        echo "  This may cause RDMA errors. Trying to increase..."
+        ulimit -l unlimited 2>/dev/null && echo "  ✓ Set to unlimited" || echo "  ✗ Failed to set unlimited"
+    else
+        echo "✓ Memory lock limit: unlimited"
+    fi
+
+    # Auto-detect allocated SR-IOV RDMA devices from device plugin env vars
+    IB_DEVICES=""
+
+    # Extract rdma_dev from SR-IOV device plugin INFO environment variables
+    for var in $(env | grep "PCIDEVICE_.*_INFO=" | cut -d= -f1); do
+        rdma_dev=$(eval echo \$$var | grep -o '"rdma_dev":"[^"]*"' | cut -d'"' -f4)
+        if [ -n "$rdma_dev" ]; then
+            if [ -z "$IB_DEVICES" ]; then
+                IB_DEVICES="$rdma_dev"
+            else
+                IB_DEVICES="$IB_DEVICES,$rdma_dev"
+            fi
+        fi
+    done
+
+    if [ -n "$IB_DEVICES" ]; then
+        export NCCL_IB_HCA="$IB_DEVICES"
+        echo "✓ Auto-detected allocated SR-IOV devices: $NCCL_IB_HCA"
+        IB_COUNT=$(echo "$IB_DEVICES" | tr ',' '\n' | wc -l)
+        echo "✓ Found $IB_COUNT SR-IOV allocated device(s)"
+    else
+        echo "⚠ Warning: No SR-IOV devices found in environment variables"
+        echo "  Falling back to SR-IOV VF detection..."
+
+        # Fallback: Filter for SR-IOV VF devices
+        if command -v ibv_devinfo &> /dev/null; then
+            VF_DEVICES=""
+            for dev in $(ibv_devinfo -l 2>/dev/null | tail -n +2 | sed 's/^[[:space:]]*//'); do
+                if [ -L "/sys/class/infiniband/$dev/device/physfn" ]; then
+                    if [ -z "$VF_DEVICES" ]; then
+                        VF_DEVICES="$dev"
+                    else
+                        VF_DEVICES="$VF_DEVICES,$dev"
+                    fi
+                fi
+            done
+
+            if [ -n "$VF_DEVICES" ]; then
+                export NCCL_IB_HCA="$VF_DEVICES"
+                echo "✓ Using SR-IOV VF devices: $NCCL_IB_HCA"
+            fi
+        fi
+    fi
+
+    # Set NCCL environment variables
+    export NCCL_DEBUG=${NCCL_DEBUG:-INFO}
+    export NCCL_IB_DISABLE=${NCCL_IB_DISABLE:-0}
+    export NCCL_NET_GDR_LEVEL=${NCCL_NET_GDR_LEVEL:-5}
+    export NCCL_IB_GID_INDEX=${NCCL_IB_GID_INDEX:-3}
+    export NCCL_IB_TIMEOUT=${NCCL_IB_TIMEOUT:-22}
+
+    echo ""
+    echo "=== NCCL Configuration ==="
+    env | grep ^NCCL_ | sort | sed 's/^/  /'
+    echo "  MEMLOCK_LIMIT=$(ulimit -l)"
+    echo "=========================="
+    echo ""
+
+    exec "$@"
+EOFCONFIGMAP
+)
+
+# Update the ConfigMap namespace
+configmap=$(echo "$configmap" | sed "s/  name: nccl-ib-autodetect/  name: nccl-ib-autodetect\n  namespace: $NAMESPACE/")
+apply_manifest "$configmap" "NCCL IB Auto-Detection ConfigMap"
+
 # Configure network settings based on mode
 if [[ "$MODE" == "rdma" ]]; then
     NCCL_SOCKET_IFNAME="eth0"  # Use eth0 for bootstrap, IB devices for RDMA data
     NCCL_IB_DISABLE="0"
-    NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+    # NCCL_IB_HCA is now auto-detected by the wrapper script at runtime
+    # Old hardcoded value: NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+    NCCL_IB_HCA=""  # Will be set by auto-detection wrapper
     NCCL_IB_GID_INDEX="3"
     NCCL_NET_GDR_LEVEL="5"
     NETWORK_ANNOTATIONS="      annotations:
@@ -214,6 +312,7 @@ if [[ "$MODE" == "rdma" ]]; then
             openshift.io/eno7np0rdma: 1
             openshift.io/eno8np0rdma: 1"
     SECURITY_CONTEXT="        securityContext:
+          privileged: true
           capabilities:
             add:
               - IPC_LOCK"
@@ -306,8 +405,7 @@ $SRIOV_RESOURCES
       value: "$NCCL_SOCKET_IFNAME"
     - name: NCCL_IB_DISABLE
       value: "$NCCL_IB_DISABLE"
-    - name: NCCL_IB_HCA
-      value: "$NCCL_IB_HCA"
+    # NCCL_IB_HCA is auto-detected by wrapper script
     - name: NCCL_IB_GID_INDEX
       value: "$NCCL_IB_GID_INDEX"
     - name: NCCL_NET_GDR_LEVEL
@@ -320,8 +418,10 @@ $SRIOV_RESOURCES
       mountPath: /workspace
     - name: dshm
       mountPath: /dev/shm
+    - name: nccl-wrapper
+      mountPath: /scripts
 
-    command: ["/bin/bash", "-c", "sleep infinity"]
+    command: ["/bin/bash", "/scripts/nccl-wrapper.sh", "sleep", "infinity"]
 
   volumes:
   - name: workspace
@@ -330,6 +430,10 @@ $SRIOV_RESOURCES
     emptyDir:
       medium: Memory
       sizeLimit: 32Gi
+  - name: nccl-wrapper
+    configMap:
+      name: nccl-ib-autodetect
+      defaultMode: 0755
 EOF
 )
 
@@ -439,8 +543,7 @@ $SRIOV_RESOURCES
           value: "$NCCL_SOCKET_IFNAME"
         - name: NCCL_IB_DISABLE
           value: "$NCCL_IB_DISABLE"
-        - name: NCCL_IB_HCA
-          value: "$NCCL_IB_HCA"
+        # NCCL_IB_HCA is auto-detected by wrapper script
         - name: NCCL_IB_GID_INDEX
           value: "$NCCL_IB_GID_INDEX"
         - name: NCCL_NET_GDR_LEVEL
@@ -459,9 +562,13 @@ $SRIOV_RESOURCES
           mountPath: /workspace
         - name: dshm
           mountPath: /dev/shm
+        - name: nccl-wrapper
+          mountPath: /scripts
 
         command:
         - /bin/bash
+        - /scripts/nccl-wrapper.sh
+        - bash
         - -c
         - |
           set -e
@@ -485,6 +592,10 @@ $SRIOV_RESOURCES
         emptyDir:
           medium: Memory
           sizeLimit: 32Gi
+      - name: nccl-wrapper
+        configMap:
+          name: nccl-ib-autodetect
+          defaultMode: 0755
 
   volumeClaimTemplates:
   - metadata:

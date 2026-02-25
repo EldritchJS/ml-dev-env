@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nccl-ib-autodetect
+  labels:
+    app: ml-training
+    component: nccl-config
+data:
+  nccl-wrapper.sh: |
+    #!/bin/bash
+    #
+    # NCCL Wrapper Script - Auto-detects InfiniBand devices
+    #
+    # Usage: nccl-wrapper.sh <command> [args...]
+    # Example: nccl-wrapper.sh python train.py
+    #
+    # This script automatically detects which InfiniBand devices have working
+    # verb interfaces (via ibv_devinfo) and sets NCCL_IB_HCA accordingly.
+    #
+
+    # Set unlimited locked memory (critical for RDMA)
+    ulimit -l unlimited 2>/dev/null || echo "Warning: Could not set unlimited memlock"
+
+    echo "=== NCCL InfiniBand Auto-Detection ==="
+
+    # Check memory lock limit
+    MEMLOCK_LIMIT=$(ulimit -l)
+    if [ "$MEMLOCK_LIMIT" != "unlimited" ]; then
+        echo "⚠ WARNING: Memory lock limit is $MEMLOCK_LIMIT KB (should be unlimited for RDMA)"
+        echo "  This may cause RDMA errors. Trying to increase..."
+        ulimit -l unlimited 2>/dev/null && echo "  ✓ Set to unlimited" || echo "  ✗ Failed to set unlimited"
+    else
+        echo "✓ Memory lock limit: unlimited"
+    fi
+
+    # Auto-detect allocated SR-IOV RDMA devices from device plugin env vars
+    IB_DEVICES=""
+
+    # Extract rdma_dev from SR-IOV device plugin INFO environment variables
+    for var in $(env | grep "PCIDEVICE_.*_INFO=" | cut -d= -f1); do
+        rdma_dev=$(eval echo \$$var | grep -o '"rdma_dev":"[^"]*"' | cut -d'"' -f4)
+        if [ -n "$rdma_dev" ]; then
+            if [ -z "$IB_DEVICES" ]; then
+                IB_DEVICES="$rdma_dev"
+            else
+                IB_DEVICES="$IB_DEVICES,$rdma_dev"
+            fi
+        fi
+    done
+
+    if [ -n "$IB_DEVICES" ]; then
+        export NCCL_IB_HCA="$IB_DEVICES"
+        echo "✓ Auto-detected allocated SR-IOV devices: $NCCL_IB_HCA"
+        IB_COUNT=$(echo "$IB_DEVICES" | tr ',' '\n' | wc -l)
+        echo "✓ Found $IB_COUNT SR-IOV allocated device(s)"
+    else
+        echo "⚠ Warning: No SR-IOV devices found in environment variables"
+        echo "  Falling back to SR-IOV VF detection..."
+
+        # Fallback: Filter for SR-IOV VF devices
+        if command -v ibv_devinfo &> /dev/null; then
+            VF_DEVICES=""
+            for dev in $(ibv_devinfo -l 2>/dev/null | tail -n +2 | sed 's/^[[:space:]]*//'); do
+                if [ -L "/sys/class/infiniband/$dev/device/physfn" ]; then
+                    if [ -z "$VF_DEVICES" ]; then
+                        VF_DEVICES="$dev"
+                    else
+                        VF_DEVICES="$VF_DEVICES,$dev"
+                    fi
+                fi
+            done
+
+            if [ -n "$VF_DEVICES" ]; then
+                export NCCL_IB_HCA="$VF_DEVICES"
+                echo "✓ Using SR-IOV VF devices: $NCCL_IB_HCA"
+            fi
+        else
+            echo "⚠ Warning: ibv_devinfo not available"
+            echo "  Install ibverbs-utils package if InfiniBand is available"
+        fi
+    fi
+
+    # Set other NCCL environment variables (can be overridden)
+    export NCCL_DEBUG=${NCCL_DEBUG:-INFO}
+    export NCCL_IB_DISABLE=${NCCL_IB_DISABLE:-0}
+    export NCCL_NET_GDR_LEVEL=${NCCL_NET_GDR_LEVEL:-5}
+    export NCCL_IB_GID_INDEX=${NCCL_IB_GID_INDEX:-3}
+    export NCCL_IB_TIMEOUT=${NCCL_IB_TIMEOUT:-22}
+
+    # Print final NCCL configuration
+    echo ""
+    echo "=== NCCL Configuration ==="
+    env | grep ^NCCL_ | sort | sed 's/^/  /'
+    echo "  MEMLOCK_LIMIT=$(ulimit -l)"
+    echo "=========================="
+    echo ""
+
+    # Execute the actual command
+    exec "$@"
