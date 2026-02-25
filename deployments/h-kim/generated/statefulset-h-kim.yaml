@@ -37,6 +37,48 @@ spec:
     spec:
       restartPolicy: Always
 
+      # Init container to auto-detect RDMA interfaces
+      initContainers:
+      - name: detect-rdma
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Detecting RDMA interfaces..."
+
+          # Detect InfiniBand devices
+          if command -v ibv_devinfo &> /dev/null; then
+            IB_DEVICES=$(ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo "")
+            if [ -n "$IB_DEVICES" ]; then
+              echo "export NCCL_IB_HCA=\"$IB_DEVICES\"" >> /shared/nccl-env.sh
+              echo "Detected IB devices: $IB_DEVICES"
+            else
+              echo "# No IB devices detected" >> /shared/nccl-env.sh
+              echo "Warning: No IB devices found"
+            fi
+          else
+            echo "# ibv_devinfo not available" >> /shared/nccl-env.sh
+            echo "Warning: ibv_devinfo not available"
+          fi
+
+          # Detect RDMA network interfaces (net1, net2, net3, net4)
+          RDMA_IFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^net[0-9]+$' | tr '\n' ',' | sed 's/,$//' || echo "eth0")
+          if [ -n "$RDMA_IFACES" ]; then
+            echo "export NCCL_SOCKET_IFNAME=\"$RDMA_IFACES\"" >> /shared/nccl-env.sh
+            echo "Detected RDMA interfaces: $RDMA_IFACES"
+          else
+            echo "export NCCL_SOCKET_IFNAME=\"eth0\"" >> /shared/nccl-env.sh
+            echo "Warning: No RDMA interfaces found, using eth0"
+          fi
+
+          echo "RDMA detection complete"
+          cat /shared/nccl-env.sh
+        volumeMounts:
+        - name: nccl-env
+          mountPath: /shared
+
       # Spread pods across different nodes
       affinity:
         nodeAffinity:
@@ -87,19 +129,17 @@ spec:
         - name: NVIDIA_DRIVER_CAPABILITIES
           value: "compute,utility"
 
-        # NCCL configuration for RDMA
+        # NCCL configuration for RDMA (devices auto-detected by init container)
         - name: NCCL_DEBUG
           value: "INFO"
         - name: NCCL_IB_DISABLE
           value: "0"
-        - name: NCCL_IB_HCA
-          value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+        # NCCL_IB_HCA: auto-detected by init container
         - name: NCCL_IB_GID_INDEX
           value: "3"
         - name: NCCL_NET_GDR_LEVEL
           value: "5"
-        - name: NCCL_SOCKET_IFNAME
-          value: "net1,net2,net3,net4"
+        # NCCL_SOCKET_IFNAME: auto-detected by init container
 
         # Pod identity
         - name: POD_NAME
@@ -130,6 +170,8 @@ spec:
           mountPath: /workspace
         - name: dshm
           mountPath: /dev/shm
+        - name: nccl-env
+          mountPath: /shared
 
         ports:
         - containerPort: 29500
@@ -141,6 +183,17 @@ spec:
         - -c
         - |
           set -e
+
+          # Source auto-detected RDMA configuration
+          if [ -f /shared/nccl-env.sh ]; then
+            echo "Loading auto-detected RDMA configuration..."
+            source /shared/nccl-env.sh
+            echo "NCCL_IB_HCA=$NCCL_IB_HCA"
+            echo "NCCL_SOCKET_IFNAME=$NCCL_SOCKET_IFNAME"
+          else
+            echo "Warning: /shared/nccl-env.sh not found, using defaults"
+          fi
+          echo ""
 
           # Calculate node rank from pod ordinal
           POD_ORDINAL=${HOSTNAME##*-}
@@ -155,6 +208,11 @@ spec:
           echo "Master: $MASTER_ADDR:$MASTER_PORT"
           echo ""
 
+          # Show NCCL configuration
+          echo "NCCL Configuration:"
+          env | grep NCCL_ | sort
+          echo ""
+
           # Show GPU info
           nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
           echo ""
@@ -167,6 +225,8 @@ spec:
         emptyDir:
           medium: Memory
           sizeLimit: 32Gi
+      - name: nccl-env
+        emptyDir: {}
 
   # Each pod gets its own workspace PVC
   volumeClaimTemplates:

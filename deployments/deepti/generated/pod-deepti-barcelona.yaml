@@ -22,6 +22,48 @@ spec:
   # Service account for permissions
   serviceAccountName: ml-dev-sa
 
+  # Init container to auto-detect RDMA interfaces
+  initContainers:
+  - name: detect-rdma
+    image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
+    command:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+      echo "Detecting RDMA interfaces..."
+
+      # Detect InfiniBand devices
+      if command -v ibv_devinfo &> /dev/null; then
+        IB_DEVICES=$(ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo "")
+        if [ -n "$IB_DEVICES" ]; then
+          echo "export NCCL_IB_HCA=\"$IB_DEVICES\"" >> /shared/nccl-env.sh
+          echo "Detected IB devices: $IB_DEVICES"
+        else
+          echo "# No IB devices detected" >> /shared/nccl-env.sh
+          echo "Warning: No IB devices found"
+        fi
+      else
+        echo "# ibv_devinfo not available" >> /shared/nccl-env.sh
+        echo "Warning: ibv_devinfo not available"
+      fi
+
+      # Detect RDMA network interfaces (net1, net2, net3, net4)
+      RDMA_IFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^net[0-9]+$' | tr '\n' ',' | sed 's/,$//' || echo "eth0")
+      if [ -n "$RDMA_IFACES" ]; then
+        echo "export NCCL_SOCKET_IFNAME=\"$RDMA_IFACES\"" >> /shared/nccl-env.sh
+        echo "Detected RDMA interfaces: $RDMA_IFACES"
+      else
+        echo "export NCCL_SOCKET_IFNAME=\"eth0\"" >> /shared/nccl-env.sh
+        echo "Warning: No RDMA interfaces found, using eth0"
+      fi
+
+      echo "RDMA detection complete"
+      cat /shared/nccl-env.sh
+    volumeMounts:
+    - name: nccl-env
+      mountPath: /shared
+
   containers:
   - name: qwen-omni
     image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
@@ -48,17 +90,15 @@ spec:
       value: "0,1,2,3"
     - name: NCCL_DEBUG
       value: "INFO"
-    # Barcelona has RDMA - enable InfiniBand
+    # Barcelona has RDMA - enable InfiniBand (devices auto-detected)
     - name: NCCL_IB_DISABLE
       value: "0"
-    - name: NCCL_IB_HCA
-      value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+    # NCCL_IB_HCA: auto-detected by init container
     - name: NCCL_IB_GID_INDEX
       value: "3"
     - name: NCCL_NET_GDR_LEVEL
       value: "5"
-    - name: NCCL_SOCKET_IFNAME
-      value: "net1,net2,net3,net4"
+    # NCCL_SOCKET_IFNAME: auto-detected by init container
     - name: NCCL_P2P_LEVEL
       value: "NVL"
     - name: OMP_NUM_THREADS
@@ -73,6 +113,17 @@ spec:
     - -c
     - |
       set -e
+
+      # Source auto-detected RDMA configuration
+      if [ -f /shared/nccl-env.sh ]; then
+        echo "Loading auto-detected RDMA configuration..."
+        source /shared/nccl-env.sh
+        echo "NCCL_IB_HCA=$NCCL_IB_HCA"
+        echo "NCCL_SOCKET_IFNAME=$NCCL_SOCKET_IFNAME"
+      else
+        echo "Warning: /shared/nccl-env.sh not found, using defaults"
+      fi
+      echo ""
 
       echo "=========================================="
       echo "Qwen2.5-Omni Test (Barcelona Cluster)"
@@ -129,11 +180,15 @@ spec:
     - name: deepti-script
       mountPath: /config
       readOnly: true
+    - name: nccl-env
+      mountPath: /shared
 
   volumes:
   - name: deepti-script
     configMap:
       name: deepti-script
+  - name: nccl-env
+    emptyDir: {}
 
   # Tolerate GPU node taints
   tolerations:
