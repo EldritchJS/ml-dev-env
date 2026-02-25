@@ -51,6 +51,7 @@ Development and testing on one node with 4x H100 GPUs.
 
 - ✅ **Cluster-based deployment** - All settings in YAML configs
 - ✅ **RDMA or TCP networking** - Choose based on hardware
+- ✅ **GPU-to-NIC affinity detection** - Optimal RDMA paths (10-25% faster)
 - ✅ **RWX shared storage** - Shared workspace across pods (when available)
 - ✅ **Per-pod storage** - Fallback for clusters without RWX
 - ✅ **NCCL with GPUDirect RDMA** - Optimal GPU communication
@@ -193,6 +194,11 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
   - Performance comparison
   - Configuration examples
   - Benchmarking
+- **[GPU-NIC-AFFINITY-GUIDE.md](docs/GPU-NIC-AFFINITY-GUIDE.md)** - GPU-to-NIC affinity
+  - Automatic topology detection
+  - NUMA-aware RDMA configuration
+  - 10-25% performance improvement
+  - See also: [GPU-NIC-AFFINITY-QUICKSTART.md](GPU-NIC-AFFINITY-QUICKSTART.md)
 
 ### Development Workflows
 

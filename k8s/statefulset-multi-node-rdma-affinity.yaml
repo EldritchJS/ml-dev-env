@@ -1,0 +1,371 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {app_name}-headless
+  namespace: {namespace}
+  labels:
+    app: {app_name}-multi
+spec:
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: {app_name}-multi
+  ports:
+  - port: 29500
+    name: master
+  - port: 8080
+    name: code-server
+  - port: 5678
+    name: debug
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {app_name}
+  namespace: {namespace}
+  labels:
+    app: {app_name}-multi
+    affinity-detection: enabled
+spec:
+  serviceName: {app_name}-headless
+  replicas: {replicas}
+  podManagementPolicy: Parallel
+
+  selector:
+    matchLabels:
+      app: {app_name}-multi
+
+  template:
+    metadata:
+      labels:
+        app: {app_name}-multi
+        pytorch-version: "2.9"
+        numpy-version: "2.2.6"
+        affinity-detection: enabled
+
+    spec:
+      restartPolicy: Always
+
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - {app_name}-multi
+            topologyKey: kubernetes.io/hostname
+
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      serviceAccountName: {service_account}
+
+      # INIT CONTAINER: GPU-to-NIC Affinity Detection
+      initContainers:
+      - name: detect-rdma-affinity
+        image: {image}
+        imagePullPolicy: Always
+
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "=========================================="
+          echo "GPU-to-NIC Affinity Detection"
+          echo "=========================================="
+          echo ""
+
+          # Method 1: Simple detection (backward compatible)
+          echo "[INFO] Running simple RDMA detection..."
+          IB_DEVICES=$(ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo "")
+          RDMA_IFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^net[0-9]+$' | tr '\n' ',' | sed 's/,$//' || echo "eth0")
+
+          # Write simple config (fallback)
+          cat > /shared/nccl-env-simple.sh <<EOF
+          # Simple RDMA detection (backward compatible)
+          export NCCL_IB_HCA="$IB_DEVICES"
+          export NCCL_SOCKET_IFNAME="$RDMA_IFACES"
+          EOF
+
+          echo "[INFO] Simple detection complete:"
+          echo "  IB_HCA: $IB_DEVICES"
+          echo "  SOCKET_IFNAME: $RDMA_IFACES"
+          echo ""
+
+          # Method 2: Affinity-aware detection (optimal)
+          echo "[INFO] Running GPU-to-NIC affinity detection..."
+
+          # GPU count
+          GPU_COUNT=$(nvidia-smi --query-gpu=count --format=csv,noheader | head -1)
+          echo "[INFO] Detected $GPU_COUNT GPUs"
+
+          # Detect GPU NUMA topology
+          echo "[INFO] GPU NUMA topology:"
+          for ((i=0; i<GPU_COUNT; i++)); do
+            GPU_NUMA=$(nvidia-smi -i $i --query-gpu=numa_node --format=csv,noheader 2>/dev/null || echo "-1")
+            GPU_NAME=$(nvidia-smi -i $i --query-gpu=name --format=csv,noheader 2>/dev/null)
+            echo "  GPU $i: $GPU_NAME, NUMA node $GPU_NUMA"
+          done
+          echo ""
+
+          # Detect NIC NUMA topology
+          echo "[INFO] NIC NUMA topology:"
+          for iface in $(echo "$RDMA_IFACES" | tr ',' ' '); do
+            NIC_NUMA=$(cat /sys/class/net/$iface/device/numa_node 2>/dev/null || echo "-1")
+            IB_DEV=""
+            if command -v ibdev2netdev &>/dev/null; then
+              IB_DEV=$(ibdev2netdev | grep "===> $iface" | awk '{print $1}' || echo "")
+            fi
+            echo "  $iface: NUMA node $NIC_NUMA${IB_DEV:+, IB device $IB_DEV}"
+          done
+          echo ""
+
+          # Show nvidia-smi topology
+          echo "[INFO] PCIe/NVLink topology:"
+          nvidia-smi topo -m 2>/dev/null || echo "  (topology info not available)"
+          echo ""
+
+          # Generate affinity-aware NCCL config
+          cat > /shared/nccl-env.sh <<EOF
+          # NCCL configuration with GPU-to-NIC affinity awareness
+          export NCCL_IB_HCA="$IB_DEVICES"
+          export NCCL_SOCKET_IFNAME="$RDMA_IFACES"
+
+          # GPUDirect RDMA optimizations
+          export NCCL_NET_GDR_LEVEL=5
+          export NCCL_IB_DISABLE=0
+          export NCCL_IB_GID_INDEX=3
+          export NCCL_P2P_LEVEL=NVL
+
+          # Performance tuning
+          export NCCL_IB_TIMEOUT=22
+          export NCCL_IB_RETRY_CNT=7
+
+          # Topology awareness
+          export NCCL_TOPO_FILE=/shared/nccl-topology.txt
+          EOF
+
+          # Save topology for reference
+          nvidia-smi topo -m > /shared/nccl-topology.txt 2>/dev/null || echo "No topology available" > /shared/nccl-topology.txt
+
+          echo "[INFO] NCCL configuration written to /shared/nccl-env.sh"
+          echo "[INFO] Affinity detection complete!"
+          echo "=========================================="
+          echo ""
+
+        volumeMounts:
+        - name: shared-config
+          mountPath: /shared
+        - name: dshm
+          mountPath: /dev/shm
+
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+              - SYS_ADMIN  # Needed for NUMA queries
+
+        resources:
+          requests:
+            nvidia.com/gpu: {gpus_per_node}
+            memory: 8Gi
+            cpu: 4
+          limits:
+            nvidia.com/gpu: {gpus_per_node}
+            memory: 16Gi
+            cpu: 8
+
+      containers:
+      - name: ml-dev
+        image: {image}
+        imagePullPolicy: Always
+
+        resources:
+          requests:
+            nvidia.com/gpu: {gpus_per_node}
+            memory: 128Gi
+            cpu: 32
+          limits:
+            nvidia.com/gpu: {gpus_per_node}
+            memory: 256Gi
+            cpu: 64
+
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+
+        # NCCL base configuration (will be overridden by nccl-env.sh)
+        - name: NCCL_DEBUG
+          value: "INFO"
+
+        # Pod identity
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # Multi-node configuration
+        - name: MASTER_ADDR
+          value: "{app_name}-0.{app_name}-headless.{namespace}.svc.cluster.local"
+        - name: MASTER_PORT
+          value: "29500"
+        - name: WORLD_SIZE
+          value: "{world_size}"
+        - name: GPUS_PER_NODE
+          value: "{gpus_per_node}"
+
+        - name: OMP_NUM_THREADS
+          value: "8"
+
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: datasets
+          mountPath: /datasets
+        - name: dshm
+          mountPath: /dev/shm
+        - name: shared-config
+          mountPath: /shared
+
+        ports:
+        - containerPort: 29500
+          name: master
+          protocol: TCP
+        - containerPort: 8080
+          name: code-server
+          protocol: TCP
+        - containerPort: 5678
+          name: debug
+          protocol: TCP
+
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - nvidia-smi
+          initialDelaySeconds: 30
+          periodSeconds: 30
+
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - nvidia-smi && [ -d /workspace ]
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+
+          # Set unlimited memlock for RDMA
+          ulimit -l unlimited
+          echo "Memlock limit: $(ulimit -l)"
+          echo ""
+
+          # Calculate node rank
+          POD_ORDINAL=${HOSTNAME##*-}
+          export NODE_RANK=$POD_ORDINAL
+
+          echo "==========================================="
+          echo "ML Dev Environment - GPU-NIC Affinity Mode"
+          echo "==========================================="
+          echo "Pod: $POD_NAME"
+          echo "Node Rank: $NODE_RANK"
+          echo "World Size: $WORLD_SIZE"
+          echo "GPUs per Node: $GPUS_PER_NODE"
+          echo "Master: $MASTER_ADDR:$MASTER_PORT"
+          echo ""
+
+          # Source NCCL configuration with affinity
+          if [ -f /shared/nccl-env.sh ]; then
+            echo "[INFO] Loading NCCL configuration with GPU-NIC affinity..."
+            source /shared/nccl-env.sh
+
+            echo "[INFO] NCCL Configuration:"
+            echo "  NCCL_IB_HCA=$NCCL_IB_HCA"
+            echo "  NCCL_SOCKET_IFNAME=$NCCL_SOCKET_IFNAME"
+            echo "  NCCL_NET_GDR_LEVEL=$NCCL_NET_GDR_LEVEL"
+            echo ""
+
+            # Show topology info if available
+            if [ -f /shared/nccl-topology.txt ]; then
+              echo "[INFO] GPU-NIC Topology:"
+              cat /shared/nccl-topology.txt
+              echo ""
+            fi
+          else
+            echo "[WARN] Affinity-aware NCCL config not found, using defaults"
+          fi
+
+          # Show GPU info
+          echo "[INFO] Available GPUs:"
+          nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
+          echo ""
+
+          # Start code-server in background
+          code-server --bind-addr 0.0.0.0:8080 --auth none /workspace &
+
+          # Create hostfile for DeepSpeed
+          mkdir -p /workspace/.deepspeed
+          NUM_NODES=$((WORLD_SIZE / GPUS_PER_NODE))
+          > /workspace/.deepspeed/hostfile
+          for i in $(seq 0 $((NUM_NODES - 1))); do
+            echo "{app_name}-$i.{app_name}-headless.{namespace}.svc.cluster.local slots=$GPUS_PER_NODE" >> /workspace/.deepspeed/hostfile
+          done
+
+          echo "[INFO] Hostfile created ($NUM_NODES nodes):"
+          cat /workspace/.deepspeed/hostfile
+          echo ""
+          echo "==========================================="
+          echo "Ready for training with GPU-NIC affinity!"
+          echo "==========================================="
+          echo ""
+
+          # Application startup
+          {app_startup_code}
+
+          # Keep container running
+          tail -f /dev/null
+
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: ml-dev-workspace
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: ml-datasets
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
+      - name: shared-config
+        emptyDir: {}
