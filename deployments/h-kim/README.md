@@ -29,6 +29,7 @@ deployments/h-kim/
 │   ├── h-kim-openshift.sh        # OpenShift deployment script
 │   ├── h-kim.sh                  # Alternative deployment script
 │   ├── lm-train.sh               # TorchTitan training launcher
+│   ├── autodetect-nccl.sh        # Comprehensive NCCL auto-detection
 │   ├── get-ib-devices.sh         # InfiniBand device detection
 │   ├── check-rdma.sh             # RDMA status verification
 │   └── debug-rdma.sh             # RDMA debugging utility
@@ -68,11 +69,27 @@ oc exec h-kim-1 -n <namespace> -- /workspace/lm-train.sh &
 
 ## Key Features
 
-### RDMA Auto-Detection
-- Automatically detects all SR-IOV InfiniBand devices
-- Configures NCCL for optimal RDMA performance
-- Sets unlimited memlock for RDMA operations
-- No manual device configuration needed
+### Comprehensive Auto-Detection
+
+The deployment uses **comprehensive auto-detection** for all NCCL and hardware parameters:
+
+**Auto-detected at runtime:**
+- ✅ GPU count (`GPUS_PER_NODE`)
+- ✅ InfiniBand devices (`NCCL_IB_HCA`)
+- ✅ RDMA network interfaces (`NCCL_SOCKET_IFNAME`)
+- ✅ NVLink topology (`NCCL_P2P_LEVEL`)
+- ✅ GPUDirect RDMA support (`NCCL_NET_GDR_LEVEL`)
+- ✅ RoCE GID index (`NCCL_IB_GID_INDEX`)
+- ✅ Optimal OMP threads (`OMP_NUM_THREADS`)
+- ✅ Transport type (RDMA vs TCP)
+
+**Benefits:**
+- No hardcoded configuration needed
+- Portable across different hardware
+- Automatically uses optimal settings
+- User can override any detected value
+
+See [../../AUTODETECT-CAPABILITIES.md](../../AUTODETECT-CAPABILITIES.md) for details.
 
 ### Performance
 - **NCCL Bandwidth**: 83+ GiB/s (measured with 8GB transfers)
@@ -80,14 +97,24 @@ oc exec h-kim-1 -n <namespace> -- /workspace/lm-train.sh &
 - **GPUDirect RDMA** enabled (GDRDMA mode)
 - **4x InfiniBand HCAs** per node (mlx5_6, mlx5_7, mlx5_10, mlx5_11)
 
-### NCCL Configuration
+### NCCL Configuration (Auto-Detected)
+
+Example auto-detected configuration on H100 nodes:
 ```bash
-NCCL_IB_DISABLE=0                              # Enable InfiniBand
-NCCL_IB_HCA=mlx5_6,mlx5_7,mlx5_10,mlx5_11     # Auto-detected devices
-NCCL_IB_GID_INDEX=3                            # RoCE v2
-NCCL_NET_GDR_LEVEL=5                           # GPUDirect RDMA
-NCCL_SOCKET_IFNAME=eth0                        # Out-of-band communication
+# All values detected by init container at runtime
+GPUS_PER_NODE=4                                # Detected: nvidia-smi count
+WORLD_SIZE=8                                   # Calculated: 2 nodes × 4 GPUs
+OMP_NUM_THREADS=16                             # Detected: 64 CPUs / 4 GPUs
+NCCL_IB_DISABLE=0                              # Detected: RDMA available
+NCCL_IB_HCA=mlx5_6,mlx5_7,mlx5_10,mlx5_11     # Detected: ibv_devinfo
+NCCL_SOCKET_IFNAME=net1,net2,net3,net4        # Detected: ip link show
+NCCL_IB_GID_INDEX=3                            # Detected: RoCE v2 in GID table
+NCCL_NET_GDR_LEVEL=5                           # Detected: nv_peer_mem module
+NCCL_P2P_LEVEL=NVL                             # Detected: nvidia-smi topo -m
+DETECTED_TRANSPORT=rdma                        # Detected: InfiniBand present
 ```
+
+Users can override any value in the pod spec. See [../../AUTODETECT-OVERRIDES.md](../../AUTODETECT-OVERRIDES.md).
 
 ## Documentation
 

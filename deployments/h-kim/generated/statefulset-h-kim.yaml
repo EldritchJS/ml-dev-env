@@ -37,47 +37,37 @@ spec:
     spec:
       restartPolicy: Always
 
-      # Init container to auto-detect RDMA interfaces
+      # Init container for comprehensive NCCL auto-detection
       initContainers:
-      - name: detect-rdma
+      - name: autodetect-nccl
         image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
         command:
         - /bin/bash
         - -c
         - |
           set -e
-          echo "Detecting RDMA interfaces..."
+          echo "=========================================="
+          echo "Comprehensive NCCL Auto-Detection"
+          echo "=========================================="
+          echo ""
 
-          # Detect InfiniBand devices
-          if command -v ibv_devinfo &> /dev/null; then
-            IB_DEVICES=$(ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo "")
-            if [ -n "$IB_DEVICES" ]; then
-              echo "export NCCL_IB_HCA=\"$IB_DEVICES\"" >> /shared/nccl-env.sh
-              echo "Detected IB devices: $IB_DEVICES"
-            else
-              echo "# No IB devices detected" >> /shared/nccl-env.sh
-              echo "Warning: No IB devices found"
-            fi
-          else
-            echo "# ibv_devinfo not available" >> /shared/nccl-env.sh
-            echo "Warning: ibv_devinfo not available"
-          fi
+          # Run the comprehensive autodetect script
+          /usr/local/bin/autodetect-nccl.sh
 
-          # Detect RDMA network interfaces (net1, net2, net3, net4)
-          RDMA_IFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^net[0-9]+$' | tr '\n' ',' | sed 's/,$//' || echo "eth0")
-          if [ -n "$RDMA_IFACES" ]; then
-            echo "export NCCL_SOCKET_IFNAME=\"$RDMA_IFACES\"" >> /shared/nccl-env.sh
-            echo "Detected RDMA interfaces: $RDMA_IFACES"
-          else
-            echo "export NCCL_SOCKET_IFNAME=\"eth0\"" >> /shared/nccl-env.sh
-            echo "Warning: No RDMA interfaces found, using eth0"
-          fi
-
-          echo "RDMA detection complete"
+          echo ""
+          echo "=========================================="
+          echo "Auto-Detected Configuration:"
+          echo "=========================================="
           cat /shared/nccl-env.sh
+          echo "=========================================="
         volumeMounts:
         - name: nccl-env
           mountPath: /shared
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
 
       # Spread pods across different nodes
       affinity:
@@ -139,17 +129,19 @@ spec:
         - name: NVIDIA_DRIVER_CAPABILITIES
           value: "compute,utility"
 
-        # NCCL configuration for RDMA (devices auto-detected by init container)
+        # NCCL configuration (all values auto-detected by init container)
+        # Users can override any value by setting env vars here
         - name: NCCL_DEBUG
           value: "INFO"
-        - name: NCCL_IB_DISABLE
-          value: "0"
-        # NCCL_IB_HCA: auto-detected by init container
-        - name: NCCL_IB_GID_INDEX
-          value: "3"
-        - name: NCCL_NET_GDR_LEVEL
-          value: "5"
-        # NCCL_SOCKET_IFNAME: auto-detected by init container
+        # All other NCCL values auto-detected:
+        # - NCCL_IB_DISABLE (auto)
+        # - NCCL_IB_HCA (auto)
+        # - NCCL_SOCKET_IFNAME (auto)
+        # - NCCL_IB_GID_INDEX (auto)
+        # - NCCL_NET_GDR_LEVEL (auto)
+        # - NCCL_P2P_LEVEL (auto)
+        # - GPUS_PER_NODE (auto)
+        # - OMP_NUM_THREADS (auto)
 
         # Pod identity
         - name: POD_NAME
@@ -170,10 +162,10 @@ spec:
           value: "h-kim-0.h-kim-headless.nccl-test.svc.cluster.local"
         - name: MASTER_PORT
           value: "29500"
-        - name: WORLD_SIZE
-          value: "8"  # 2 nodes × 4 GPUs
-        - name: GPUS_PER_NODE
-          value: "4"
+        - name: REPLICAS
+          value: "2"  # Number of pods in StatefulSet
+        # WORLD_SIZE calculated at runtime: replicas × GPUs per node
+        # GPUS_PER_NODE: auto-detected by init container
 
         volumeMounts:
         - name: workspace
@@ -199,40 +191,64 @@ spec:
           echo "Memlock limit: $(ulimit -l)"
           echo ""
 
-          # Source auto-detected RDMA configuration
+          # Source comprehensive auto-detected configuration
           if [ -f /shared/nccl-env.sh ]; then
-            echo "Loading auto-detected RDMA configuration..."
+            echo "=========================================="
+            echo "Loading Auto-Detected Configuration"
+            echo "=========================================="
             source /shared/nccl-env.sh
-            echo "NCCL_IB_HCA=$NCCL_IB_HCA"
-            echo "NCCL_SOCKET_IFNAME=$NCCL_SOCKET_IFNAME"
+            echo ""
           else
-            echo "Warning: /shared/nccl-env.sh not found, using defaults"
+            echo "ERROR: /shared/nccl-env.sh not found!"
+            echo "Autodetect init container may have failed"
+            exit 1
           fi
-          echo ""
 
           # Calculate node rank from pod ordinal
           POD_ORDINAL=${HOSTNAME##*-}
           export NODE_RANK=$POD_ORDINAL
+
+          # Calculate WORLD_SIZE from replicas × GPUs per node
+          export WORLD_SIZE=$((REPLICAS * GPUS_PER_NODE))
 
           echo "=========================================="
           echo "H-Kim Multi-Node Environment"
           echo "=========================================="
           echo "Pod: $POD_NAME"
           echo "Node Rank: $NODE_RANK"
-          echo "World Size: $WORLD_SIZE"
+          echo ""
+          echo "AUTO-DETECTED VALUES:"
+          echo "  GPUs per node: $GPUS_PER_NODE (detected!)"
+          echo "  World size: $WORLD_SIZE (calculated: $REPLICAS × $GPUS_PER_NODE)"
+          echo "  OMP threads: $OMP_NUM_THREADS (detected!)"
+          echo "  Transport: $DETECTED_TRANSPORT (detected!)"
+          echo ""
           echo "Master: $MASTER_ADDR:$MASTER_PORT"
+          echo "=========================================="
           echo ""
 
-          # Show NCCL configuration
-          echo "NCCL Configuration:"
+          # Show comprehensive NCCL configuration
+          echo "NCCL Configuration (auto-detected):"
           env | grep NCCL_ | sort
           echo ""
 
-          # Show GPU info
+          # Show GPU topology
+          echo "GPU Topology:"
+          nvidia-smi topo -m 2>/dev/null || echo "  (topology info not available)"
+          echo ""
+
+          # Show detected GPUs
+          echo "Detected GPUs:"
           nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
           echo ""
 
           echo "Environment ready. Waiting for training job..."
+          echo "To run training:"
+          echo "  oc exec -it $POD_NAME -- bash"
+          echo "  cd /workspace"
+          echo "  torchrun --nproc_per_node=\$GPUS_PER_NODE train.py"
+          echo ""
+
           sleep infinity
 
       volumes:
