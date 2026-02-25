@@ -116,11 +116,11 @@ spec:
         resources:
           requests:
             nvidia.com/gpu: 4
-            memory: 128Gi
+            memory: 1200Gi
             cpu: 32
           limits:
             nvidia.com/gpu: 4
-            memory: 256Gi
+            memory: 1200Gi
             cpu: 64
 
         env:
