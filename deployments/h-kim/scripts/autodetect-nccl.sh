@@ -127,7 +127,7 @@ detect_omp_threads() {
 # Detect InfiniBand devices
 detect_ib_devices() {
     if command -v ibv_devinfo &>/dev/null; then
-        ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo ""
+        ibv_devinfo -l 2>/dev/null | grep -v "^$" | grep -v "HCAs found" | tr '\n' ',' | sed 's/,$//' || echo ""
     else
         echo ""
     fi

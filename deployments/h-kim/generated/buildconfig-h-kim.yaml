@@ -106,7 +106,7 @@ spec:
       }
 
       detect_ib_devices() {
-          command -v ibv_devinfo &>/dev/null && ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo ""
+          command -v ibv_devinfo &>/dev/null && ibv_devinfo -l 2>/dev/null | grep -v "^$" | grep -v "HCAs found" | tr '\n' ',' | sed 's/,$//' || echo ""
       }
 
       detect_rdma_interfaces() {
@@ -151,7 +151,7 @@ spec:
       # NCCL Network Configuration
       EOF
 
-      if [[ "$TRANSPORT" == "rdma" ]]; then
+      if [[ "$TRANSPORT" == "rdma" ]] && [[ -n "$IB_DEVICES" ]]; then
           cat >> "$OUTPUT_FILE" <<'INNER_EOF'
       # RDMA/InfiniBand configuration (supports user overrides)
       export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-0}"
@@ -164,6 +164,15 @@ spec:
       export NCCL_P2P_LEVEL="\${NCCL_P2P_LEVEL:-${NVLINK_LEVEL}}"
       export NCCL_IB_TIMEOUT="\${NCCL_IB_TIMEOUT:-22}"
       export NCCL_IB_RETRY_CNT="\${NCCL_IB_RETRY_CNT:-7}"
+      EOF
+      elif [[ "$TRANSPORT" == "rdma" ]] && [[ -z "$IB_DEVICES" ]]; then
+          cat >> "$OUTPUT_FILE" <<'INNER_EOF'
+      # RDMA detected but no IB devices found - using TCP fallback
+      export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-1}"
+      INNER_EOF
+          cat >> "$OUTPUT_FILE" <<EOF
+      export NCCL_SOCKET_IFNAME="\${NCCL_SOCKET_IFNAME:-${RDMA_IFACES}}"
+      export NCCL_P2P_LEVEL="\${NCCL_P2P_LEVEL:-${NVLINK_LEVEL}}"
       EOF
       else
           cat >> "$OUTPUT_FILE" <<'INNER_EOF'
