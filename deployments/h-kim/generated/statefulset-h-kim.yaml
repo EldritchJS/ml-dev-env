@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: h-kim-headless
-  namespace: nccl-test
+  namespace: b-efficient-memory-offloading-765cab
   labels:
     app: h-kim-multi
 spec:
@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: h-kim
-  namespace: nccl-test
+  namespace: b-efficient-memory-offloading-765cab
   labels:
     app: h-kim-multi
 spec:
@@ -43,7 +43,7 @@ spec:
       # Users can override NCCL_P2P_LEVEL and NCCL_IB_HCA via env vars if needed
       initContainers:
       - name: autodetect-nccl
-        image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
+        image: image-registry.openshift-image-registry.svc:5000/b-efficient-memory-offloading-765cab/h-kim:latest
 
         command:
         - /bin/bash
@@ -86,8 +86,8 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - moc-r4pcc04u23-nairr
-                - moc-r4pcc04u25-nairr
+                - moc-r4pcc04u36-nairr
+                - moc-r4pcc04u12-nairr
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -111,7 +111,7 @@ spec:
 
       containers:
       - name: h-kim
-        image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
+        image: image-registry.openshift-image-registry.svc:5000/b-efficient-memory-offloading-765cab/h-kim:latest
         imagePullPolicy: Always
 
         # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
@@ -167,7 +167,7 @@ spec:
 
         # Distributed training settings
         - name: MASTER_ADDR
-          value: "h-kim-0.h-kim-headless.nccl-test.svc.cluster.local"
+          value: "h-kim-0.h-kim-headless.b-efficient-memory-offloading-765cab.svc.cluster.local"
         - name: MASTER_PORT
           value: "29500"
         - name: REPLICAS
