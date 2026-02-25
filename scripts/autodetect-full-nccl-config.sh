@@ -234,25 +234,31 @@ export DETECTED_TRANSPORT="$TRANSPORT"
 EOF
 
     if [[ "$TRANSPORT" == "rdma" ]]; then
-        cat >> "$OUTPUT_FILE" <<EOF
+        cat >> "$OUTPUT_FILE" <<'EOF'
 # RDMA/InfiniBand configuration
-export NCCL_IB_DISABLE=0
-export NCCL_IB_HCA="${IB_DEVICES}"
-export NCCL_SOCKET_IFNAME="${RDMA_IFACES}"
-export NCCL_IB_GID_INDEX="${GID_INDEX}"
-export NCCL_NET_GDR_LEVEL="${GPUDIRECT_LEVEL}"
-export NCCL_P2P_LEVEL="${NVLINK_LEVEL}"
+# Note: User can override any of these by setting env vars before sourcing this file
+export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-0}"
+EOF
+        cat >> "$OUTPUT_FILE" <<EOF
+export NCCL_IB_HCA="\${NCCL_IB_HCA:-${IB_DEVICES}}"
+export NCCL_SOCKET_IFNAME="\${NCCL_SOCKET_IFNAME:-${RDMA_IFACES}}"
+export NCCL_IB_GID_INDEX="\${NCCL_IB_GID_INDEX:-${GID_INDEX}}"
+export NCCL_NET_GDR_LEVEL="\${NCCL_NET_GDR_LEVEL:-${GPUDIRECT_LEVEL}}"
+export NCCL_P2P_LEVEL="\${NCCL_P2P_LEVEL:-${NVLINK_LEVEL}}"
 
 # RDMA Performance Tuning
-export NCCL_IB_TIMEOUT=22
-export NCCL_IB_RETRY_CNT=7
+export NCCL_IB_TIMEOUT="\${NCCL_IB_TIMEOUT:-22}"
+export NCCL_IB_RETRY_CNT="\${NCCL_IB_RETRY_CNT:-7}"
 EOF
     else
-        cat >> "$OUTPUT_FILE" <<EOF
+        cat >> "$OUTPUT_FILE" <<'EOF'
 # TCP/Ethernet configuration (no RDMA)
-export NCCL_IB_DISABLE=1
-export NCCL_SOCKET_IFNAME="${RDMA_IFACES}"
-export NCCL_P2P_LEVEL="${NVLINK_LEVEL}"
+# Note: User can override any of these by setting env vars before sourcing this file
+export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-1}"
+EOF
+        cat >> "$OUTPUT_FILE" <<EOF
+export NCCL_SOCKET_IFNAME="\${NCCL_SOCKET_IFNAME:-${RDMA_IFACES}}"
+export NCCL_P2P_LEVEL="\${NCCL_P2P_LEVEL:-${NVLINK_LEVEL}}"
 EOF
     fi
 
@@ -261,13 +267,13 @@ EOF
 # ============================================================================
 # Performance Tuning
 # ============================================================================
-export OMP_NUM_THREADS="${OMP_THREADS}"
+export OMP_NUM_THREADS="\${OMP_NUM_THREADS:-${OMP_THREADS}}"
 
 # ============================================================================
 # Multi-GPU Configuration (auto-detected)
 # ============================================================================
 # Number of GPUs per node (detected)
-export GPUS_PER_NODE="${GPU_COUNT}"
+export GPUS_PER_NODE="\${GPUS_PER_NODE:-${GPU_COUNT}}"
 
 # For multi-node training, set WORLD_SIZE externally or calculate:
 # WORLD_SIZE = number_of_nodes × GPUS_PER_NODE

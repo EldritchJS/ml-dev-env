@@ -377,6 +377,42 @@ containers:
     mountPath: /shared
 ```
 
+## User Overrides
+
+Auto-detection supports **user overrides** for any value. You get smart defaults with full control when needed.
+
+### Override in Pod Spec
+
+```yaml
+containers:
+- name: training
+  env:
+  # Override specific values
+  - name: NCCL_IB_GID_INDEX
+    value: "1"  # Force GID 1 instead of auto-detected
+  - name: OMP_NUM_THREADS
+    value: "8"  # Use 8 threads instead of auto-detected
+
+  # These use auto-detected values (not overridden)
+  # - NCCL_IB_HCA
+  # - NCCL_SOCKET_IFNAME
+  # - GPUS_PER_NODE
+  # etc.
+
+  command:
+  - /bin/bash
+  - -c
+  - source /shared/nccl-env.sh && torchrun train.py
+```
+
+The autodetect script uses: `export VAR="${VAR:-autodetected_value}"`
+
+This means:
+- If user sets the variable → **use user's value**
+- If not set → **use auto-detected value**
+
+See **AUTODETECT-OVERRIDES.md** for detailed examples and common scenarios.
+
 ## Summary
 
 **Auto-detected (no manual config needed):**
@@ -394,8 +430,13 @@ containers:
 - Memory/CPU resource limits
 - Application-specific configuration
 
+**User-overridable (optional tuning):**
+- Any auto-detected value can be overridden
+- Set env vars in pod spec before sourcing config
+- Useful for debugging, experimentation, or performance tuning
+
 **Calculated at runtime:**
 - World size (nodes × GPUs per node)
 - Node rank (from pod ordinal)
 
-**Result:** Near-zero hardcoded configuration! 🎉
+**Result:** Smart defaults + full control = best of both worlds! 🎉
