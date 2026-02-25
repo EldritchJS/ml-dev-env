@@ -38,9 +38,13 @@ spec:
       restartPolicy: Always
 
       # Init container for comprehensive NCCL auto-detection
+      # Note: Init containers cannot request GPUs (would conflict with main container)
+      # Therefore NVLink and IB device detection may be limited
+      # Users can override NCCL_P2P_LEVEL and NCCL_IB_HCA via env vars if needed
       initContainers:
       - name: autodetect-nccl
         image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
+
         command:
         - /bin/bash
         - -c
@@ -49,6 +53,10 @@ spec:
           echo "=========================================="
           echo "Comprehensive NCCL Auto-Detection"
           echo "=========================================="
+          echo ""
+          echo "Note: Init containers cannot access GPUs/IB devices directly"
+          echo "NVLink and IB HCA detection are conservative defaults"
+          echo "Override via env vars if needed (see AUTODETECT-OVERRIDES.md)"
           echo ""
 
           # Run the comprehensive autodetect script
