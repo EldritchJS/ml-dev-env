@@ -1,0 +1,465 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: h-kim-test-headless
+  namespace: nccl-test
+  labels:
+    app: h-kim-test
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: h-kim-test
+  ports:
+  - port: 29500
+    name: master
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: h-kim-test
+  namespace: nccl-test
+  labels:
+    app: h-kim-test
+    test: comprehensive-autodetect
+spec:
+  serviceName: h-kim-test-headless
+  replicas: 2  # 2 nodes = 8 GPUs total (or auto-detected!)
+  podManagementPolicy: Parallel
+
+  selector:
+    matchLabels:
+      app: h-kim-test
+
+  template:
+    metadata:
+      labels:
+        app: h-kim-test
+        test: comprehensive-autodetect
+
+    spec:
+      restartPolicy: Always
+
+      # COMPREHENSIVE AUTO-DETECTION INIT CONTAINER
+      initContainers:
+      - name: comprehensive-autodetect
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "=========================================="
+          echo "Comprehensive NCCL Auto-Detection"
+          echo "=========================================="
+          echo ""
+
+          # Create the autodetect script inline (since it's not in h-kim image yet)
+          cat > /tmp/autodetect.sh << 'SCRIPT_EOF'
+          #!/bin/bash
+          set -euo pipefail
+
+          OUTPUT_FILE="/shared/nccl-env.sh"
+
+          log() { echo "[AUTODETECT] $*"; }
+
+          # Detect GPU count
+          detect_gpu_count() {
+              if command -v nvidia-smi &>/dev/null; then
+                  nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | wc -l
+              else
+                  echo "0"
+              fi
+          }
+
+          # Detect NVLink
+          detect_nvlink() {
+              if command -v nvidia-smi &>/dev/null; then
+                  if nvidia-smi topo -m 2>/dev/null | grep -q "NV"; then
+                      echo "NVL"
+                  else
+                      echo "PIX"
+                  fi
+              else
+                  echo "PIX"
+              fi
+          }
+
+          # Detect GPUDirect
+          detect_gpudirect() {
+              if lsmod 2>/dev/null | grep -q "nv_peer_mem"; then
+                  echo "5"
+              elif [[ -d /sys/class/infiniband ]] && command -v nvidia-smi &>/dev/null; then
+                  echo "5"
+              else
+                  echo "0"
+              fi
+          }
+
+          # Detect GID index
+          detect_gid_index() {
+              local ib_dev
+              if command -v ibv_devinfo &>/dev/null; then
+                  ib_dev=$(ibv_devinfo -l 2>/dev/null | head -1)
+              fi
+
+              if [[ -n "$ib_dev" ]]; then
+                  for port in 1 2; do
+                      for gid_idx in 0 1 2 3; do
+                          if ibv_devinfo -d "$ib_dev" 2>/dev/null | grep -A 20 "port ${port}:" | grep "GID\[${gid_idx}\]" | grep -q "RoCE v2"; then
+                              echo "$gid_idx"
+                              return 0
+                          fi
+                      done
+                  done
+              fi
+              echo "3"
+          }
+
+          # Detect OMP threads
+          detect_omp_threads() {
+              local cpu_count=$(nproc 2>/dev/null || echo "32")
+              local gpu_count=$(detect_gpu_count)
+
+              if [[ "$gpu_count" -gt 0 ]]; then
+                  local threads_per_gpu=$((cpu_count / gpu_count))
+                  if [[ "$threads_per_gpu" -lt 4 ]]; then
+                      echo "4"
+                  elif [[ "$threads_per_gpu" -gt 16 ]]; then
+                      echo "16"
+                  else
+                      echo "$threads_per_gpu"
+                  fi
+              else
+                  echo "8"
+              fi
+          }
+
+          # Detect IB devices
+          detect_ib_devices() {
+              if command -v ibv_devinfo &>/dev/null; then
+                  ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo ""
+              else
+                  echo ""
+              fi
+          }
+
+          # Detect RDMA interfaces
+          detect_rdma_interfaces() {
+              local ifaces
+              ifaces=$(ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | grep -E '^net[0-9]+$' | tr '\n' ',' | sed 's/,$//')
+              if [[ -n "$ifaces" ]]; then
+                  echo "$ifaces"
+                  return 0
+              fi
+
+              ifaces=$(ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | grep -E '^ib[0-9]+$' | tr '\n' ',' | sed 's/,$//')
+              if [[ -n "$ifaces" ]]; then
+                  echo "$ifaces"
+                  return 0
+              fi
+
+              echo "eth0"
+          }
+
+          # Detect transport
+          detect_transport() {
+              if [[ -d /sys/class/infiniband ]] && [[ -n "$(detect_ib_devices)" ]]; then
+                  echo "rdma"
+              else
+                  echo "tcp"
+              fi
+          }
+
+          # Main
+          log "Starting comprehensive auto-detection..."
+
+          GPU_COUNT=$(detect_gpu_count)
+          IB_DEVICES=$(detect_ib_devices)
+          RDMA_IFACES=$(detect_rdma_interfaces)
+          NVLINK_LEVEL=$(detect_nvlink)
+          GPUDIRECT_LEVEL=$(detect_gpudirect)
+          GID_INDEX=$(detect_gid_index)
+          OMP_THREADS=$(detect_omp_threads)
+          TRANSPORT=$(detect_transport)
+
+          log "Detection results:"
+          log "  GPUs: $GPU_COUNT"
+          log "  IB devices: ${IB_DEVICES:-none}"
+          log "  RDMA interfaces: $RDMA_IFACES"
+          log "  NVLink: $NVLINK_LEVEL"
+          log "  GPUDirect: level $GPUDIRECT_LEVEL"
+          log "  GID index: $GID_INDEX"
+          log "  OMP threads: $OMP_THREADS"
+          log "  Transport: $TRANSPORT"
+
+          cat > "$OUTPUT_FILE" <<EOF
+          # Comprehensive Auto-Detected Configuration
+          # Generated: $(date)
+
+          # Hardware Detection
+          export DETECTED_GPU_COUNT="$GPU_COUNT"
+          export DETECTED_TRANSPORT="$TRANSPORT"
+
+          # NCCL Network Configuration
+          EOF
+
+          if [[ "$TRANSPORT" == "rdma" ]]; then
+              cat >> "$OUTPUT_FILE" <<EOF
+          export NCCL_IB_DISABLE=0
+          export NCCL_IB_HCA="${IB_DEVICES}"
+          export NCCL_SOCKET_IFNAME="${RDMA_IFACES}"
+          export NCCL_IB_GID_INDEX="${GID_INDEX}"
+          export NCCL_NET_GDR_LEVEL="${GPUDIRECT_LEVEL}"
+          export NCCL_P2P_LEVEL="${NVLINK_LEVEL}"
+          export NCCL_IB_TIMEOUT=22
+          export NCCL_IB_RETRY_CNT=7
+          EOF
+          else
+              cat >> "$OUTPUT_FILE" <<EOF
+          export NCCL_IB_DISABLE=1
+          export NCCL_SOCKET_IFNAME="${RDMA_IFACES}"
+          export NCCL_P2P_LEVEL="${NVLINK_LEVEL}"
+          EOF
+          fi
+
+          cat >> "$OUTPUT_FILE" <<EOF
+
+          # Performance Tuning
+          export OMP_NUM_THREADS="${OMP_THREADS}"
+
+          # Multi-GPU Configuration
+          export GPUS_PER_NODE="${GPU_COUNT}"
+          EOF
+
+          log "Configuration written to $OUTPUT_FILE"
+          SCRIPT_EOF
+
+          # Run the autodetect script
+          chmod +x /tmp/autodetect.sh
+          /tmp/autodetect.sh
+
+          echo ""
+          echo "=========================================="
+          echo "Auto-Detected Configuration:"
+          echo "=========================================="
+          cat /shared/nccl-env.sh
+          echo "=========================================="
+
+        volumeMounts:
+        - name: nccl-env
+          mountPath: /shared
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+
+      # Node affinity - same as h-kim
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - moc-r4pcc04u23-nairr
+                - moc-r4pcc04u25-nairr
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - h-kim-test
+            topologyKey: kubernetes.io/hostname
+
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      serviceAccountName: h-kim-sa
+
+      containers:
+      - name: h-kim
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
+        imagePullPolicy: Always
+
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+
+        # Resources - STILL HARDCODED (manifest requirement)
+        # But we'll use auto-detected values in the container
+        resources:
+          requests:
+            nvidia.com/gpu: 4  # Manifest still needs this
+            memory: 128Gi
+            cpu: 32
+          limits:
+            nvidia.com/gpu: 4
+            memory: 256Gi
+            cpu: 64
+
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+
+        # MINIMAL env - most will come from auto-detected config
+        - name: NCCL_DEBUG
+          value: "INFO"
+
+        # Pod identity
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # Master address
+        - name: MASTER_ADDR
+          value: "h-kim-test-0.h-kim-test-headless.nccl-test.svc.cluster.local"
+        - name: MASTER_PORT
+          value: "29500"
+
+        # WORLD_SIZE - we'll calculate this at runtime from replicas
+        # For now, provide it but show auto-calculation
+        - name: REPLICAS
+          value: "2"
+
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: dshm
+          mountPath: /dev/shm
+        - name: nccl-env
+          mountPath: /shared
+
+        ports:
+        - containerPort: 29500
+          name: master
+          protocol: TCP
+
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+
+          # Set unlimited memlock
+          ulimit -l unlimited
+          echo "Memlock limit: $(ulimit -l)"
+          echo ""
+
+          # SOURCE AUTO-DETECTED CONFIGURATION
+          if [ -f /shared/nccl-env.sh ]; then
+            echo "=========================================="
+            echo "Loading Comprehensive Auto-Detected Config"
+            echo "=========================================="
+            source /shared/nccl-env.sh
+            echo ""
+          else
+            echo "ERROR: /shared/nccl-env.sh not found!"
+            exit 1
+          fi
+
+          # Calculate node rank
+          POD_ORDINAL=${HOSTNAME##*-}
+          export NODE_RANK=$POD_ORDINAL
+
+          # Calculate WORLD_SIZE from replicas × GPUs per node
+          export WORLD_SIZE=$((REPLICAS * GPUS_PER_NODE))
+
+          echo "=========================================="
+          echo "H-Kim Test - Comprehensive Autodetect"
+          echo "=========================================="
+          echo "Pod: $POD_NAME"
+          echo "Node Rank: $NODE_RANK"
+          echo ""
+          echo "AUTO-DETECTED VALUES:"
+          echo "  GPUs per node: $GPUS_PER_NODE (detected!)"
+          echo "  World size: $WORLD_SIZE (calculated: $REPLICAS × $GPUS_PER_NODE)"
+          echo "  OMP threads: $OMP_NUM_THREADS (detected!)"
+          echo "  Transport: $DETECTED_TRANSPORT (detected!)"
+          echo ""
+          echo "NCCL Configuration (all auto-detected):"
+          env | grep NCCL_ | sort
+          echo ""
+          echo "Master: $MASTER_ADDR:$MASTER_PORT"
+          echo "=========================================="
+          echo ""
+
+          # Show GPU topology
+          echo "GPU Topology:"
+          nvidia-smi topo -m 2>/dev/null || echo "  (topology info not available)"
+          echo ""
+
+          # Show detected GPUs
+          echo "Detected GPUs:"
+          nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
+          echo ""
+
+          echo "=========================================="
+          echo "Comparison with Hardcoded Values:"
+          echo "=========================================="
+          echo "BEFORE (hardcoded in h-kim):"
+          echo "  GPUS_PER_NODE: 4 (hardcoded)"
+          echo "  WORLD_SIZE: 8 (hardcoded)"
+          echo "  OMP_NUM_THREADS: 8 (hardcoded)"
+          echo "  NCCL_IB_GID_INDEX: 3 (hardcoded)"
+          echo "  NCCL_NET_GDR_LEVEL: 5 (hardcoded)"
+          echo "  NCCL_P2P_LEVEL: NVL (hardcoded)"
+          echo ""
+          echo "AFTER (auto-detected):"
+          echo "  GPUS_PER_NODE: $GPUS_PER_NODE (detected!)"
+          echo "  WORLD_SIZE: $WORLD_SIZE (calculated!)"
+          echo "  OMP_NUM_THREADS: $OMP_NUM_THREADS (detected!)"
+          echo "  NCCL_IB_GID_INDEX: $NCCL_IB_GID_INDEX (detected!)"
+          echo "  NCCL_NET_GDR_LEVEL: $NCCL_NET_GDR_LEVEL (detected!)"
+          echo "  NCCL_P2P_LEVEL: $NCCL_P2P_LEVEL (detected!)"
+          echo "=========================================="
+          echo ""
+
+          echo "Environment ready. Pod will sleep for testing."
+          echo "To run a training job, exec into this pod:"
+          echo "  oc exec -it h-kim-test-0 -- bash"
+          echo "  cd /workspace"
+          echo "  torchrun --nproc_per_node=\$GPUS_PER_NODE train.py"
+          echo ""
+
+          sleep infinity
+
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
+      - name: nccl-env
+        emptyDir: {}
+
+  # Each pod gets its own workspace PVC
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: ocs-external-storagecluster-ceph-rbd
