@@ -2,7 +2,7 @@
 
 ## Summary
 
-Implemented automatic RDMA interface detection across all RDMA-enabled Kubernetes manifests. This replaces hardcoded device names with runtime auto-detection, making deployments portable across different nodes and clusters.
+Implemented automatic RDMA interface detection across all RDMA-enabled Kubernetes manifests AND templates. This replaces hardcoded device names with runtime auto-detection, making deployments portable across different nodes and clusters. The deployment wizard now automatically includes RDMA auto-detection when RDMA mode is selected.
 
 ## Changes Made
 
@@ -30,6 +30,26 @@ Implemented automatic RDMA interface detection across all RDMA-enabled Kubernete
    - Added `nccl-env` emptyDir volume
 
 **Note:** `pod-deepti-barcelona-pytorch28.yaml` and `pod-deepti-barcelona-pytorch29.yaml` were NOT modified because they have `NCCL_IB_DISABLE=1` (RDMA disabled).
+
+### Templates Updated (Deployment Wizard)
+
+4. **k8s/statefulset-multi-node-rdma.yaml** (template for wizard)
+   - Added `detect-rdma` init container
+   - Removed hardcoded `NCCL_IB_HCA` and `NCCL_SOCKET_IFNAME`
+   - Added `/shared/nccl-env.sh` sourcing in startup command
+   - Added `nccl-env` emptyDir volume
+   - **Impact:** All new deployments created by the wizard with RDMA mode will use auto-detection
+
+5. **k8s/pod-multi-gpu.yaml** (template for single-node deployments)
+   - Added `detect-rdma` init container
+   - Removed hardcoded `NCCL_IB_HCA` and `NCCL_SOCKET_IFNAME`
+   - Added `/shared/nccl-env.sh` sourcing in startup command
+   - Added `nccl-env` emptyDir volume
+
+6. **scripts/deploy_cluster.py** (wizard deployment script)
+   - Removed RDMA device/interface replacement logic
+   - Auto-detection is now handled by init container at runtime
+   - Legacy cluster configs with RDMA devices specified are ignored (auto-detection takes precedence)
 
 ## How It Works
 
@@ -276,16 +296,50 @@ The init container will still run, but manually-set environment variables will t
 - [scripts/add-ib-autodetect.py](scripts/add-ib-autodetect.py) - Tool to add auto-detection to any manifest
 - [scripts/nccl-wrapper.sh](scripts/nccl-wrapper.sh) - Alternative wrapper-based approach
 
+## Deployment Wizard Integration
+
+The deployment wizard (`scripts/deployment_wizard.py` and `scripts/deploy_cluster.py`) now automatically includes RDMA auto-detection when users select RDMA mode:
+
+1. **Template-based:** Uses `k8s/statefulset-multi-node-rdma.yaml` which includes auto-detection init container
+2. **No hardcoded values:** The wizard no longer replaces device names from cluster configs
+3. **Runtime detection:** Each pod detects its own RDMA devices when it starts
+4. **Automatic:** Users don't need to do anything special - selecting RDMA mode enables auto-detection
+
+### Wizard Flow
+
+```
+User runs: ./scripts/deployment_wizard.py
+  ↓
+Selects cluster (e.g., Barcelona)
+  ↓
+Wizard detects RDMA capability
+  ↓
+Prompts: "Use RDMA for high-performance networking?"
+  ↓
+User selects: Yes
+  ↓
+Wizard uses: k8s/statefulset-multi-node-rdma.yaml template
+  ↓
+Generated manifest includes: detect-rdma init container
+  ↓
+Pod starts → init container runs → detects IB devices
+  ↓
+Main container sources config → NCCL uses detected devices
+```
+
 ## Summary
 
-All RDMA-enabled Kubernetes manifests now use automatic interface detection:
+All RDMA-enabled Kubernetes manifests and templates now use automatic interface detection:
 
-| Deployment | RDMA Enabled | Auto-Detection | Status |
-|------------|--------------|----------------|---------|
+| Deployment/Template | RDMA Enabled | Auto-Detection | Status |
+|---------------------|--------------|----------------|---------|
 | **h-kim** | ✅ Yes | ✅ Added | Ready |
 | **yunshi** | ✅ Yes | ✅ Added | Ready |
 | **deepti (main)** | ✅ Yes | ✅ Added | Ready |
 | **deepti (pytorch28)** | ❌ No (IB disabled) | N/A | No changes |
 | **deepti (pytorch29)** | ❌ No (IB disabled) | N/A | No changes |
+| **statefulset-multi-node-rdma.yaml** (template) | ✅ Yes | ✅ Added | Ready |
+| **pod-multi-gpu.yaml** (template) | ✅ Yes | ✅ Added | Ready |
+| **statefulset-multi-node-tcp.yaml** (template) | ❌ No (TCP mode) | N/A | No changes |
 
-The manifests are now portable, resilient, and will work correctly on any RDMA-capable node without modification.
+The manifests and templates are now portable, resilient, and will work correctly on any RDMA-capable node without modification. **All new deployments created through the wizard automatically include RDMA auto-detection.**

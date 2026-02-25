@@ -97,17 +97,13 @@ def generate_statefulset(
             "image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2"
         ] = f"image: {image_url}"
 
-    # Add RDMA-specific replacements only if RDMA is enabled
+    # RDMA auto-detection: init container handles device/interface detection at runtime
+    # No need to replace hardcoded values - they are auto-detected
+    # Legacy cluster configs may still specify RDMA devices/interfaces, but they're not used
     if rdma_enabled and mode == "rdma":
-        rdma_replacements = {
-            # RDMA devices
-            "mlx5_6,mlx5_7,mlx5_10,mlx5_11": config["network"]["rdma"]["devices"],
-            "mlx5_2,mlx5_3,mlx5_4,mlx5_5": config["network"]["rdma"]["devices"],
-            "mlx5_6,7,10,11": config["network"]["rdma"]["devices"].replace("mlx5_", ""),
-            # Network interfaces
-            "net1,net2,net3,net4": config["network"]["rdma"]["interfaces"],
-        }
-        replacements.update(rdma_replacements)
+        # Note: RDMA devices and interfaces are now auto-detected by init container
+        # The template comments indicate auto-detection is used
+        pass
 
     for old, new in replacements.items():
         content = content.replace(old, new)
