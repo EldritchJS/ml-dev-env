@@ -106,7 +106,7 @@ spec:
       }
 
       detect_ib_devices() {
-          command -v ibv_devinfo &>/dev/null && ibv_devinfo -l 2>/dev/null | grep -v "^$" | grep -v "HCAs found" | tr '\n' ',' | sed 's/,$//' || echo ""
+          command -v ibv_devinfo &>/dev/null && ibv_devinfo -l 2>/dev/null | grep -v "^$" | grep -v "HCAs found" | sed 's/^[ \t]*//;s/[ \t]*$//' | tr '\n' ',' | sed 's/,$//' || echo ""
       }
 
       detect_rdma_interfaces() {

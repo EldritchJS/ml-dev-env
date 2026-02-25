@@ -9,6 +9,14 @@ set -euo pipefail
 ulimit -l unlimited
 echo "[INFO] Memlock set to: $(ulimit -l)"
 
+# --- Source auto-detected NCCL configuration ---
+if [ -f /shared/nccl-env.sh ]; then
+    echo "[INFO] Loading auto-detected NCCL configuration from /shared/nccl-env.sh"
+    source /shared/nccl-env.sh
+else
+    echo "[WARN] Auto-detected NCCL config not found at /shared/nccl-env.sh"
+fi
+
 # --- Logging / debugging ---
 export LOGLEVEL="${LOGLEVEL:-INFO}"
 export NCCL_DEBUG="${NCCL_DEBUG:-INFO}"
