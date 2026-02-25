@@ -80,6 +80,10 @@ spec:
         operator: Exists
         effect: NoSchedule
 
+      # Service account with nccl-rdma-scc for unlimited memlock
+      # Note: Even TCP mode benefits from unlimited memlock for shared memory
+      serviceAccountName: default
+
       containers:
       - name: ml-dev
         image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
@@ -98,11 +102,12 @@ spec:
             memory: 256Gi
             cpu: 64
 
-        # Security context (IPC_LOCK not required for TCP mode)
+        # Security context - SYS_RESOURCE allows unlimited memlock for shared memory
         securityContext:
           capabilities:
             add:
-              - IPC_LOCK  # Optional, helps with shared memory
+              - IPC_LOCK
+              - SYS_RESOURCE  # Allows unlimited memlock for large tensors
 
         # Environment variables for multi-GPU and multi-node
         env:
@@ -208,6 +213,11 @@ spec:
         - -c
         - |
           set -e
+
+          # Set unlimited memlock for shared memory (works with SYS_RESOURCE capability)
+          ulimit -l unlimited
+          echo "Memlock limit: $(ulimit -l)"
+          echo ""
 
           # Calculate node rank from pod ordinal
           POD_ORDINAL=${HOSTNAME##*-}

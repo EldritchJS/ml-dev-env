@@ -57,10 +57,12 @@ spec:
         image: nvcr.io/nvidia/pytorch:25.06-py3
         # image: nvcr.io/nvidia/pytorch:25.12-py3
         imagePullPolicy: IfNotPresent
+        # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
         securityContext:
           capabilities:
             add:
               - IPC_LOCK
+              - SYS_RESOURCE
         env:
         # NCCL Environment Variables
         - name: NCCL_IB_DISABLE
@@ -105,6 +107,11 @@ spec:
           - -c
         args:
           - |
+            # Set unlimited memlock for RDMA (works with SYS_RESOURCE capability)
+            ulimit -l unlimited
+            echo "Memlock limit: $(ulimit -l)"
+            echo ""
+
             echo "--- CONFIGURING MULTI-NODE ---"
             export NODE_RANK=${HOSTNAME##*-}
             export MASTER_ADDR=tsfm-node-0.tsfm-headless

@@ -152,10 +152,20 @@ spec:
         operator: Exists
         effect: NoSchedule
 
+      # Service account with nccl-rdma-scc for unlimited memlock
+      serviceAccountName: h-kim-sa
+
       containers:
       - name: h-kim
         image: quay.io/jschless/ml-dev-env:h-kim
         imagePullPolicy: Always
+
+        # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
 
         resources:
           requests:
@@ -213,6 +223,11 @@ spec:
         - -c
         - |
           set -e
+
+          # Set unlimited memlock for RDMA (works with SYS_RESOURCE capability)
+          ulimit -l unlimited
+          echo "Memlock limit: $(ulimit -l)"
+          echo ""
 
           # Copy script to workspace and make executable
           cp /scripts/h-kim-openshift.sh /workspace/
