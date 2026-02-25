@@ -148,7 +148,6 @@ class DeploymentWizard:
 
     def _extract_app_name(self, path: str, app_type: str) -> str:
         """Extract application name from file path or directory name"""
-        import os
         import re
 
         # Get the base name
@@ -898,10 +897,7 @@ class DeploymentWizard:
                     "How to handle requirements:", req_options, default=0
                 )
 
-                if req_choice == 0:
-                    install_mode = "pod_startup"
-                else:
-                    install_mode = "skip"
+                install_mode = "pod_startup" if req_choice == 0 else "skip"
             else:
                 req_options = [
                     "Install at pod startup (pip install on each pod start)",
@@ -911,10 +907,7 @@ class DeploymentWizard:
                     "How to handle requirements:", req_options, default=0
                 )
 
-                if req_choice == 0:
-                    install_mode = "pod_startup"
-                else:
-                    install_mode = "skip"
+                install_mode = "pod_startup" if req_choice == 0 else "skip"
 
             app_config["requirements"] = {
                 "file": str(req_path),
@@ -1004,7 +997,7 @@ class DeploymentWizard:
 
             # Values to sweep
             print(f"Enter values for {param_name} (comma-separated):")
-            print(f"  Example: 0.0001,0.001,0.01  or  16,32,64")
+            print("  Example: 0.0001,0.001,0.01  or  16,32,64")
             values_input = input("Values: ").strip()
 
             if not values_input:
@@ -1042,7 +1035,7 @@ class DeploymentWizard:
         strategy_options = [
             "Grid - Try all combinations (full grid search)",
         ]
-        strategy_choice = self._prompt_choice("Select strategy:", strategy_options, default=0)
+        _ = self._prompt_choice("Select strategy:", strategy_options, default=0)
         sweep_config["strategy"] = "grid"
 
         # Calculate total jobs
@@ -1067,7 +1060,7 @@ class DeploymentWizard:
 
         # Summary
         print("\n📋 Sweep Configuration Summary:")
-        print(f"  Strategy: grid search")
+        print("  Strategy: grid search")
         print(f"  Parameters: {len(sweep_config['parameters'])}")
         for param in sweep_config["parameters"]:
             print(f"    - {param['name']}: {len(param['values'])} values ({param['flag']})")
@@ -1502,7 +1495,7 @@ python {entry_point} {arguments}
 ```"""
 
             elif exec_mode == "auto_start":
-                app_instructions = f"""
+                app_instructions = """
 ## Running Your Application
 
 Your application is configured for **auto-start**. It starts automatically when pods launch.

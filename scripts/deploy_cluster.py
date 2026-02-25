@@ -187,8 +187,6 @@ def generate_job(
     app_name: str = "ml-dev-env",
 ):
     """Generate Kubernetes Job YAML for application execution"""
-    import datetime
-
     # Read job template
     template_file = "templates/job.yaml"
 
