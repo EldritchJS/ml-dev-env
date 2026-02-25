@@ -1,0 +1,343 @@
+==========================================
+Qwen2.5-Omni Test (Barcelona Cluster)
+==========================================
+
+GPU Information:
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+
+GPU Topology:
+	[4mGPU0	GPU1	GPU2	GPU3	NIC0	NIC1	NIC2	NIC3	NIC4	NIC5	NIC6	NIC7	NIC8	NIC9	NIC10	NIC11	CPU Affinity	NUMA Affinity	GPU NUMA ID[0m
+GPU0	 X 	NV6	NV6	NV6	NODE	NODE	NODE	PXB	SYS	SYS	PXB	NODE	NODE	NODE	SYS	SYS	0-47,96-143	0		N/A
+GPU1	NV6	 X 	NV6	NV6	NODE	NODE	PXB	NODE	SYS	SYS	NODE	PXB	NODE	NODE	SYS	SYS	0-47,96-143	0		N/A
+GPU2	NV6	NV6	 X 	NV6	SYS	SYS	SYS	SYS	NODE	PXB	SYS	SYS	SYS	SYS	PXB	NODE	48-95,144-191	1		N/A
+GPU3	NV6	NV6	NV6	 X 	SYS	SYS	SYS	SYS	PXB	NODE	SYS	SYS	SYS	SYS	NODE	PXB	48-95,144-191	1		N/A
+NIC0	NODE	NODE	SYS	SYS	 X 	PIX	NODE	NODE	SYS	SYS	NODE	NODE	PIX	PIX	SYS	SYS				
+NIC1	NODE	NODE	SYS	SYS	PIX	 X 	NODE	NODE	SYS	SYS	NODE	NODE	PIX	PIX	SYS	SYS				
+NIC2	NODE	PXB	SYS	SYS	NODE	NODE	 X 	NODE	SYS	SYS	NODE	PIX	NODE	NODE	SYS	SYS				
+NIC3	PXB	NODE	SYS	SYS	NODE	NODE	NODE	 X 	SYS	SYS	PIX	NODE	NODE	NODE	SYS	SYS				
+NIC4	SYS	SYS	NODE	PXB	SYS	SYS	SYS	SYS	 X 	NODE	SYS	SYS	SYS	SYS	NODE	PIX				
+NIC5	SYS	SYS	PXB	NODE	SYS	SYS	SYS	SYS	NODE	 X 	SYS	SYS	SYS	SYS	PIX	NODE				
+NIC6	PXB	NODE	SYS	SYS	NODE	NODE	NODE	PIX	SYS	SYS	 X 	NODE	NODE	NODE	SYS	SYS				
+NIC7	NODE	PXB	SYS	SYS	NODE	NODE	PIX	NODE	SYS	SYS	NODE	 X 	NODE	NODE	SYS	SYS				
+NIC8	NODE	NODE	SYS	SYS	PIX	PIX	NODE	NODE	SYS	SYS	NODE	NODE	 X 	PIX	SYS	SYS				
+NIC9	NODE	NODE	SYS	SYS	PIX	PIX	NODE	NODE	SYS	SYS	NODE	NODE	PIX	 X 	SYS	SYS				
+NIC10	SYS	SYS	PXB	NODE	SYS	SYS	SYS	SYS	NODE	PIX	SYS	SYS	SYS	SYS	 X 	NODE				
+NIC11	SYS	SYS	NODE	PXB	SYS	SYS	SYS	SYS	PIX	NODE	SYS	SYS	SYS	SYS	NODE	 X 				
+
+Legend:
+
+  X    = Self
+  SYS  = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)
+  NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node
+  PHB  = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)
+  PXB  = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)
+  PIX  = Connection traversing at most a single PCIe bridge
+  NV#  = Connection traversing a bonded set of # NVLinks
+
+NIC Legend:
+
+  NIC0: mlx5_0
+  NIC1: mlx5_1
+  NIC2: mlx5_2
+  NIC3: mlx5_3
+  NIC4: mlx5_4
+  NIC5: mlx5_5
+  NIC6: mlx5_6
+  NIC7: mlx5_7
+  NIC8: mlx5_8
+  NIC9: mlx5_9
+  NIC10: mlx5_10
+  NIC11: mlx5_11
+
+
+InfiniBand Devices:
+CA 'mlx5_0'
+	CA type: MT4127
+	Number of ports: 1
+	Firmware version: 26.38.1002
+	Hardware version: 0
+	Node GUID: 0x387c760300c3526e
+	System image GUID: 0x387c760300c3526e
+	Port 1:
+		State: Active
+		Physical state: LinkUp
+		Rate: 25
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_1'
+	CA type: MT4127
+	Number of ports: 1
+	Firmware version: 26.38.1002
+	Hardware version: 0
+	Node GUID: 0x387c760300c3526f
+	System image GUID: 0x387c760300c3526e
+	Port 1:
+		State: Down
+		Physical state: Disabled
+		Rate: 40
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_10'
+	CA type: MT4126
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0x6a1057fffe834423
+	System image GUID: 0xa088c2030027c414
+	Port 1:
+		State: Down
+		Physical state: Disabled
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_11'
+	CA type: MT4126
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0x2692eefffee7ad9d
+	System image GUID: 0xa088c2030027c410
+	Port 1:
+		State: Down
+		Physical state: Disabled
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_2'
+	CA type: MT4129
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0xa088c2030027c418
+	System image GUID: 0xa088c2030027c418
+	Port 1:
+		State: Active
+		Physical state: LinkUp
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_3'
+	CA type: MT4129
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0xa088c2030027c41c
+	System image GUID: 0xa088c2030027c41c
+	Port 1:
+		State: Active
+		Physical state: LinkUp
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_4'
+	CA type: MT4129
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0xa088c2030027c410
+	System image GUID: 0xa088c2030027c410
+	Port 1:
+		State: Active
+		Physical state: LinkUp
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_5'
+	CA type: MT4129
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0xa088c2030027c414
+	System image GUID: 0xa088c2030027c414
+	Port 1:
+		State: Active
+		Physical state: LinkUp
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_6'
+	CA type: MT4126
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0x66197afffeca0c3a
+	System image GUID: 0xa088c2030027c41c
+	Port 1:
+		State: Down
+		Physical state: Disabled
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_7'
+	CA type: MT4126
+	Number of ports: 1
+	Firmware version: 28.37.1014
+	Hardware version: 0
+	Node GUID: 0xe2aa4afffe5984f4
+	System image GUID: 0xa088c2030027c418
+	Port 1:
+		State: Down
+		Physical state: Disabled
+		Rate: 400
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_8'
+	CA type: MT4126
+	Number of ports: 1
+	Firmware version: 26.38.1002
+	Hardware version: 0
+	Node GUID: 0xf6e428fffebfbc74
+	System image GUID: 0x387c760300c3526e
+	Port 1:
+		State: Down
+		Physical state: Disabled
+		Rate: 25
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+CA 'mlx5_9'
+	CA type: MT4126
+	Number of ports: 1
+	Firmware version: 26.38.1002
+	Hardware version: 0
+	Node GUID: 0xca6658fffeeae8ca
+	System image GUID: 0x387c760300c3526e
+	Port 1:
+		State: Down
+		Physical state: Disabled
+		Rate: 40
+		Base lid: 0
+		LMC: 0
+		SM lid: 0
+		Capability mask: 0x00010000
+		Port GUID: 0x0000000000000000
+		Link layer: Ethernet
+
+Verifying Python environment:
+PyTorch 2.8.0a0+34c6371d24.nv25.08, CUDA available: True, GPUs: 4
+Transformers 4.52.4
+qwen-omni-utils: installed
+flash-attn: 2.7.4.post1
+
+Copied deepti.py to workspace
+==========================================
+Running deepti.py...
+==========================================
+
+[INFO] Creating dummy video with ffmpeg...
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+  built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
+  configuration: --prefix=/usr --extra-version=3ubuntu5 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+Input #0, lavfi, from 'testsrc=size=224x224:rate=5':
+  Duration: N/A, start: 0.000000, bitrate: N/A
+  Stream #0:0: Video: wrapped_avframe, rgb24, 224x224 [SAR 1:1 DAR 1:1], 5 fps, 5 tbr, 5 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (wrapped_avframe (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0x55cc2265d680] using SAR=1/1
+[libx264 @ 0x55cc2265d680] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2 AVX512
+[libx264 @ 0x55cc2265d680] profile High, level 1.1, 4:2:0, 8-bit
+[libx264 @ 0x55cc2265d680] 264 - core 164 r3108 31e19f9 - H.264/MPEG-4 AVC codec - Copyleft 2003-2023 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=7 lookahead_threads=1 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=5 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'dummy_test.mp4':
+  Metadata:
+    encoder         : Lavf60.16.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 224x224 [SAR 1:1 DAR 1:1], q=2-31, 5 fps, 10240 tbn
+    Metadata:
+      encoder         : Lavc60.31.102 libx264
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    0 fps=0.0 q=0.0 size=       0kB time=N/A bitrate=N/A speed=N/A    [out#0/mp4 @ 0x55cc2265bf80] video:7kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 13.063679%
+frame=   10 fps=0.0 q=-1.0 Lsize=       8kB time=00:00:01.40 bitrate=  47.3kbits/s speed=48.1x    
+[libx264 @ 0x55cc2265d680] frame I:1     Avg QP:14.60  size:  3670
+[libx264 @ 0x55cc2265d680] frame P:6     Avg QP:13.49  size:   406
+[libx264 @ 0x55cc2265d680] frame B:3     Avg QP:12.57  size:   175
+[libx264 @ 0x55cc2265d680] consecutive B-frames: 60.0%  0.0%  0.0% 40.0%
+[libx264 @ 0x55cc2265d680] mb I  I16..4: 56.1%  8.2% 35.7%
+[libx264 @ 0x55cc2265d680] mb P  I16..4:  0.9%  1.8%  0.6%  P16..4:  7.4%  8.8%  0.4%  0.0%  0.0%    skip:80.0%
+[libx264 @ 0x55cc2265d680] mb B  I16..4:  1.7%  0.5%  0.0%  B16..8:  6.6%  5.6%  0.2%  direct: 0.9%  skip:84.5%  L0:57.7% L1:25.9% BI:16.4%
+[libx264 @ 0x55cc2265d680] 8x8 transform intra:16.1% inter:75.5%
+[libx264 @ 0x55cc2265d680] coded y,uvDC,uvAC intra: 20.2% 48.8% 31.5% inter: 2.4% 10.0% 5.5%
+[libx264 @ 0x55cc2265d680] i16 v,h,dc,p: 84%  4%  3%  9%
+[libx264 @ 0x55cc2265d680] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 78%  1% 16%  2%  0%  0%  0%  0%  4%
+[libx264 @ 0x55cc2265d680] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 45% 25% 20%  2%  1%  2%  2%  2%  1%
+[libx264 @ 0x55cc2265d680] i8c dc,h,v,p: 34% 13% 44%  8%
+[libx264 @ 0x55cc2265d680] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 0x55cc2265d680] ref P L0: 81.1% 12.5%  4.6%  1.8%
+[libx264 @ 0x55cc2265d680] ref B L0: 80.9% 18.2%  0.9%
+[libx264 @ 0x55cc2265d680] kb/s:26.52
+[OK] ffmpeg works
+[INFO] Loading model...
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:20<01:21, 20.50s/it]Fetching 5 files:  60%|██████    | 3/5 [00:20<00:10,  5.47s/it]Fetching 5 files: 100%|██████████| 5/5 [00:20<00:00,  4.19s/it]
+You are attempting to use Flash Attention 2.0 without specifying a torch dtype. This might lead to unexpected behaviour
+Qwen2_5OmniToken2WavModel must inference with fp32, but flash_attention_2 only supports fp16 and bf16, attention implementation of Qwen2_5OmniToken2WavModel will fallback to sdpa.
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]Loading checkpoint shards:  20%|██        | 1/5 [00:01<00:06,  1.68s/it]Loading checkpoint shards:  40%|████      | 2/5 [00:02<00:04,  1.33s/it]Loading checkpoint shards:  60%|██████    | 3/5 [00:03<00:02,  1.22s/it]Loading checkpoint shards:  80%|████████  | 4/5 [00:04<00:01,  1.18s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:06<00:00,  1.13s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:06<00:00,  1.20s/it]
+You have video processor config saved in `preprocessor.json` file which is deprecated. Video processor configs should be saved in their own `video_preprocessor.json` file. You can rename the file or load and save the processor back which renames it automatically. Loading from `preprocessor.json` will be removed in v5.0.
+[OK] Model + processor loaded
+WARNING:root:System prompt modified, audio output may not work as expected. Audio output mode only works when using default system prompt 'You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech.'
+qwen-vl-utils using decord to read video.
+Unused or unrecognized kwargs: return_tensors, images.
+[INFO] Running generation...
+
+=== MODEL OUTPUT ===
+This image appears to be a test pattern, often used for calibrating or testing video equipment. It features a circular pattern with vertical color bars in various colors, including red, green, blue, yellow, cyan, magenta, and black. There is also a small black square in the center of the circle. This type of pattern is commonly used in television and video production to ensure that the display is functioning correctly and to calibrate the color and brightness settings.
+====================
+[SUCCESS] Minimal Qwen2.5-Omni + ffmpeg + flash-attn test completed
+
+==========================================
+Test completed successfully!
+==========================================
