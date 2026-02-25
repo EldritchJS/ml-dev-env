@@ -1,0 +1,15 @@
+FROM nvcr.io/nvidia/pytorch:24.01-py3
+
+# Install InfiniBand tools if not already present
+RUN apt-get update && apt-get install -y \
+    infiniband-diags \
+    ibverbs-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy NCCL wrapper script
+COPY scripts/nccl-wrapper.sh /usr/local/bin/nccl-wrapper.sh
+RUN chmod +x /usr/local/bin/nccl-wrapper.sh
+
+# Set as default entrypoint
+ENTRYPOINT ["/usr/local/bin/nccl-wrapper.sh"]
+CMD ["/bin/bash"]
