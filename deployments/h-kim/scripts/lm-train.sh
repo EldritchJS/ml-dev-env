@@ -5,7 +5,9 @@ set -euo pipefail
 # This script runs TorchTitan distributed training on OpenShift
 
 # --- CRITICAL: Set unlimited memlock for RDMA ---
-ulimit -l unlimited 2>/dev/null || echo "[WARN] Could not set unlimited memlock"
+# With SYS_RESOURCE capability, this now works directly
+ulimit -l unlimited
+echo "[INFO] Memlock set to: $(ulimit -l)"
 
 # --- Logging / debugging ---
 export LOGLEVEL="${LOGLEVEL:-INFO}"
@@ -111,9 +113,8 @@ echo ""
 
 # --- Run TorchTitan training ---
 echo "[INFO] Starting torchrun with RDMA..."
-# Use prlimit to ensure child processes inherit unlimited memlock for RDMA
-exec prlimit --memlock=unlimited:unlimited \
-torchrun \
+# Memlock is already set to unlimited via ulimit (with SYS_RESOURCE capability)
+exec torchrun \
   --nnodes="${NNODES}" \
   --nproc_per_node="${NPROC_PER_NODE}" \
   --node_rank="${NODE_RANK}" \

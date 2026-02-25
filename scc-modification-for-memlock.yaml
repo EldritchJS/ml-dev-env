@@ -1,0 +1,103 @@
+# SecurityContextConstraint modification to enable pod-level unlimited memlock
+#
+# This allows pods to set unlimited memlock without script wrappers.
+# Requires cluster-admin privileges to apply.
+#
+# Usage:
+#   1. Cluster admin: oc apply -f scc-modification-for-memlock.yaml
+#   2. Grant to service account: oc adm policy add-scc-to-user nccl-rdma-scc -z h-kim-sa -n <namespace>
+#   3. Pods can now use SYS_RESOURCE capability and set ulimit -l unlimited directly
+
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: nccl-rdma-scc
+  annotations:
+    kubernetes.io/description: |
+      Custom SCC for NCCL/RDMA workloads that require unlimited memory locking.
+      Allows SYS_RESOURCE capability so pods can set ulimit -l unlimited for RDMA operations.
+
+# Allow privileged container if needed (set to false for tighter security)
+allowPrivilegedContainer: false
+
+# Allow host namespaces (usually not needed for RDMA)
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+
+# Allowed capabilities - SYS_RESOURCE is key for memlock
+allowedCapabilities:
+  - IPC_LOCK       # Needed for memory pinning
+  - SYS_RESOURCE   # Needed to modify ulimits (including memlock)
+
+# Required drop capabilities (good security practice)
+requiredDropCapabilities:
+  - KILL
+  - MKNOD
+  - SETUID
+  - SETGID
+
+# Run as any UID (required for most ML containers)
+runAsUser:
+  type: RunAsAny
+
+# SELinux context
+seLinuxContext:
+  type: MustRunAs
+
+# Filesystem group
+fsGroup:
+  type: RunAsAny
+
+# Supplemental groups
+supplementalGroups:
+  type: RunAsAny
+
+# Volumes
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+
+# Priority (higher number = higher priority)
+priority: 10
+
+# Users (will be granted via oc adm policy)
+users: []
+
+# Groups
+groups: []
+
+---
+# Example Pod using this SCC
+#
+# Once SCC is applied and granted to service account, pods can do:
+#
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   name: h-kim-0
+# spec:
+#   serviceAccountName: h-kim-sa  # Must have nccl-rdma-scc granted
+#   containers:
+#   - name: training
+#     image: pytorch:latest
+#     securityContext:
+#       capabilities:
+#         add:
+#           - IPC_LOCK
+#           - SYS_RESOURCE  # With this, ulimit -l unlimited works!
+#     command:
+#     - /bin/bash
+#     - -c
+#     - |
+#       # Now this works directly - no prlimit wrapper needed!
+#       ulimit -l unlimited
+#
+#       # Run training
+#       torchrun --nnodes=2 train.py

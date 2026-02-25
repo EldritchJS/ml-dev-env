@@ -108,10 +108,20 @@ spec:
         operator: Exists
         effect: NoSchedule
 
+      # Service account with nccl-rdma-scc for unlimited memlock
+      serviceAccountName: h-kim-sa
+
       containers:
       - name: h-kim
         image: image-registry.openshift-image-registry.svc:5000/nccl-test/h-kim:latest
         imagePullPolicy: Always
+
+        # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
 
         resources:
           requests:
@@ -183,6 +193,11 @@ spec:
         - -c
         - |
           set -e
+
+          # Set unlimited memlock for RDMA (works with SYS_RESOURCE capability)
+          ulimit -l unlimited
+          echo "Memlock limit: $(ulimit -l)"
+          echo ""
 
           # Source auto-detected RDMA configuration
           if [ -f /shared/nccl-env.sh ]; then

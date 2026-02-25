@@ -126,10 +126,21 @@ spec:
         operator: Exists
         effect: NoSchedule
 
+      # Service account with nccl-rdma-scc for unlimited memlock
+      # Note: Deployment wizard will set this to the correct service account
+      serviceAccountName: default
+
       containers:
       - name: ml-dev
         image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2
         imagePullPolicy: Always
+
+        # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
 
         # CUSTOMIZE: Change GPU count per pod
         # Total GPUs = replicas × GPUs per pod
@@ -262,6 +273,11 @@ spec:
         - -c
         - |
           set -e
+
+          # Set unlimited memlock for RDMA (works with SYS_RESOURCE capability)
+          ulimit -l unlimited
+          echo "Memlock limit: $(ulimit -l)"
+          echo ""
 
           # Source auto-detected RDMA configuration
           if [ -f /shared/nccl-env.sh ]; then
