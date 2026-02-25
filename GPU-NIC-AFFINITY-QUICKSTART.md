@@ -207,7 +207,13 @@ ibv_devinfo -l
 **Quick references:**
 - This file - Quick start
 - [GPU-NIC-AFFINITY-GUIDE.md](docs/GPU-NIC-AFFINITY-GUIDE.md) - Complete guide
+- [NCCL-AFFINITY-EXPLAINED.md](docs/NCCL-AFFINITY-EXPLAINED.md) - How NCCL uses affinity config
+- [AFFINITY-COMPARISON-EXAMPLE.md](AFFINITY-COMPARISON-EXAMPLE.md) - Auto vs explicit comparison
 - [MULTI-NODE-GUIDE.md](docs/MULTI-NODE-GUIDE.md) - Multi-node training
+
+**Launcher scripts:**
+- [scripts/launch-with-auto-affinity.sh](scripts/launch-with-auto-affinity.sh) - Auto-detection (recommended)
+- [scripts/launch-with-explicit-affinity.sh](scripts/launch-with-explicit-affinity.sh) - Explicit per-rank
 
 **Related:**
 - [SCC-MEMLOCK-COMPLETE.md](SCC-MEMLOCK-COMPLETE.md) - Memory locking for RDMA
