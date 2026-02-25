@@ -560,10 +560,7 @@ class TestDeploymentWizard:
 
     def test_configure_sweep_disabled_not_job_mode(self, wizard):
         """Test that sweep configuration is skipped when not in job mode."""
-        wizard.config["application"] = {
-            "enabled": True,
-            "execution": {"mode": "manual"}
-        }
+        wizard.config["application"] = {"enabled": True, "execution": {"mode": "manual"}}
 
         # Should return early without prompting
         wizard.configure_sweep()
@@ -585,20 +582,23 @@ class TestDeploymentWizard:
         wizard.non_interactive = False  # Enable interactive mode for this test
         wizard.config["application"] = {
             "enabled": True,
-            "execution": {"mode": "job", "arguments": "--epochs 100"}
+            "execution": {"mode": "job", "arguments": "--epochs 100"},
         }
 
         # Mock user inputs for interactive sweep configuration
         with patch.object(wizard, "_prompt_yes_no", return_value=True):
-            with patch("builtins.input", side_effect=[
-                "lr",  # Parameter 1 name
-                "",    # Use default flag --lr
-                "0.001,0.01,0.1",  # Parameter 1 values
-                "batch_size",  # Parameter 2 name
-                "--batch-size",  # CLI flag
-                "16,32,64",  # Parameter 2 values
-                "",  # No more parameters
-            ]):
+            with patch(
+                "builtins.input",
+                side_effect=[
+                    "lr",  # Parameter 1 name
+                    "",  # Use default flag --lr
+                    "0.001,0.01,0.1",  # Parameter 1 values
+                    "batch_size",  # Parameter 2 name
+                    "--batch-size",  # CLI flag
+                    "16,32,64",  # Parameter 2 values
+                    "",  # No more parameters
+                ],
+            ):
                 with patch.object(wizard, "_prompt_choice", return_value=0):  # Grid strategy
                     with patch.object(wizard, "_prompt_number", return_value=3):  # Max concurrent
                         wizard.configure_sweep()
@@ -623,18 +623,24 @@ class TestDeploymentWizard:
     def test_configure_sweep_type_conversion(self, wizard):
         """Test that sweep values are correctly typed (int, float, string)."""
         wizard.non_interactive = False  # Enable interactive mode
-        wizard.config["application"] = {
-            "enabled": True,
-            "execution": {"mode": "job"}
-        }
+        wizard.config["application"] = {"enabled": True, "execution": {"mode": "job"}}
 
         with patch.object(wizard, "_prompt_yes_no", return_value=True):
-            with patch("builtins.input", side_effect=[
-                "lr", "", "0.0001,0.001",  # Floats (values with decimal points)
-                "batch_size", "", "16,32",  # Ints
-                "optimizer", "", "adam,sgd",  # Strings
-                "",  # No more parameters
-            ]):
+            with patch(
+                "builtins.input",
+                side_effect=[
+                    "lr",
+                    "",
+                    "0.0001,0.001",  # Floats (values with decimal points)
+                    "batch_size",
+                    "",
+                    "16,32",  # Ints
+                    "optimizer",
+                    "",
+                    "adam,sgd",  # Strings
+                    "",  # No more parameters
+                ],
+            ):
                 with patch.object(wizard, "_prompt_choice", return_value=0):
                     with patch.object(wizard, "_prompt_number", return_value=2):
                         wizard.configure_sweep()
@@ -656,17 +662,21 @@ class TestDeploymentWizard:
     def test_configure_sweep_skip_empty_parameter(self, wizard):
         """Test that empty parameter values are skipped."""
         wizard.non_interactive = False  # Enable interactive mode
-        wizard.config["application"] = {
-            "enabled": True,
-            "execution": {"mode": "job"}
-        }
+        wizard.config["application"] = {"enabled": True, "execution": {"mode": "job"}}
 
         with patch.object(wizard, "_prompt_yes_no", return_value=True):
-            with patch("builtins.input", side_effect=[
-                "lr", "", "",  # Empty values - should skip and decrement param_count
-                "batch_size", "", "16,32",  # Valid parameter
-                "",  # No more parameters
-            ]):
+            with patch(
+                "builtins.input",
+                side_effect=[
+                    "lr",
+                    "",
+                    "",  # Empty values - should skip and decrement param_count
+                    "batch_size",
+                    "",
+                    "16,32",  # Valid parameter
+                    "",  # No more parameters
+                ],
+            ):
                 with patch.object(wizard, "_prompt_choice", return_value=0):
                     with patch.object(wizard, "_prompt_number", return_value=2):
                         wizard.configure_sweep()
@@ -679,10 +689,7 @@ class TestDeploymentWizard:
 
     def test_configure_sweep_non_interactive_skip(self, wizard):
         """Test that sweep is skipped in non-interactive mode."""
-        wizard.config["application"] = {
-            "enabled": True,
-            "execution": {"mode": "job"}
-        }
+        wizard.config["application"] = {"enabled": True, "execution": {"mode": "job"}}
         wizard.non_interactive = True
 
         wizard.configure_sweep()
@@ -715,12 +722,12 @@ class TestDeploymentWizard:
                         "max_concurrent": 3,
                         "parameters": [
                             {"name": "lr", "flag": "--lr", "values": [0.001, 0.01]},
-                            {"name": "bs", "flag": "--batch-size", "values": [16, 32]}
-                        ]
-                    }
+                            {"name": "bs", "flag": "--batch-size", "values": [16, 32]},
+                        ],
+                    },
                 },
-                "runtime": {"working_dir": "/workspace/test-sweep"}
-            }
+                "runtime": {"working_dir": "/workspace/test-sweep"},
+            },
         }
 
         # Generate scripts
@@ -761,10 +768,10 @@ class TestDeploymentWizard:
                         "max_concurrent": 5,
                         "parameters": [
                             {"name": "lr", "flag": "--lr", "values": [0.001, 0.01, 0.1]}
-                        ]
-                    }
-                }
-            }
+                        ],
+                    },
+                },
+            },
         }
 
         # Save config

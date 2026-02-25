@@ -153,9 +153,7 @@ def generate_statefulset(
     print(f"Generated: {output_file}")
 
 
-def generate_service(
-    config: dict[str, Any], output_file: str, app_name: str = "ml-dev-env"
-):
+def generate_service(config: dict[str, Any], output_file: str, app_name: str = "ml-dev-env"):
     """Generate Service and Routes YAML with app-specific naming"""
 
     # Read service template
@@ -237,7 +235,10 @@ def generate_job(
     world_size = num_nodes * gpus_per_node
 
     # Image URL
-    image_url = project_config.get("image", {}).get("url", "image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2")
+    image_url = project_config.get("image", {}).get(
+        "url",
+        "image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env:pytorch-2.9-numpy2",
+    )
 
     # Build replacements dict
     replacements = {
@@ -478,9 +479,12 @@ def main():
     if args.job:
         # Generate Job manifest
         import datetime
+
         job_id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         job_file = output_dir / f"{cluster_name}-job-{job_id}.yaml"
-        generate_job(config, project_config, job_id, str(job_file), mode=args.mode, app_name=app_name)
+        generate_job(
+            config, project_config, job_id, str(job_file), mode=args.mode, app_name=app_name
+        )
         print(f"\n✓ Job manifest generated: {job_file}")
         print(f"  Job ID: {job_id}")
         print(f"  To apply: oc apply -f {job_file} -n {config['cluster']['namespace']}")
@@ -489,7 +493,9 @@ def main():
     else:
         # Generate StatefulSet
         statefulset_file = output_dir / f"{cluster_name}-statefulset-{args.mode}.yaml"
-        generate_statefulset(config, args.mode, str(statefulset_file), image_url=args.image, app_name=app_name)
+        generate_statefulset(
+            config, args.mode, str(statefulset_file), image_url=args.image, app_name=app_name
+        )
 
     # Print setup instructions
     print_setup_instructions(config)

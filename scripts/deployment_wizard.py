@@ -794,9 +794,7 @@ class DeploymentWizard:
         print("\n🏷️  Step 3: Application Name")
         print("")
 
-        extracted_name = self._extract_app_name(
-            app_config["source"]["path"], app_type
-        )
+        extracted_name = self._extract_app_name(app_config["source"]["path"], app_type)
         print(f"Extracted name: {extracted_name}")
         print("(This will be used for all resource names: pods, services, routes)")
         print("")
@@ -886,13 +884,19 @@ class DeploymentWizard:
             is_custom_image = self.config.get("image", {}).get("type") == "custom_build"
 
             if is_custom_image:
-                print("\nNote: Image already built. Requirements can only be installed at pod startup.")
-                print("To merge requirements into image, rerun wizard and specify requirements during image build.")
+                print(
+                    "\nNote: Image already built. Requirements can only be installed at pod startup."
+                )
+                print(
+                    "To merge requirements into image, rerun wizard and specify requirements during image build."
+                )
                 req_options = [
                     "Install at pod startup (pip install on each pod start)",
                     "Skip (manually manage dependencies)",
                 ]
-                req_choice = self._prompt_choice("How to handle requirements:", req_options, default=0)
+                req_choice = self._prompt_choice(
+                    "How to handle requirements:", req_options, default=0
+                )
 
                 if req_choice == 0:
                     install_mode = "pod_startup"
@@ -903,7 +907,9 @@ class DeploymentWizard:
                     "Install at pod startup (pip install on each pod start)",
                     "Skip (manually manage dependencies)",
                 ]
-                req_choice = self._prompt_choice("How to handle requirements:", req_options, default=0)
+                req_choice = self._prompt_choice(
+                    "How to handle requirements:", req_options, default=0
+                )
 
                 if req_choice == 0:
                     install_mode = "pod_startup"
@@ -982,7 +988,9 @@ class DeploymentWizard:
             print(f"\n--- Parameter {param_count} ---")
 
             # Parameter name (for job ID, e.g., "lr", "bs")
-            param_name = input("Parameter name (e.g., 'lr', 'batch_size') or Enter to finish: ").strip()
+            param_name = input(
+                "Parameter name (e.g., 'lr', 'batch_size') or Enter to finish: "
+            ).strip()
             if not param_name:
                 if param_count == 1:
                     print("No parameters defined, disabling sweep")
@@ -1018,11 +1026,9 @@ class DeploymentWizard:
                     # Keep as string
                     values.append(v)
 
-            sweep_config["parameters"].append({
-                "name": param_name,
-                "flag": cli_flag,
-                "values": values
-            })
+            sweep_config["parameters"].append(
+                {"name": param_name, "flag": cli_flag, "values": values}
+            )
 
             print(f"✓ Added parameter: {param_name} with {len(values)} values")
 
@@ -1052,7 +1058,7 @@ class DeploymentWizard:
             f"Maximum concurrent jobs (1-{total_jobs})?",
             default=max_concurrent_default,
             min_val=1,
-            max_val=total_jobs
+            max_val=total_jobs,
         )
         sweep_config["max_concurrent"] = max_concurrent
 
@@ -1436,7 +1442,9 @@ env | grep NCCL  # Check NCCL configuration
 
         # Application configuration
         app_config = self.config.get("application", {})
-        app_name = app_config.get("name", "ml-dev-env") if app_config.get("enabled") else "ml-dev-env"
+        app_name = (
+            app_config.get("name", "ml-dev-env") if app_config.get("enabled") else "ml-dev-env"
+        )
 
         # Pod name (now uses app_name)
         pod_name = f"{app_name}-0" if self.config["mode"] != "single-node" else app_name
@@ -1591,7 +1599,9 @@ oc get jobs -n {cluster_config["cluster"]["namespace"]} -l app={app_name}
 
         # Extract app_name from config (default to ml-dev-env)
         app_config = self.config.get("application", {})
-        app_name = app_config.get("name", "ml-dev-env") if app_config.get("enabled") else "ml-dev-env"
+        app_name = (
+            app_config.get("name", "ml-dev-env") if app_config.get("enabled") else "ml-dev-env"
+        )
 
         # Determine pod name and sync target based on mode
         if self.config["mode"] == "single-node":
@@ -1615,12 +1625,16 @@ oc get jobs -n {cluster_config["cluster"]["namespace"]} -l app={app_name}
 
         # Add application-specific template variables
         if app_config.get("enabled"):
-            template_vars.update({
-                "working_dir": app_config.get("runtime", {}).get("working_dir", f"/workspace/{app_name}"),
-                "entry_point": app_config.get("source", {}).get("entry_point", "train.py"),
-                "arguments": app_config.get("execution", {}).get("arguments", ""),
-                "project": self.project_name,
-            })
+            template_vars.update(
+                {
+                    "working_dir": app_config.get("runtime", {}).get(
+                        "working_dir", f"/workspace/{app_name}"
+                    ),
+                    "entry_point": app_config.get("source", {}).get("entry_point", "train.py"),
+                    "arguments": app_config.get("execution", {}).get("arguments", ""),
+                    "project": self.project_name,
+                }
+            )
 
         # Deploy command
         image_flag = (

@@ -300,9 +300,8 @@ apply_manifest "$configmap" "NCCL IB Auto-Detection ConfigMap"
 if [[ "$MODE" == "rdma" ]]; then
     NCCL_SOCKET_IFNAME="eth0"  # Use eth0 for bootstrap, IB devices for RDMA data
     NCCL_IB_DISABLE="0"
-    # NCCL_IB_HCA is now auto-detected by the wrapper script at runtime
-    # Old hardcoded value: NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"
-    NCCL_IB_HCA=""  # Will be set by auto-detection wrapper
+    # NCCL_IB_HCA is auto-detected by the wrapper script at runtime
+    # (not set as env var here - detection happens in container init)
     NCCL_IB_GID_INDEX="3"
     NCCL_NET_GDR_LEVEL="5"
     NETWORK_ANNOTATIONS="      annotations:
@@ -320,7 +319,7 @@ if [[ "$MODE" == "rdma" ]]; then
 else
     NCCL_SOCKET_IFNAME="eth0"
     NCCL_IB_DISABLE="1"
-    NCCL_IB_HCA=""
+    # NCCL_IB_HCA is not set in TCP mode (auto-detection disabled)
     NCCL_IB_GID_INDEX="0"
     NCCL_NET_GDR_LEVEL="0"
     NETWORK_ANNOTATIONS=""
