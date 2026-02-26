@@ -1,0 +1,33 @@
+# Step 1: Label the specific node
+# Run: oc label node moc-r4pcc04u17 node-role.kubernetes.io/iommu-test=''
+
+---
+# Step 2: Create a MachineConfigPool for this single node
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: iommu-test
+spec:
+  machineConfigSelector:
+    matchExpressions:
+    - key: machineconfiguration.openshift.io/role
+      operator: In
+      values:
+      - worker
+      - iommu-test
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/iommu-test: ""
+  paused: false
+
+---
+# Step 3: Create the MachineConfig targeting the custom role
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: iommu-test
+  name: 99-iommu-test-kernel-param
+spec:
+  kernelArguments:
+    - iommu=pt

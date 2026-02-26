@@ -1,0 +1,43 @@
+# MachineConfig to enable IOMMU passthrough mode on moc-r4pcc04u17 and moc-r4pcc04u18
+#
+# Apply this configuration:
+#   1. Label the nodes:
+#      oc label node moc-r4pcc04u17 node-role.kubernetes.io/iommu-passthrough=''
+#      oc label node moc-r4pcc04u18 node-role.kubernetes.io/iommu-passthrough=''
+#   2. Apply this file:
+#      oc apply -f k8s/machineconfigs/iommu-passthrough-u17-u18.yaml
+#   3. Wait for nodes to reboot and update
+#
+# To remove:
+#   oc delete -f k8s/machineconfigs/iommu-passthrough-u17-u18.yaml
+#   oc label node moc-r4pcc04u17 node-role.kubernetes.io/iommu-passthrough-
+#   oc label node moc-r4pcc04u18 node-role.kubernetes.io/iommu-passthrough-
+
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: iommu-passthrough
+spec:
+  machineConfigSelector:
+    matchExpressions:
+    - key: machineconfiguration.openshift.io/role
+      operator: In
+      values:
+      - worker
+      - iommu-passthrough
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/iommu-passthrough: ""
+  paused: false
+
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: iommu-passthrough
+  name: 99-iommu-passthrough
+spec:
+  kernelArguments:
+    - iommu=pt
