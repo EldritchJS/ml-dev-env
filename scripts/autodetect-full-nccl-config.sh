@@ -170,7 +170,8 @@ detect_rdma_interfaces() {
 detect_multi_node() {
     # Check if WORLD_SIZE or NNODES is set
     if [[ -n "${WORLD_SIZE:-}" ]]; then
-        local gpus_per_node=$(detect_gpu_count)
+        local gpus_per_node
+        gpus_per_node=$(detect_gpu_count)
         if [[ "$gpus_per_node" -gt 0 ]]; then
             local num_nodes=$((WORLD_SIZE / gpus_per_node))
             if [[ "$num_nodes" -gt 1 ]]; then
