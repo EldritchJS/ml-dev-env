@@ -193,10 +193,8 @@ spec:
           value: "h-kim-0.h-kim-headless.b-efficient-memory-offloading-765cab.svc.cluster.local"
         - name: MASTER_PORT
           value: "29500"
-        - name: REPLICAS
-          value: "2"  # Update to match spec.replicas (2 or 6)
-        # WORLD_SIZE calculated at runtime: replicas × GPUs per node
         # GPUS_PER_NODE: auto-detected by init container
+        # Note: Specify --nnodes when running torchrun (2, 6, etc.)
 
         volumeMounts:
         - name: workspace
@@ -239,9 +237,6 @@ spec:
           POD_ORDINAL=${HOSTNAME##*-}
           export NODE_RANK=$POD_ORDINAL
 
-          # Calculate WORLD_SIZE from replicas × GPUs per node
-          export WORLD_SIZE=$((REPLICAS * GPUS_PER_NODE))
-
           echo "=========================================="
           echo "H-Kim Multi-Node Environment"
           echo "=========================================="
@@ -250,7 +245,6 @@ spec:
           echo ""
           echo "AUTO-DETECTED VALUES:"
           echo "  GPUs per node: $GPUS_PER_NODE (detected!)"
-          echo "  World size: $WORLD_SIZE (calculated: $REPLICAS × $GPUS_PER_NODE)"
           echo "  OMP threads: $OMP_NUM_THREADS (detected!)"
           echo "  Transport: $DETECTED_TRANSPORT (detected!)"
           echo ""
@@ -277,7 +271,10 @@ spec:
           echo "To run training:"
           echo "  oc exec -it $POD_NAME -- bash"
           echo "  cd /workspace"
-          echo "  torchrun --nproc_per_node=\$GPUS_PER_NODE train.py"
+          echo "  torchrun --nnodes=<NUM_NODES> --nproc_per_node=\$GPUS_PER_NODE --node_rank=\$NODE_RANK \\"
+          echo "    --master_addr=\$MASTER_ADDR --master_port=\$MASTER_PORT train.py"
+          echo ""
+          echo "Note: Use 'oc scale statefulset h-kim --replicas=N' to change node count"
           echo ""
 
           sleep infinity
