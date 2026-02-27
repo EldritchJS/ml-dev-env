@@ -159,6 +159,9 @@ spec:
         # Let NCCL auto-detect IB HCA based on SOCKET_IFNAME
         - name: NCCL_IB_HCA
           value: ""
+        # Use Ring algorithm for consistency
+        - name: NCCL_ALGO
+          value: "Ring"
         # All other NCCL values auto-detected:
         # - NCCL_IB_DISABLE (auto)
         # - NCCL_IB_GID_INDEX (auto)
