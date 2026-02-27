@@ -33,6 +33,8 @@ spec:
     metadata:
       labels:
         app: h-kim-multi
+      annotations:
+        k8s.v1.cni.cncf.io/networks: default/eno5np0-network,default/eno6np0-network,default/eno7np0-network,default/eno8np0-network
 
     spec:
       restartPolicy: Always
@@ -86,8 +88,8 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
+                - moc-r4pcc04u25-nairr
                 - moc-r4pcc04u36-nairr
-                - moc-r4pcc04u12-nairr
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -124,10 +126,18 @@ spec:
         resources:
           requests:
             nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
             memory: 1200Gi
             cpu: 32
           limits:
             nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
             memory: 1200Gi
             cpu: 64
 
@@ -141,10 +151,16 @@ spec:
         # Users can override any value by setting env vars here
         - name: NCCL_DEBUG
           value: "INFO"
+        # Override for SR-IOV networking
+        - name: NCCL_SOCKET_IFNAME
+          value: "net1,net2,net3,net4"
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0,1,2,3"
+        # Let NCCL auto-detect IB HCA based on SOCKET_IFNAME
+        - name: NCCL_IB_HCA
+          value: ""
         # All other NCCL values auto-detected:
         # - NCCL_IB_DISABLE (auto)
-        # - NCCL_IB_HCA (auto)
-        # - NCCL_SOCKET_IFNAME (auto)
         # - NCCL_IB_GID_INDEX (auto)
         # - NCCL_NET_GDR_LEVEL (auto)
         # - NCCL_P2P_LEVEL (auto)
