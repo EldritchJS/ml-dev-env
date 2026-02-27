@@ -155,12 +155,7 @@ spec:
         # Users can override any value by setting env vars here
         - name: NCCL_DEBUG
           value: "INFO"
-        # Override for SR-IOV networking
-        - name: NCCL_SOCKET_IFNAME
-          value: "net1,net2,net3,net4"
-        - name: CUDA_VISIBLE_DEVICES
-          value: "0,1,2,3"
-        # Let NCCL auto-detect IB HCA based on SOCKET_IFNAME
+        # Let NCCL auto-detect IB HCA based on auto-detected SOCKET_IFNAME
         - name: NCCL_IB_HCA
           value: ""
         # Use Ring algorithm for consistency
