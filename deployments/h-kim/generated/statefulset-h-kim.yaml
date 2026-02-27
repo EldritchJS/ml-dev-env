@@ -22,7 +22,7 @@ metadata:
     app: h-kim-multi
 spec:
   serviceName: h-kim-headless
-  replicas: 2  # 2 nodes = 8 GPUs total
+  replicas: 2  # Scale up to 6 for full cluster (24 GPUs)
   podManagementPolicy: Parallel
 
   selector:
@@ -88,6 +88,10 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
+                - moc-r4pcc04u09-nairr
+                - moc-r4pcc04u11-nairr
+                - moc-r4pcc04u12-nairr
+                - moc-r4pcc04u16-nairr
                 - moc-r4pcc04u25-nairr
                 - moc-r4pcc04u36-nairr
         podAntiAffinity:
@@ -190,7 +194,7 @@ spec:
         - name: MASTER_PORT
           value: "29500"
         - name: REPLICAS
-          value: "2"  # Number of pods in StatefulSet
+          value: "2"  # Update to match spec.replicas (2 or 6)
         # WORLD_SIZE calculated at runtime: replicas × GPUs per node
         # GPUS_PER_NODE: auto-detected by init container
 
