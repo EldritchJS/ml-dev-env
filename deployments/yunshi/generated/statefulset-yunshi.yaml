@@ -34,48 +34,9 @@ spec:
       serviceAccountName: h-kim-sa
 
       # Init container to auto-detect RDMA interfaces
-      initContainers:
-      - name: detect-rdma
-        image: nvcr.io/nvidia/pytorch:25.12-py3
-        command:
-        - /bin/bash
-        - -c
-        - |
-          set -e
-          echo "Detecting RDMA interfaces..."
-
-          # Detect InfiniBand devices
-          if command -v ibv_devinfo &> /dev/null; then
-            IB_DEVICES=$(ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo "")
-            if [ -n "$IB_DEVICES" ]; then
-              echo "export NCCL_IB_HCA=\"$IB_DEVICES\"" >> /shared/nccl-env.sh
-              echo "Detected IB devices: $IB_DEVICES"
-            else
-              echo "# No IB devices detected" >> /shared/nccl-env.sh
-              echo "Warning: No IB devices found"
-            fi
-          else
-            echo "# ibv_devinfo not available" >> /shared/nccl-env.sh
-            echo "Warning: ibv_devinfo not available"
-          fi
-
-          # Detect RDMA network interfaces (eno5np0, eno6np0, eno7np0, eno8np0)
-          RDMA_IFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^eno[0-9]+np0$' | tr '\n' ',' | sed 's/,$//' || echo "eth0")
-          if [ -n "$RDMA_IFACES" ]; then
-            echo "export NCCL_SOCKET_IFNAME=\"$RDMA_IFACES\"" >> /shared/nccl-env.sh
-            echo "Detected RDMA interfaces: $RDMA_IFACES"
-          else
-            echo "export NCCL_SOCKET_IFNAME=\"eth0\"" >> /shared/nccl-env.sh
-            echo "Warning: No RDMA interfaces found, using eth0"
-          fi
-
-          echo "RDMA detection complete"
-          cat /shared/nccl-env.sh
-        volumeMounts:
-        - name: nccl-env
-          mountPath: /shared
-
-      nodeAffinity:
+      # Node affinity to schedule on yunshi nodes
+      affinity:
+        nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
           - matchExpressions:
@@ -92,20 +53,23 @@ spec:
         imagePullPolicy: IfNotPresent
         # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
         securityContext:
+          privileged: true
           capabilities:
             add:
               - IPC_LOCK
               - SYS_RESOURCE
         env:
-        # NCCL Environment Variables (devices auto-detected by init container)
+        # NCCL Environment Variables for SR-IOV RDMA
         - name: NCCL_IB_DISABLE
           value: "0"
         - name: NCCL_P2P_DISABLE
           value: "0"
         - name: NCCL_DEBUG
           value: "INFO"
-        # NCCL_IB_HCA: auto-detected by init container
-        # NCCL_SOCKET_IFNAME: auto-detected by init container
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+        - name: NCCL_SOCKET_IFNAME
+          value: "eth0"
         - name: OMP_NUM_THREADS
           value: "8"
         - name: NCCL_IB_GID_INDEX
@@ -136,17 +100,6 @@ spec:
             # Set unlimited memlock for RDMA (works with SYS_RESOURCE capability)
             ulimit -l unlimited
             echo "Memlock limit: $(ulimit -l)"
-            echo ""
-
-            # Source auto-detected RDMA configuration
-            if [ -f /shared/nccl-env.sh ]; then
-              echo "Loading auto-detected RDMA configuration..."
-              source /shared/nccl-env.sh
-              echo "NCCL_IB_HCA=$NCCL_IB_HCA"
-              echo "NCCL_SOCKET_IFNAME=$NCCL_SOCKET_IFNAME"
-            else
-              echo "Warning: /shared/nccl-env.sh not found, using defaults"
-            fi
             echo ""
 
             echo "--- CONFIGURING MULTI-NODE ---"
@@ -262,9 +215,12 @@ spec:
           # Mount shared memory (Required for DDP)
           - name: dshm
             mountPath: /dev/shm
-          # Mount RDMA auto-detection config
-          - name: nccl-env
-            mountPath: /shared
+          # Mount RDMA devices for SR-IOV
+          - name: infiniband
+            mountPath: /dev/infiniband
+          - name: sys-class-infiniband
+            mountPath: /sys/class/infiniband
+            readOnly: true
 
       # 5. VOLUME DEFINITIONS
       volumes:
@@ -275,6 +231,12 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
-        # RDMA auto-detection config
-        - name: nccl-env
-          emptyDir: {}
+        # RDMA device access for SR-IOV
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
+        - name: sys-class-infiniband
+          hostPath:
+            path: /sys/class/infiniband
+            type: Directory
