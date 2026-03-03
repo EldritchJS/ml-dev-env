@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: h-kim-sa
+  namespace: b-efficient-memory-offloading-765cab
+---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: nccl-rdma-scc
+allowHostIPC: true
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities:
+- IPC_LOCK
+- SYS_ADMIN
+- SYS_RESOURCE
+defaultAddCapabilities: null
+fsGroup:
+  type: RunAsAny
+priority: null
+readOnlyRootFilesystem: false
+requiredDropCapabilities: null
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+- hostPath
+users:
+- system:serviceaccount:b-efficient-memory-offloading-765cab:h-kim-sa

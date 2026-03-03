@@ -5,7 +5,7 @@ set -e
 
 NAMESPACE="${NAMESPACE:-nccl-test}"
 APP_LABEL="${APP_LABEL:-pytorch-bench-manual}"
-SERVICE_NAME="${SERVICE_NAME:-pytorch-bench-manual-0.pytorch-bench-manual-svc.nccl-test.svc.cluster.local}"
+SERVICE_NAME="${SERVICE_NAME:-pytorch-bench-manual-0.pytorch-bench-manual-svc.$NAMESPACE.svc.cluster.local}"
 MASTER_PORT="${MASTER_PORT:-29501}"
 MULTIPLIER="${MULTIPLIER:-1}"
 
@@ -22,7 +22,7 @@ if [ "$NNODES" -eq 0 ]; then
   echo "ERROR: No running pods found with label app=$APP_LABEL in namespace $NAMESPACE"
   echo ""
   echo "Deploy pods first with:"
-  echo "  oc apply -f deployments/h-kim/pytorch-benchmark-manual.yaml"
+  echo "  oc apply -f deployments/h-kim/pytorch-benchmark-manual.yaml -n $NAMESPACE"
   exit 1
 fi
 
