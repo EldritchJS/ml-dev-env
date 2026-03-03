@@ -212,6 +212,8 @@ spec:
         volumeMounts:
         - name: benchmark-script
           mountPath: /benchmark
+        - name: workspace
+          mountPath: /workspace
 
         securityContext:
           privileged: false
@@ -224,3 +226,14 @@ spec:
       - name: benchmark-script
         configMap:
           name: pytorch-benchmark
+
+  # Persistent storage that survives scaling to 0
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: ocs-external-storagecluster-ceph-rbd
