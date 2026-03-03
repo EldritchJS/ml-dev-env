@@ -19,8 +19,16 @@ This deployment provides:
 deployments/h-kim/
 ├── README.md                      # This file
 ├── QUICKSTART.md                  # Quick start guide
+├── BENCHMARK-MANUAL.md            # Manual benchmark documentation
+├── BENCHMARK-README.md            # Auto-run benchmark documentation
 ├── Dockerfile.nccl-autodetect     # Container image definition
 ├── nccl_torch_bench.py            # RDMA bandwidth testing tool
+├── pytorch-benchmark-manual.yaml  # Manual benchmark StatefulSet
+├── run-benchmark.sh               # Script to run benchmark on pods
+├── pytorch-benchmark-6-nodes.yaml # Auto-run 6-node benchmark
+├── pytorch-benchmark-optimized.yaml # Auto-run 2-node benchmark
+├── ibm-benchmark-configmap.yaml   # IBM Research benchmark script
+├── ibm-benchmark-u17-u18.yaml     # IBM benchmark deployment
 ├── generated/                     # Generated Kubernetes manifests
 │   ├── statefulset-h-kim.yaml    # Main StatefulSet deployment
 │   ├── pod-h-kim.yaml            # Single pod deployment (testing)
@@ -102,32 +110,47 @@ Each pod has a dedicated 100Gi persistent volume that survives pod deletion:
 oc get pvc -n b-efficient-memory-offloading-765cab | grep workspace-h-kim
 ```
 
-### Running Benchmarks
+## Benchmarking
 
-To verify NCCL performance across nodes:
+Two benchmark modes are available to verify NCCL performance:
+
+### Manual Benchmark (Recommended)
+
+Deploy pods that wait for your command - scale up/down and run benchmarks on demand:
 
 ```bash
-# Copy benchmark script to all pods
-for i in {0..N}; do
-  oc exec h-kim-$i -n <namespace> -- mkdir -p /workspace/benchmark
-  oc cp allreduce-loop.py <namespace>/h-kim-$i:/workspace/benchmark/
-done
+# 1. Deploy pods (starts with 2 nodes)
+oc apply -f pytorch-benchmark-manual.yaml
 
-# Run benchmark on each node (replace N with node count - 1)
-for rank in {0..N}; do
-  oc exec h-kim-$rank -n <namespace> -- bash -c \
-    "cd /workspace/benchmark && \
-     torchrun --nnodes=<TOTAL_NODES> --nproc_per_node=4 --node_rank=$rank \
-     --master_addr=h-kim-0.h-kim-headless.<namespace>.svc.cluster.local \
-     --master_port=29500 --rdzv_backend=c10d \
-     --rdzv_endpoint=h-kim-0.h-kim-headless.<namespace>.svc.cluster.local:29500 \
-     allreduce-loop.py --multiplier 1" &
-done
+# 2. Scale to desired size
+oc scale statefulset pytorch-bench-manual -n nccl-test --replicas=6
+
+# 3. Run benchmark
+./run-benchmark.sh
+
+# 4. View results
+oc logs pytorch-bench-manual-0 -n nccl-test | grep -E 'size\(MB\)|^\s+[0-9]+\.[0-9]+'
 ```
 
-**Example benchmark scripts:**
-- `pytorch-benchmark-optimized.yaml` - 2-node automated benchmark
-- `pytorch-benchmark-6-nodes.yaml` - 6-node automated benchmark
+See **[BENCHMARK-MANUAL.md](BENCHMARK-MANUAL.md)** for complete documentation.
+
+### Auto-Run Benchmark
+
+Deploy and automatically run benchmark on pod startup:
+
+```bash
+# Run on 6 nodes (auto-executes benchmark)
+oc apply -f pytorch-benchmark-6-nodes.yaml
+
+# View results after completion
+oc logs pytorch-benchmark-opt-0 -n nccl-test | grep -v "NCCL INFO" | tail -100
+```
+
+**Available configurations:**
+- `pytorch-benchmark-manual.yaml` + `run-benchmark.sh` - Manual control (recommended)
+- `pytorch-benchmark-6-nodes.yaml` - Auto-run on 6 nodes
+- `pytorch-benchmark-optimized.yaml` - Auto-run on 2 nodes
+- `ibm-benchmark-configmap.yaml` + `ibm-benchmark-u17-u18.yaml` - IBM Research benchmark
 
 ## Key Features
 

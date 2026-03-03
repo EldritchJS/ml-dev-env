@@ -149,7 +149,7 @@ spec:
         #- name: NCCL_IB_DISABLE
         #  value: "0"
         - name: NCCL_DMABUF_ENABLE
-          value: "0"
+          value: "1"
         #- name: NCCL_IB_MERGE_NICS
         #  value: "0"
         #- name: NCCL_IB_QPS_PER_CONNECTION
