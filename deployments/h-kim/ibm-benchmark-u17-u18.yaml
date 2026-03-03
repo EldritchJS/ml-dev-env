@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: h-kim-headless
+  name: ibm-benchmark-headless
   namespace: b-efficient-memory-offloading-765cab
   labels:
-    app: h-kim-multi
+    app: ibm-benchmark-u17-u18
 spec:
   clusterIP: None  # Headless service
   selector:
-    app: h-kim-multi
+    app: ibm-benchmark-u17-u18
   ports:
   - port: 29500
     name: master
@@ -16,23 +16,23 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: h-kim
+  name: ibm-benchmark
   namespace: b-efficient-memory-offloading-765cab
   labels:
-    app: h-kim-multi
+    app: ibm-benchmark-u17-u18
 spec:
-  serviceName: h-kim-headless
-  replicas: 2  # 2 nodes with SR-IOV RDMA (8 GPUs)
+  serviceName: ibm-benchmark-headless
+  replicas: 2  # 2 nodes (u17 and u18)
   podManagementPolicy: Parallel
 
   selector:
     matchLabels:
-      app: h-kim-multi
+      app: ibm-benchmark-u17-u18
 
   template:
     metadata:
       labels:
-        app: h-kim-multi
+        app: ibm-benchmark-u17-u18
 
       annotations:
         k8s.v1.cni.cncf.io/networks: b-efficient-memory-offloading-765cab/eno5np0-network, b-efficient-memory-offloading-765cab/eno6np0-network, b-efficient-memory-offloading-765cab/eno7np0-network, b-efficient-memory-offloading-765cab/eno8np0-network
@@ -50,9 +50,8 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - moc-r4pcc04u11-nairr
-                - moc-r4pcc04u25-nairr
-                - moc-r4pcc04u36-nairr
+                - moc-r4pcc04u17
+                - moc-r4pcc04u18
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -60,7 +59,7 @@ spec:
               - key: app
                 operator: In
                 values:
-                - h-kim-multi
+                - ibm-benchmark-u17-u18
             topologyKey: kubernetes.io/hostname
 
       nodeSelector:
@@ -111,7 +110,7 @@ spec:
               - SYS_RESOURCE
 
       containers:
-      - name: h-kim
+      - name: ibm-benchmark
         image: quay.io/jschless/ml-dev-env:h-kim
         imagePullPolicy: Always
 
@@ -188,11 +187,9 @@ spec:
 
         # Distributed training settings
         - name: MASTER_ADDR
-          value: "h-kim-0.h-kim-headless.b-efficient-memory-offloading-765cab.svc.cluster.local"
+          value: "ibm-benchmark-0.ibm-benchmark-headless.b-efficient-memory-offloading-765cab.svc.cluster.local"
         - name: MASTER_PORT
           value: "29500"
-        # GPUS_PER_NODE: auto-detected by init container
-        # Note: Specify --nnodes when running torchrun (2, 6, etc.)
 
         volumeMounts:
         - name: nccl-env
@@ -241,7 +238,7 @@ spec:
           export NODE_RANK=$POD_ORDINAL
 
           echo "=========================================="
-          echo "H-Kim Multi-Node Environment"
+          echo "IBM All-Reduce Benchmark - U17/U18"
           echo "=========================================="
           echo "Pod: $POD_NAME"
           echo "Node Rank: $NODE_RANK"
@@ -270,16 +267,52 @@ spec:
           nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
           echo ""
 
-          echo "Environment ready. Waiting for training job..."
-          echo "To run training:"
-          echo "  oc exec -it $POD_NAME -- bash"
-          echo "  cd /workspace"
-          echo "  torchrun --nnodes=<NUM_NODES> --nproc_per_node=\$GPUS_PER_NODE --node_rank=\$NODE_RANK \\"
-          echo "    --master_addr=\$MASTER_ADDR --master_port=\$MASTER_PORT train.py"
+          # Wait for all pods to be ready
+          echo "Waiting for all pods to be ready..."
+          sleep 10
+
+          # Clone IBM research all-reduce benchmark if not already present
+          if [ ! -d /workspace/all_reduce_perf ]; then
+            echo "Cloning IBM all-reduce benchmark..."
+            cd /workspace
+            GIT_TERMINAL_PROMPT=0 git clone --depth 1 https://github.com/IBM/all_reduce_perf.git
+            cd all_reduce_perf
+          else
+            echo "IBM all-reduce benchmark already cloned"
+            cd /workspace/all_reduce_perf
+          fi
+
           echo ""
-          echo "Note: Use 'oc scale statefulset h-kim --replicas=N' to change node count"
+          echo "=========================================="
+          echo "Running IBM All-Reduce Benchmark"
+          echo "=========================================="
+          echo "Nodes: 2 (u17, u18)"
+          echo "GPUs per node: $GPUS_PER_NODE"
+          echo "Total GPUs: $((2 * GPUS_PER_NODE))"
+          echo "=========================================="
           echo ""
 
+          # Run the benchmark
+          mpirun -np $((2 * GPUS_PER_NODE)) \
+            -H ibm-benchmark-0:$GPUS_PER_NODE,ibm-benchmark-1:$GPUS_PER_NODE \
+            -bind-to none -map-by slot \
+            -x NCCL_DEBUG=INFO \
+            -x NCCL_SOCKET_IFNAME=net1,net2,net3,net4 \
+            -x NCCL_IB_DISABLE=0 \
+            -x NCCL_IB_HCA=^mlx5_ \
+            -x NCCL_IB_GID_INDEX=3 \
+            -x NCCL_NET_GDR_LEVEL=5 \
+            -x NCCL_ALGO=Ring \
+            -x NCCL_P2P_LEVEL=SYS \
+            -mca pml ob1 -mca btl tcp,self -mca btl_tcp_if_include net1,net2,net3,net4 \
+            python all_reduce_perf.py --dtype float16 --maxbytes 8G
+
+          echo ""
+          echo "=========================================="
+          echo "Benchmark Complete"
+          echo "=========================================="
+          echo ""
+          echo "Keeping pod alive for log inspection..."
           sleep infinity
 
       volumes:

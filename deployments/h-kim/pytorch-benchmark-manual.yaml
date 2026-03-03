@@ -71,7 +71,7 @@ spec:
 
       containers:
       - name: pytorch-bench
-        image: nvcr.io/nvidia/pytorch:24.12-py3
+        image: quay.io/jschless/ml-dev-env:h-kim
         command: ["/bin/bash", "-c"]
         args:
         - |
