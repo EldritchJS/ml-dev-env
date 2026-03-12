@@ -1,0 +1,238 @@
+# Test benchmark with DMABUF enabled and /dev mounted
+# This is a quick 2-node test to see if gdrcopy/DMABUF can work
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pytorch-benchmark-dmabuf
+  namespace: nccl-test
+spec:
+  serviceName: pytorch-benchmark-dmabuf-svc
+  replicas: 6
+  selector:
+    matchLabels:
+      app: pytorch-benchmark-dmabuf
+  template:
+    metadata:
+      labels:
+        app: pytorch-benchmark-dmabuf
+      annotations:
+        k8s.v1.cni.cncf.io/networks: default/eno5np0-network,default/eno6np0-network,default/eno7np0-network,default/eno8np0-network
+    spec:
+      serviceAccountName: nccl-sa
+      hostIPC: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - pytorch-benchmark-dmabuf
+            topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-H100-80GB-HBM3
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - moc-r4pcc04u12-nairr
+                - moc-r4pcc04u16-nairr
+                - moc-r4pcc04u25-nairr
+                - moc-r4pcc02u05
+                - moc-r4pcc02u32
+                - moc-r4pcc02u35
+      containers:
+      - name: pytorch-benchmark-dmabuf
+        image: nvcr.io/nvidia/pytorch:24.12-py3
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -x
+          echo "DMABUF Test - Starting PyTorch AllReduce Benchmark on pod ${POD_NAME}"
+
+          export NODE_RANK=${POD_NAME##*-}
+          export NNODES=4
+          export NPROC_PER_NODE=4
+          export MASTER_PORT=29501
+
+          if [ "${POD_NAME}" = "pytorch-benchmark-dmabuf-0" ]; then
+            export MASTER_ADDR=${POD_IP}
+            echo "I am the master node (node_rank 0)"
+          else
+            echo "Discovering master pod IP..."
+            for i in {1..60}; do
+              MASTER_IP=$(getent hosts pytorch-benchmark-dmabuf-0.pytorch-benchmark-dmabuf-svc.nccl-test.svc.cluster.local | awk '{print $1}')
+              if [ -n "$MASTER_IP" ]; then
+                export MASTER_ADDR=$MASTER_IP
+                echo "Master node IP: ${MASTER_ADDR}"
+                break
+              fi
+              echo "Waiting for master pod... (attempt $i/60)"
+              sleep 2
+            done
+            if [ -z "$MASTER_ADDR" ]; then
+              echo "Failed to discover master node IP"
+              exit 1
+            fi
+          fi
+
+          echo "=== Checking gdrcopy device ==="
+          ls -la /dev/gdrdrv* || echo "No /dev/gdrdrv device found"
+
+          echo "=== NCCL Environment (with DMABUF ENABLED) ==="
+          env | grep NCCL | sort
+
+          sleep 10
+
+          echo "=== Starting Benchmark ==="
+          torchrun \
+            --nnodes=${NNODES} \
+            --nproc_per_node=${NPROC_PER_NODE} \
+            --node_rank=${NODE_RANK} \
+            --master_addr=${MASTER_ADDR} \
+            --master_port=${MASTER_PORT} \
+            --rdzv_backend=c10d \
+            --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+            /benchmark/allreduce-loop.py --multiplier 1
+
+          BENCHMARK_EXIT_CODE=$?
+          echo "=== Benchmark completed with exit code: ${BENCHMARK_EXIT_CODE} ==="
+
+          if [ ${BENCHMARK_EXIT_CODE} -eq 0 ]; then
+            echo "SUCCESS: DMABUF test completed on ${POD_NAME}"
+          else
+            echo "ERROR: Benchmark failed on ${POD_NAME}"
+          fi
+
+          sleep infinity
+
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # CRITICAL: Enable DMABUF!
+        - name: NCCL_DMABUF_ENABLE
+          value: "1"
+
+        # Optimized NCCL settings
+        - name: NCCL_MIN_NCHANNELS
+          value: "8"
+        - name: NCCL_MAX_NCHANNELS
+          value: "16"
+        - name: NCCL_SOCKET_IFNAME
+          value: "net1,net2,net3,net4"
+        - name: NCCL_NET_GDR_LEVEL
+          value: "5"
+        - name: NCCL_NET_GDR_READ
+          value: "1"
+        - name: NCCL_IB_GID_INDEX
+          value: "3"
+        - name: NCCL_IB_TC
+          value: "106"
+        - name: NCCL_IB_TIMEOUT
+          value: "23"
+        - name: NCCL_IB_RETRY_CNT
+          value: "7"
+        - name: NCCL_IB_SL
+          value: "0"
+        - name: NCCL_IB_AR_THRESHOLD
+          value: "8192"
+        - name: NCCL_PROTO
+          value: "Simple"
+        - name: NCCL_ALGO
+          value: "Ring"
+        - name: NCCL_BUFFSIZE
+          value: "8388608"
+        - name: NCCL_NTHREADS
+          value: "640"
+        - name: NCCL_LL_THRESHOLD
+          value: "0"
+        - name: NCCL_TREE_THRESHOLD
+          value: "0"
+        - name: NCCL_SOCKET_FAMILY
+          value: "4"
+        - name: NCCL_NSOCKS_PERTHREAD
+          value: "8"
+        - name: NCCL_CROSS_NIC
+          value: "2"
+        - name: NCCL_NVLS_ENABLE
+          value: "0"
+        - name: NCCL_NET_SHARED_BUFFERS
+          value: "1"
+        - name: NCCL_IB_PCI_RELAXED_ORDERING
+          value: "1"
+        - name: NCCL_NET_OVERHEAD
+          value: "0"
+        - name: NCCL_IGNORE_CPU_AFFINITY
+          value: "1"
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_DEBUG_SUBSYS
+          value: "INIT,NET"
+
+        resources:
+          requests:
+            nvidia.com/gpu: 4
+            cpu: 32
+            memory: 256Gi
+          limits:
+            nvidia.com/gpu: 4
+            cpu: 128
+            memory: 512Gi
+
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
+
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+        # Mount /dev from host to access gdrdrv device
+        - name: host-dev
+          mountPath: /dev
+        # Mount benchmark script
+        - name: benchmark-script
+          mountPath: /benchmark
+
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
+      # Add /dev as hostPath
+      - name: host-dev
+        hostPath:
+          path: /dev
+          type: Directory
+      # Add benchmark script configmap
+      - name: benchmark-script
+        configMap:
+          name: pytorch-benchmark
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pytorch-benchmark-dmabuf-svc
+  namespace: nccl-test
+spec:
+  clusterIP: None
+  selector:
+    app: pytorch-benchmark-dmabuf
+  ports:
+  - port: 29501
+    name: master

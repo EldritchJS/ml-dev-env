@@ -6,7 +6,7 @@ metadata:
 spec:
   serviceName: pytorch-benchmark-opt-svc
   podManagementPolicy: Parallel
-  replicas: 6
+  replicas: 8
   selector:
     matchLabels:
       app: pytorch-benchmark-opt
@@ -45,7 +45,9 @@ spec:
                 - moc-r4pcc04u12-nairr
                 - moc-r4pcc04u16-nairr
                 - moc-r4pcc04u25-nairr
-                - moc-r4pcc04u36-nairr
+                - moc-r4pcc02u05
+                - moc-r4pcc02u32
+                - moc-r4pcc02u35
       containers:
       - name: pytorch-benchmark-opt
         #image: hyungyo/torchtitan:uvm_multi_node
@@ -58,7 +60,7 @@ spec:
 
           # Extract rank from pod name
           export NODE_RANK=${POD_NAME##*-}
-          export NNODES=6
+          export NNODES=8
           export NPROC_PER_NODE=4
           export MASTER_PORT=29501
 

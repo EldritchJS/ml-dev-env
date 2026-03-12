@@ -43,7 +43,9 @@ spec:
                 - moc-r4pcc04u12-nairr
                 - moc-r4pcc04u16-nairr
                 - moc-r4pcc04u25-nairr
-                - moc-r4pcc04u36-nairr
+                - moc-r4pcc02u05
+                - moc-r4pcc02u32
+                - moc-r4pcc02u35
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:

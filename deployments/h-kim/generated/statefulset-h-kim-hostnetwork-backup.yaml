@@ -22,7 +22,7 @@ metadata:
     app: h-kim-multi
 spec:
   serviceName: h-kim-headless
-  replicas: 2  # 2 nodes with SR-IOV RDMA (8 GPUs)
+  replicas: 2  # Scale up to 6 for full cluster (24 GPUs)
   podManagementPolicy: Parallel
 
   selector:
@@ -34,51 +34,21 @@ spec:
       labels:
         app: h-kim-multi
 
-      annotations:
-        k8s.v1.cni.cncf.io/networks: b-efficient-memory-offloading-765cab/eno5np0-network, b-efficient-memory-offloading-765cab/eno6np0-network, b-efficient-memory-offloading-765cab/eno7np0-network, b-efficient-memory-offloading-765cab/eno8np0-network
-
     spec:
-      # Use SR-IOV for RDMA networking
+      # Use host network to access physical RDMA interfaces directly
+      # This bypasses SR-IOV virtualization and provides native RDMA performance
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
       restartPolicy: Always
 
-      # Spread pods across different nodes
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - moc-r4pcc04u11-nairr
-                - moc-r4pcc04u25-nairr
-                - moc-r4pcc02u05
-                - moc-r4pcc02u32
-                - moc-r4pcc02u35
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - h-kim-multi
-            topologyKey: kubernetes.io/hostname
-
-      nodeSelector:
-        nvidia.com/gpu.present: "true"
-
-      tolerations:
-      - key: nvidia.com/gpu
-        operator: Exists
-        effect: NoSchedule
-
-      # Service account with nccl-rdma-scc for unlimited memlock
-      serviceAccountName: h-kim-sa
-
+      # Init container for comprehensive NCCL auto-detection
+      # Note: Init containers cannot request GPUs (would conflict with main container)
+      # Therefore NVLink and IB device detection may be limited
+      # Users can override NCCL_P2P_LEVEL and NCCL_IB_HCA via env vars if needed
       initContainers:
       - name: autodetect-nccl
-        image: quay.io/jschless/ml-dev-env:h-kim
+        image: image-registry.openshift-image-registry.svc:5000/b-efficient-memory-offloading-765cab/h-kim:latest
 
         command:
         - /bin/bash
@@ -112,14 +82,51 @@ spec:
               - IPC_LOCK
               - SYS_RESOURCE
 
+      # Spread pods across different nodes
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - moc-r4pcc04u09-nairr
+                - moc-r4pcc04u11-nairr
+                - moc-r4pcc04u12-nairr
+                - moc-r4pcc04u16-nairr
+                - moc-r4pcc04u25-nairr
+                - moc-r4pcc02u05
+                - moc-r4pcc02u32
+                - moc-r4pcc02u35
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - h-kim-multi
+            topologyKey: kubernetes.io/hostname
+
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      # Service account with nccl-rdma-scc for unlimited memlock
+      serviceAccountName: h-kim-sa
+
       containers:
       - name: h-kim
-        image: quay.io/jschless/ml-dev-env:h-kim
+        image: image-registry.openshift-image-registry.svc:5000/b-efficient-memory-offloading-765cab/h-kim:latest
         imagePullPolicy: Always
 
         # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
         securityContext:
-          privileged: true
           capabilities:
             add:
               - IPC_LOCK
@@ -130,18 +137,10 @@ spec:
             nvidia.com/gpu: 4
             memory: 1200Gi
             cpu: 32
-            openshift.io/eno5np0rdma: 1
-            openshift.io/eno6np0rdma: 1
-            openshift.io/eno7np0rdma: 1
-            openshift.io/eno8np0rdma: 1
           limits:
             nvidia.com/gpu: 4
             memory: 1200Gi
             cpu: 64
-            openshift.io/eno5np0rdma: 1
-            openshift.io/eno6np0rdma: 1
-            openshift.io/eno7np0rdma: 1
-            openshift.io/eno8np0rdma: 1
 
         env:
         - name: NVIDIA_VISIBLE_DEVICES
@@ -149,18 +148,18 @@ spec:
         - name: NVIDIA_DRIVER_CAPABILITIES
           value: "compute,utility"
 
-        # NCCL configuration for physical RDMA interfaces (SR-IOV mode)
+        # NCCL configuration for physical RDMA interfaces (hostNetwork mode)
         - name: NCCL_DEBUG
           value: "INFO"
-        # SR-IOV networking - use RDMA interfaces for data plane
+        # Physical interfaces - use eno5-8 for RDMA
         - name: NCCL_SOCKET_IFNAME
-          value: "net1,net2,net3,net4"
+          value: "eno5np0,eno6np0,eno7np0,eno8np0"
         # Enable InfiniBand/RoCE
         - name: NCCL_IB_DISABLE
           value: "0"
-        # SR-IOV VF RDMA devices - use regex to auto-detect
+        # Physical HCAs for eno5-8
         - name: NCCL_IB_HCA
-          value: "^mlx5_"
+          value: "mlx5_3,mlx5_2,mlx5_5,mlx5_4"
         # GID index for RoCE
         - name: NCCL_IB_GID_INDEX
           value: "3"
@@ -197,12 +196,12 @@ spec:
         # Note: Specify --nnodes when running torchrun (2, 6, etc.)
 
         volumeMounts:
-        - name: nccl-env
-          mountPath: /shared
         - name: workspace
           mountPath: /workspace
         - name: dshm
           mountPath: /dev/shm
+        - name: nccl-env
+          mountPath: /shared
         - name: infiniband
           mountPath: /dev/infiniband
         - name: sys-class-infiniband
@@ -285,12 +284,12 @@ spec:
           sleep infinity
 
       volumes:
-      - name: nccl-env
-        emptyDir: {}
       - name: dshm
         emptyDir:
           medium: Memory
           sizeLimit: 32Gi
+      - name: nccl-env
+        emptyDir: {}
       - name: infiniband
         hostPath:
           path: /dev/infiniband
