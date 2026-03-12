@@ -216,6 +216,9 @@ spec:
           mountPath: /benchmark
         - name: workspace
           mountPath: /workspace
+        - name: host-sys
+          mountPath: /host-sys
+          readOnly: true
 
         securityContext:
           privileged: false
@@ -228,6 +231,10 @@ spec:
       - name: benchmark-script
         configMap:
           name: pytorch-benchmark
+      - name: host-sys
+        hostPath:
+          path: /sys
+          type: Directory
 
   # Persistent storage that survives scaling to 0
   volumeClaimTemplates:
