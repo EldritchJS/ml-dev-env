@@ -20,7 +20,7 @@ metadata:
     app: pytorch-bench-manual
 spec:
   serviceName: pytorch-bench-manual-svc
-  replicas: 2  # Scale to any number: oc scale statefulset pytorch-bench-manual -n <namespace> --replicas=N
+  replicas: 8  # Scale to any number: oc scale statefulset pytorch-bench-manual -n <namespace> --replicas=N
   podManagementPolicy: Parallel
 
   selector:
@@ -62,6 +62,7 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
+                # All 8 nodes: 5 old -nairr + 3 new h-kim (with firmware fix)
                 - moc-r4pcc04u09-nairr
                 - moc-r4pcc04u11-nairr
                 - moc-r4pcc04u12-nairr
@@ -87,6 +88,7 @@ spec:
 
           echo "=========================================="
           echo "PyTorch Benchmark Environment (Manual)"
+          echo "8 Nodes: 5 old -nairr + 3 new h-kim"
           echo "=========================================="
           echo "Pod: ${POD_NAME}"
           echo "Node Rank: ${NODE_RANK}"
