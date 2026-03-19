@@ -1,0 +1,279 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pytorch-benchmark-4node
+  namespace: nccl-test
+data:
+  allreduce-loop.py: |
+    #
+    # Copyright IBM Corp. 2024
+    # SPDX-License-Identifier: MIT
+    #
+
+    import os
+    import sys
+    import torch
+    import torch.distributed as dist
+    import time
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--start-size", type=str, default="128", help="Starting size (supports K, M, G suffixes)")
+    parser.add_argument("-e", "--end-size", type=str, default="8G", help="Ending size (supports K, M, G suffixes)")
+    parser.add_argument("-f", "--factor", type=float, default=2.0, help="Multiplication factor between sizes")
+    parser.add_argument("-r", "--runs", type=int, default=1, help="Number of times to run the entire benchmark")
+
+    args = parser.parse_args()
+
+    def parse_size(size_str):
+        """Parse size string like '128', '1K', '1M', '8G' to bytes"""
+        size_str = size_str.upper().strip()
+        if size_str.endswith('K'):
+            return int(float(size_str[:-1]) * 1024)
+        elif size_str.endswith('M'):
+            return int(float(size_str[:-1]) * 1024 * 1024)
+        elif size_str.endswith('G'):
+            return int(float(size_str[:-1]) * 1024 * 1024 * 1024)
+        else:
+            return int(size_str)
+
+    start_bytes = parse_size(args.start_size)
+    end_bytes = parse_size(args.end_size)
+    factor = args.factor
+    num_runs = args.runs
+
+    local_rank = int(os.environ["LOCAL_RANK"])
+    rank = int(os.environ["RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
+
+    torch.cuda.set_device(local_rank)
+
+    dist.init_process_group("nccl")
+
+    if rank == 0:
+        print("NCCL version : ", torch.cuda.nccl.version(), file=sys.stderr)
+        print(f"World size: {world_size}", file=sys.stderr)
+        print(f"Size range: {args.start_size} to {args.end_size}, factor: {factor}", file=sys.stderr)
+
+    torch.manual_seed(1235911)
+
+    # Allocate max tensor size
+    max_npts = int(end_bytes / 4.0)  # 4 bytes per float32
+    Tensor = torch.rand(max_npts, device='cuda')
+    torch.cuda.synchronize()
+
+    for run in range(num_runs):
+        if rank == 0:
+            if num_runs > 1:
+                print(f"\n=== Run {run + 1} / {num_runs} ===", file=sys.stderr)
+            print(" size(MB)   tavg(usec)    tmin(usec)    tmax(usec)  avgbw(GB/sec)  maxbw(GB/sec)  minbw(GB/sec)", file=sys.stderr)
+
+        current_bytes = start_bytes
+        while current_bytes <= end_bytes:
+            nMB = current_bytes / (1024.0 * 1024.0)
+
+            if nMB < 1.0:
+                maxiter = 100
+            elif nMB < 512.0:
+                maxiter = 20
+            elif nMB < 2000.0:
+                maxiter = 10
+            else:
+                maxiter = 5
+
+            npts = int(current_bytes / 4.0)
+            nm1 = int(npts - 1)
+
+            # Warmup
+            dist.all_reduce(Tensor[0:nm1], op=dist.ReduceOp.SUM)
+            torch.cuda.synchronize()
+            dist.all_reduce(Tensor[0:nm1], op=dist.ReduceOp.SUM)
+            torch.cuda.synchronize()
+
+            tbeg = time.perf_counter()
+            t1 = tbeg
+            tmin = 1.0e30
+            tmax = 0.0
+
+            for i in range(maxiter):
+                dist.all_reduce(Tensor[0:nm1], op=dist.ReduceOp.SUM)
+                torch.cuda.synchronize()
+                t2 = time.perf_counter()
+                if (t2 - t1) < tmin:
+                    tmin = (t2 - t1)
+                if (t2 - t1) > tmax:
+                    tmax = (t2 - t1)
+                t1 = t2
+
+            torch.cuda.synchronize()
+            tend = time.perf_counter()
+
+            elapsed = tend - tbeg
+            tavg = elapsed / maxiter
+
+            avgbw = 4.0*2.0e-9*npts*((world_size - 1)/world_size)/tavg
+            maxbw = 4.0*2.0e-9*npts*((world_size - 1)/world_size)/tmin
+            minbw = 4.0*2.0e-9*npts*((world_size - 1)/world_size)/tmax
+
+            if rank == 0:
+                print("{:8.2f}".format(nMB), "  ", "{:7.1f}".format(tavg*1.0e6), "      ", "{:7.1f}".format(tmin*1.0e6), "      ", "{:7.1f}".format(tmax*1.0e6), \
+                      "     ", "{:7.2f}".format(avgbw), "      ", "{:7.2f}".format(maxbw), "      ", "{:7.2f}".format(minbw), file=sys.stderr)
+
+            current_bytes = int(current_bytes * factor)
+
+    dist.destroy_process_group()
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pytorch-bench-4node
+  namespace: nccl-test
+spec:
+  clusterIP: None
+  selector:
+    app: pytorch-bench-4node
+  ports:
+  - port: 29500
+    name: master
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pytorch-bench-4node
+  namespace: nccl-test
+spec:
+  serviceName: pytorch-bench-4node
+  replicas: 4
+  selector:
+    matchLabels:
+      app: pytorch-bench-4node
+  template:
+    metadata:
+      labels:
+        app: pytorch-bench-4node
+      annotations:
+        k8s.v1.cni.cncf.io/networks: default/eno5np0-network,default/eno6np0-network,default/eno7np0-network,default/eno8np0-network
+    spec:
+      serviceAccountName: h-kim-sa
+      hostIPC: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - pytorch-bench-4node
+            topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - moc-r4pcc04u09-nairr
+                - moc-r4pcc04u11-nairr
+                - moc-r4pcc04u12-nairr
+                - moc-r4pcc04u16-nairr
+      containers:
+      - name: pytorch-bench
+        image: quay.io/jschless/ml-dev-env:h-kim-from-bbenshab
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+
+          echo "=== Pod: $HOSTNAME ==="
+          echo "Node: $(cat /etc/hostname)"
+          echo "Waiting for all pods to be ready..."
+
+          # Wait for all 4 pods
+          EXPECTED_PODS=4
+          while true; do
+            READY_PODS=$(getent hosts pytorch-bench-4node-0.pytorch-bench-4node.nccl-test.svc.cluster.local pytorch-bench-4node-1.pytorch-bench-4node.nccl-test.svc.cluster.local pytorch-bench-4node-2.pytorch-bench-4node.nccl-test.svc.cluster.local pytorch-bench-4node-3.pytorch-bench-4node.nccl-test.svc.cluster.local 2>/dev/null | wc -l)
+            echo "Ready pods: $READY_PODS / $EXPECTED_PODS"
+            if [ "$READY_PODS" -eq "$EXPECTED_PODS" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          echo "All pods ready!"
+
+          if [ "$HOSTNAME" = "pytorch-bench-4node-0" ]; then
+            echo "=== Master node - starting benchmark ==="
+            sleep 10
+
+            cd /benchmark
+
+            torchrun \
+              --nnodes=4 \
+              --nproc_per_node=4 \
+              --node_rank=0 \
+              --master_addr=pytorch-bench-4node-0.pytorch-bench-4node.nccl-test.svc.cluster.local \
+              --master_port=29500 \
+              allreduce-loop.py -s 128 -e 8G -f 2 -r 3
+          else
+            echo "=== Worker node - waiting for master ==="
+            sleep 15
+
+            RANK=${HOSTNAME##*-}
+            cd /benchmark
+
+            torchrun \
+              --nnodes=4 \
+              --nproc_per_node=4 \
+              --node_rank=$RANK \
+              --master_addr=pytorch-bench-4node-0.pytorch-bench-4node.nccl-test.svc.cluster.local \
+              --master_port=29500 \
+              allreduce-loop.py -s 128 -e 8G -f 2 -r 3
+          fi
+        env:
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_SOCKET_IFNAME
+          value: "net1,net2,net3,net4"
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
+        - name: NCCL_DMABUF_ENABLE
+          value: "1"
+        - name: NCCL_NTHREADS
+          value: "512"
+        - name: NCCL_IB_DISABLE
+          value: "0"
+        - name: NCCL_NET_GDR_LEVEL
+          value: "PXB"
+        - name: NCCL_ALGO
+          value: "Ring"
+        volumeMounts:
+        - name: benchmark-script
+          mountPath: /benchmark
+        securityContext:
+          privileged: false
+          capabilities:
+            add:
+            - IPC_LOCK
+            - SYS_ADMIN
+        resources:
+          requests:
+            nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+            cpu: "64"
+            memory: "400Gi"
+          limits:
+            nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+            cpu: "128"
+            memory: "800Gi"
+      volumes:
+      - name: benchmark-script
+        configMap:
+          name: pytorch-benchmark-4node
