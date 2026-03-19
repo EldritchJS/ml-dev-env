@@ -62,7 +62,7 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                # All 8 nodes: 5 old -nairr + 3 new h-kim (with firmware fix)
+                # All 8 nodes: 5 old -nairr + 3 new h-kim
                 - moc-r4pcc04u09-nairr
                 - moc-r4pcc04u11-nairr
                 - moc-r4pcc04u12-nairr
@@ -74,7 +74,7 @@ spec:
 
       containers:
       - name: pytorch-bench
-        image: quay.io/jschless/ml-dev-env:h-kim
+        image: quay.io/jschless/ml-dev-env:h-kim-from-bbenshab
         command: ["/bin/bash", "-c"]
         args:
         - |
@@ -87,8 +87,8 @@ spec:
           export NPROC_PER_NODE=4
 
           echo "=========================================="
-          echo "PyTorch Benchmark Environment (Manual)"
-          echo "8 Nodes: 5 old -nairr + 3 new h-kim"
+          echo "NCCL Test Environment (Manual)"
+          echo "8 Nodes: 5 -nairr + 3 new nodes"
           echo "=========================================="
           echo "Pod: ${POD_NAME}"
           echo "Node Rank: ${NODE_RANK}"
