@@ -1,0 +1,386 @@
+---
+# GOLD STANDARD NCCL ALL-REDUCE BENCHMARK
+# This configuration achieved 194 GB/s on 8 nodes (32 H100 GPUs)
+# Validated: March 2026
+# Use this as the canonical reference for all future benchmarks
+#
+# Performance: 194-195 GB/s for 8GB messages (99.2% network efficiency)
+# NCCL Version: 2.23.4+ (or compatible)
+# Container: h-kim-from-bbenshab image or compatible NVIDIA PyTorch container
+#
+# CRITICAL CONFIGURATION NOTES:
+# - NCCL_DMABUF_ENABLE=1 is REQUIRED (no nvidia_peermem kernel module)
+# - NCCL_CROSS_NIC=0 is REQUIRED (isolated subnet configuration)
+# - NCCL_IB_HCA must be explicitly set to mlx5_6,mlx5_7,mlx5_8,mlx5_9
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nccl-benchmark-svc
+  namespace: nccl-test
+  labels:
+    app: nccl-benchmark
+spec:
+  clusterIP: None
+  selector:
+    app: nccl-benchmark
+  ports:
+  - port: 29501
+    name: master
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nccl-benchmark-script
+  namespace: nccl-test
+data:
+  allreduce-loop.py: |
+    #
+    # Copyright IBM Corp. 2024
+    # SPDX-License-Identifier: MIT
+    #
+
+    import os
+    import sys
+    import torch
+    import torch.distributed as dist
+    import time
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--multiplier", type=int, default=1)
+    parser.add_argument("-r", "--runs", type=int, default=1, help="Number of times to run the entire benchmark")
+
+    args = parser.parse_args()
+    multiplier = args.multiplier
+    num_runs = args.runs
+
+    local_rank = int(os.environ["LOCAL_RANK"])
+    rank = int(os.environ["RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
+
+    torch.cuda.set_device(local_rank)
+
+    dist.init_process_group("nccl")
+
+    if rank == 0:
+        print("NCCL version : ", torch.cuda.nccl.version(), file=sys.stderr)
+
+    torch.manual_seed(1235911);
+
+    nMB = 10000.0
+    npts = int(nMB*1.0e6/4.0)
+
+    Tensor = torch.rand(npts, device='cuda')
+    torch.cuda.synchronize()
+
+    for run in range(num_runs):
+        if rank == 0:
+            if num_runs > 1:
+                print(f"\n=== Run {run + 1} / {num_runs} ===", file=sys.stderr)
+            print(" size(MB)   tavg(usec)    tmin(usec)    tmax(usec)  avgbw(GB/sec)  maxbw(GB/sec)  minbw(GB/sec)", file=sys.stderr)
+
+        for nMB in [0.10,0.12,0.15,0.20,0.32,0.40,0.50,0.64,0.80,1.00,1.25,1.50,2.00,3.16,4.00,5.00,6.40,8.00,\
+                    10.0,12.5,15.0,20.0,31.6,40.0,50.0,64.0,80.0,100.0,125.0,160.0,200.0,250.0,316.0,400.0,500.0,640.0,800.0,\
+                    1000.0,1250.0,1600.0,2000.0,2500.0,3160.0,4000.0,5000.0,6400.0,8000.0]:
+
+            if nMB < 10.0:
+                maxiter = 100*multiplier
+            elif nMB < 512.0:
+                maxiter = 20*multiplier
+            elif nMB < 2000.0:
+                maxiter = 10*multiplier
+            else:
+                maxiter = 5*multiplier
+
+            npts = int(nMB*1.0e6/4.0)
+            nm1 = int(npts - 1)
+
+            dist.all_reduce(Tensor[0:nm1], op=dist.ReduceOp.SUM)
+            torch.cuda.synchronize()
+            dist.all_reduce(Tensor[0:nm1], op=dist.ReduceOp.SUM)
+            torch.cuda.synchronize()
+
+            tbeg = time.perf_counter()
+            t1 = tbeg
+            tmin = 1.0e30
+            tmax = 0.0
+
+            for i in range(maxiter):
+                dist.all_reduce(Tensor[0:nm1], op=dist.ReduceOp.SUM)
+                torch.cuda.synchronize()
+                t2 = time.perf_counter()
+                if (t2 - t1) < tmin:
+                    tmin = (t2 - t1)
+                if (t2 - t1) > tmax:
+                    tmax = (t2 - t1)
+                t1 = t2
+
+            torch.cuda.synchronize()
+            tend = time.perf_counter()
+
+            elapsed = tend - tbeg
+            tavg = elapsed / maxiter
+
+            avgbw = 4.0*2.0e-9*npts*((world_size - 1)/world_size)/tavg
+            maxbw = 4.0*2.0e-9*npts*((world_size - 1)/world_size)/tmin
+            minbw = 4.0*2.0e-9*npts*((world_size - 1)/world_size)/tmax
+
+            if rank == 0:
+                print("{:8.2f}".format(nMB), "  ", "{:7.1f}".format(tavg*1.0e6), "      ", "{:7.1f}".format(tmin*1.0e6), "      ", "{:7.1f}".format(tmax*1.0e6), \
+                      "     ", "{:7.2f}".format(avgbw), "      ", "{:7.2f}".format(maxbw), "      ", "{:7.2f}".format(minbw), file=sys.stderr)
+
+    dist.destroy_process_group()
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nccl-benchmark
+  namespace: nccl-test
+  labels:
+    app: nccl-benchmark
+spec:
+  serviceName: nccl-benchmark-svc
+  replicas: 8
+  podManagementPolicy: Parallel
+
+  selector:
+    matchLabels:
+      app: nccl-benchmark
+
+  template:
+    metadata:
+      labels:
+        app: nccl-benchmark
+      annotations:
+        k8s.v1.cni.cncf.io/networks: default/eno5np0-network,default/eno6np0-network,default/eno7np0-network,default/eno8np0-network
+
+    spec:
+      serviceAccountName: h-kim-sa
+      hostIPC: true
+
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - nccl-benchmark
+            topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-H100-80GB-HBM3
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                # All 8 H100 nodes
+                - moc-r4pcc04u09-nairr
+                - moc-r4pcc04u11-nairr
+                - moc-r4pcc04u12-nairr
+                - moc-r4pcc04u16-nairr
+                - moc-r4pcc04u25-nairr
+                - moc-r4pcc02u05
+                - moc-r4pcc02u32
+                - moc-r4pcc02u35
+
+      containers:
+      - name: benchmark
+        image: quay.io/jschless/ml-dev-env:h-kim-from-bbenshab
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+
+          export NODE_RANK=${HOSTNAME##*-}
+          export MASTER_ADDR="nccl-benchmark-0.nccl-benchmark-svc"
+          export MASTER_PORT=29501
+          export NPROC_PER_NODE=4
+
+          echo "=========================================="
+          echo "GOLD STANDARD NCCL ALL-REDUCE BENCHMARK"
+          echo "Validated at 194.6 GB/s (99.2% efficiency)"
+          echo "8 nodes (32 H100 GPUs)"
+          echo "=========================================="
+          echo "Pod: ${POD_NAME}"
+          echo "Node: ${NODE_RANK}"
+          echo "Master: ${MASTER_ADDR}:${MASTER_PORT}"
+          echo ""
+
+          nvidia-smi --query-gpu=index,name --format=csv,noheader
+          echo ""
+
+          echo "NCCL Configuration:"
+          env | grep NCCL | sort
+          echo ""
+
+          echo "Ready to run benchmark."
+          echo "Exec into pod-0 and run:"
+          echo "  torchrun --nnodes=8 --nproc_per_node=4 --node_rank=0 \\"
+          echo "    --master_addr=nccl-benchmark-0.nccl-benchmark-svc \\"
+          echo "    --master_port=29501 /benchmark/allreduce-loop.py -r 3"
+          echo ""
+
+          sleep infinity
+
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # ============================================
+        # GOLD STANDARD NCCL PARAMETERS
+        # Validated at 194.6 GB/s (8GB messages, 32 H100 GPUs)
+        # Date: March 2026
+        # ============================================
+
+        # CRITICAL: DMABUF must be ENABLED for optimal performance
+        # This cluster does NOT have nvidia_peermem kernel module
+        # DMABUF enables GPUDirect RDMA for GPU-to-NIC direct transfers
+        - name: NCCL_DMABUF_ENABLE
+          value: "1"
+
+        # Debug settings
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_DEBUG_SUBSYS
+          value: "INIT,NET"
+
+        # Channel configuration
+        - name: NCCL_MIN_NCHANNELS
+          value: "8"
+        - name: NCCL_MAX_NCHANNELS
+          value: "16"
+
+        # Network interface selection
+        - name: NCCL_SOCKET_IFNAME
+          value: "net1,net2,net3,net4"
+        # CRITICAL: Must explicitly specify IB devices
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
+
+        # GPUDirect RDMA settings
+        - name: NCCL_NET_GDR_LEVEL
+          value: "5"
+        - name: NCCL_NET_GDR_READ
+          value: "1"
+
+        # InfiniBand settings
+        - name: NCCL_IB_GID_INDEX
+          value: "3"
+        - name: NCCL_IB_TC
+          value: "106"
+        - name: NCCL_IB_TIMEOUT
+          value: "23"
+        - name: NCCL_IB_RETRY_CNT
+          value: "7"
+        - name: NCCL_IB_SL
+          value: "0"
+        - name: NCCL_IB_AR_THRESHOLD
+          value: "8192"
+        - name: NCCL_IB_PCI_RELAXED_ORDERING
+          value: "1"
+
+        # Algorithm and protocol
+        - name: NCCL_PROTO
+          value: "Simple"
+        - name: NCCL_ALGO
+          value: "Ring"
+
+        # Buffer and thread configuration
+        - name: NCCL_BUFFSIZE
+          value: "8388608"
+        - name: NCCL_NTHREADS
+          value: "640"
+
+        # Thresholds
+        - name: NCCL_LL_THRESHOLD
+          value: "0"
+        - name: NCCL_TREE_THRESHOLD
+          value: "0"
+
+        # Socket configuration
+        - name: NCCL_SOCKET_FAMILY
+          value: "4"
+        - name: NCCL_NSOCKS_PERTHREAD
+          value: "8"
+
+        # CRITICAL: Multi-NIC configuration for isolated subnets
+        # NCCL_CROSS_NIC=0 is REQUIRED because subnets are isolated
+        # Each NIC on separate /24 subnet (10.0.103-106.0/24) with NO inter-subnet routing
+        # Setting this to 0 ensures GPU 0→net1, GPU 1→net2, GPU 2→net3, GPU 3→net4
+        # All 4 NICs utilized in parallel within their respective subnets
+        - name: NCCL_CROSS_NIC
+          value: "0"
+
+        # Disable NVLink Switch for H100 PCIe
+        - name: NCCL_NVLS_ENABLE
+          value: "0"
+
+        # Shared buffers
+        - name: NCCL_NET_SHARED_BUFFERS
+          value: "1"
+
+        # Network overhead
+        - name: NCCL_NET_OVERHEAD
+          value: "0"
+
+        # CPU affinity
+        - name: NCCL_IGNORE_CPU_AFFINITY
+          value: "1"
+
+        # GPU selection
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0,1,2,3"
+
+        resources:
+          requests:
+            nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+            cpu: "32"
+            memory: "1200Gi"
+          limits:
+            nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+            cpu: "64"
+            memory: "1200Gi"
+
+        volumeMounts:
+        - name: benchmark-script
+          mountPath: /benchmark
+        - name: host-sys
+          mountPath: /host-sys
+          readOnly: true
+
+        securityContext:
+          privileged: false
+          capabilities:
+            add:
+            - IPC_LOCK
+            - SYS_ADMIN
+
+      volumes:
+      - name: benchmark-script
+        configMap:
+          name: nccl-benchmark-script
+      - name: host-sys
+        hostPath:
+          path: /sys
+          type: Directory
