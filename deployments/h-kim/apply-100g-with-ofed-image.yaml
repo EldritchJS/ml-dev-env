@@ -1,0 +1,92 @@
+---
+# DaemonSet using NVIDIA OFED image which contains mlnx_qos tool
+# This applies 100 Gbps rate limit to all 4 NICs on each H100 node
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: apply-100g-rate-limit
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: apply-100g-rate-limit
+  template:
+    metadata:
+      labels:
+        app: apply-100g-rate-limit
+    spec:
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        node-role.kubernetes.io/h100: ""
+      tolerations:
+      - operator: Exists
+      containers:
+      - name: mlnx-qos
+        # Use NVIDIA OFED image which includes mlnx_qos
+        image: nvcr.io/nvidia/mellanox/mofed:5.9-0.5.6.0-ubuntu20.04-amd64
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -ex
+
+          echo "=========================================="
+          echo "Applying 100 Gbps rate limit using mlnx_qos"
+          echo "Node: $NODE_NAME"
+          echo "=========================================="
+
+          # Rate limit: 100 Gbps for all 8 TCs
+          RATE="100,100,100,100,100,100,100,100"
+
+          # Apply to each interface
+          for iface in eno5np0 eno6np0 eno7np0 eno8np0; do
+            echo ""
+            echo "Setting $iface to 100 Gbps per TC..."
+
+            if mlnx_qos -i $iface --ratelimit=$RATE 2>&1; then
+              echo "✓ $iface: Rate limit applied successfully"
+
+              # Verify
+              echo "Verifying $iface:"
+              mlnx_qos -i $iface 2>&1 | grep -E "tc:|ratelimit" | head -8
+            else
+              echo "✗ $iface: Failed to apply rate limit"
+            fi
+          done
+
+          echo ""
+          echo "=========================================="
+          echo "Rate limit application complete"
+          echo "=========================================="
+
+          # Keep pod running
+          sleep infinity
+
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+            - SYS_ADMIN
+
+        volumeMounts:
+        - name: sys
+          mountPath: /sys
+        - name: dev
+          mountPath: /dev
+
+      volumes:
+      - name: sys
+        hostPath:
+          path: /sys
+          type: Directory
+      - name: dev
+        hostPath:
+          path: /dev
+          type: Directory

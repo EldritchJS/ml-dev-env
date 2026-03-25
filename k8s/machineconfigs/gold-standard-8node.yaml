@@ -1,23 +1,17 @@
 ---
-# GOLD STANDARD NCCL ALL-REDUCE BENCHMARK
+# GOLD STANDARD NCCL ALL-REDUCE BENCHMARK - 8 NODE
 # This configuration achieved 194 GB/s on 8 nodes (32 H100 GPUs)
-# Validated: March 2026
 # Use this as the canonical reference for all future benchmarks
 #
-# Performance: 194-195 GB/s for 8GB messages (99.2% network efficiency)
+# Performance: ~194 GB/s for 8GB messages (8 nodes, 32 GPUs, no rate limit)
+# With 100 Gbps rate limit: ~49 GB/s (98% of 50 GB/s theoretical max)
 # NCCL Version: 2.23.4+ (or compatible)
-# Container: h-kim-from-bbenshab image or compatible NVIDIA PyTorch container
+# Container: latest image or compatible NVIDIA PyTorch container
 #
 # CRITICAL CONFIGURATION NOTES:
 # - NCCL_DMABUF_ENABLE=1 is REQUIRED (no nvidia_peermem kernel module)
 # - NCCL_CROSS_NIC=0 is REQUIRED (isolated subnet configuration)
 # - NCCL_IB_HCA must be explicitly set to mlx5_6,mlx5_7,mlx5_8,mlx5_9
-#
-# USAGE:
-# Apply to a specific namespace:
-#   kubectl apply -f GOLD-STANDARD-NCCL-BENCHMARK.yaml -n <your-namespace>
-# Example for h-kim:
-#   kubectl apply -f GOLD-STANDARD-NCCL-BENCHMARK.yaml -n b-efficient-memory-offloading-765cab
 ---
 apiVersion: v1
 kind: Service
@@ -183,7 +177,6 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                # All 8 H100 nodes
                 - moc-r4pcc04u09-nairr
                 - moc-r4pcc04u11-nairr
                 - moc-r4pcc04u12-nairr
@@ -227,7 +220,7 @@ spec:
           echo "Exec into pod-0 and run:"
           echo "  torchrun --nnodes=8 --nproc_per_node=4 --node_rank=0 \\"
           echo "    --master_addr=nccl-benchmark-0.nccl-benchmark-svc \\"
-          echo "    --master_port=29501 /benchmark/allreduce-loop.py -r 3"
+          echo "    --master_port=29501 /benchmark/allreduce-loop.py"
           echo ""
 
           sleep infinity
@@ -244,13 +237,11 @@ spec:
 
         # ============================================
         # GOLD STANDARD NCCL PARAMETERS
-        # Validated at 194.6 GB/s (8GB messages, 32 H100 GPUs)
-        # Date: March 2026
+        # Validated at 194 GB/s (8GB messages, H100s)
         # ============================================
 
         # CRITICAL: DMABUF must be ENABLED for optimal performance
-        # This cluster does NOT have nvidia_peermem kernel module
-        # DMABUF enables GPUDirect RDMA for GPU-to-NIC direct transfers
+        # This cluster has NO nvidia_peermem kernel module
         - name: NCCL_DMABUF_ENABLE
           value: "1"
 
@@ -266,10 +257,9 @@ spec:
         - name: NCCL_MAX_NCHANNELS
           value: "16"
 
-        # Network interface selection
+        # Network interface selection (multi-NIC without bonding)
         - name: NCCL_SOCKET_IFNAME
           value: "net1,net2,net3,net4"
-        # CRITICAL: Must explicitly specify IB devices
         - name: NCCL_IB_HCA
           value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
 
@@ -319,11 +309,7 @@ spec:
         - name: NCCL_NSOCKS_PERTHREAD
           value: "8"
 
-        # CRITICAL: Multi-NIC configuration for isolated subnets
-        # NCCL_CROSS_NIC=0 is REQUIRED because subnets are isolated
-        # Each NIC on separate /24 subnet (10.0.103-106.0/24) with NO inter-subnet routing
-        # Setting this to 0 ensures GPU 0→net1, GPU 1→net2, GPU 2→net3, GPU 3→net4
-        # All 4 NICs utilized in parallel within their respective subnets
+        # Multi-NIC configuration (disabled for single-NIC SR-IOV setup)
         - name: NCCL_CROSS_NIC
           value: "0"
 
