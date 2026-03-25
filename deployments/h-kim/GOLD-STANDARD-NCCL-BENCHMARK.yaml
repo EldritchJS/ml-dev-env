@@ -12,12 +12,17 @@
 # - NCCL_DMABUF_ENABLE=1 is REQUIRED (no nvidia_peermem kernel module)
 # - NCCL_CROSS_NIC=0 is REQUIRED (isolated subnet configuration)
 # - NCCL_IB_HCA must be explicitly set to mlx5_6,mlx5_7,mlx5_8,mlx5_9
+#
+# USAGE:
+# Apply to a specific namespace:
+#   kubectl apply -f GOLD-STANDARD-NCCL-BENCHMARK.yaml -n <your-namespace>
+# Example for h-kim:
+#   kubectl apply -f GOLD-STANDARD-NCCL-BENCHMARK.yaml -n b-efficient-memory-offloading-765cab
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: nccl-benchmark-svc
-  namespace: nccl-test
   labels:
     app: nccl-benchmark
 spec:
@@ -32,7 +37,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nccl-benchmark-script
-  namespace: nccl-test
 data:
   allreduce-loop.py: |
     #
@@ -136,7 +140,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nccl-benchmark
-  namespace: nccl-test
   labels:
     app: nccl-benchmark
 spec:
