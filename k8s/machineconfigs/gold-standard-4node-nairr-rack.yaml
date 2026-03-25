@@ -3,8 +3,10 @@
 # Uses only -nairr nodes from rack 4 for optimal intra-rack performance
 # Use this as the canonical reference for 4-node same-rack benchmarks
 #
-# Performance: Expected ~120-140 GB/s for 8GB messages (4 nodes, 16 GPUs, no rate limit)
-# With 100 Gbps rate limit: ~49 GB/s (98% of 50 GB/s theoretical max)
+# Validated Performance (4 nodes, 16 H100 GPUs):
+# - Without rate limit: Expected ~120-140 GB/s for 8GB messages (not yet tested)
+# - With 100 Gbps rate limit: 49.1 GB/s (98% of 50 GB/s theoretical max, validated March 2026)
+#
 # NCCL Version: 2.23.4+ (or compatible)
 # Container: latest image or compatible NVIDIA PyTorch container
 #

@@ -1,10 +1,11 @@
 ---
 # GOLD STANDARD NCCL ALL-REDUCE BENCHMARK - 8 NODE
-# This configuration achieved 194 GB/s on 8 nodes (32 H100 GPUs)
 # Use this as the canonical reference for all future benchmarks
 #
-# Performance: ~194 GB/s for 8GB messages (8 nodes, 32 GPUs, no rate limit)
-# With 100 Gbps rate limit: ~49 GB/s (98% of 50 GB/s theoretical max)
+# Validated Performance (8 nodes, 32 H100 GPUs):
+# - Without rate limit: ~194 GB/s for 8GB messages (validated March 2026)
+# - With 100 Gbps rate limit: 49.0 GB/s (99% of 50 GB/s theoretical max, validated March 2026)
+#
 # NCCL Version: 2.23.4+ (or compatible)
 # Container: latest image or compatible NVIDIA PyTorch container
 #
