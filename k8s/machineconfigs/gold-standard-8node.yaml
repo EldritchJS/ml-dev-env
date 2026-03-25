@@ -13,6 +13,10 @@
 # - NCCL_DMABUF_ENABLE=1 is REQUIRED (no nvidia_peermem kernel module)
 # - NCCL_CROSS_NIC=0 is REQUIRED (isolated subnet configuration)
 # - NCCL_IB_HCA must be explicitly set to mlx5_6,mlx5_7,mlx5_8,mlx5_9
+#
+# USAGE:
+# Apply to a specific namespace:
+#   kubectl apply -f gold-standard-8node.yaml -n <your-namespace>
 ---
 apiVersion: v1
 kind: Service
