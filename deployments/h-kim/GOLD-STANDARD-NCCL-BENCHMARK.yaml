@@ -374,6 +374,8 @@ spec:
           readOnly: true
         - name: workspace
           mountPath: /workspace
+        - name: dshm
+          mountPath: /dev/shm
 
         securityContext:
           privileged: false
@@ -390,6 +392,9 @@ spec:
         hostPath:
           path: /sys
           type: Directory
+      - name: dshm
+        emptyDir:
+          medium: Memory
 
   volumeClaimTemplates:
   - metadata:
