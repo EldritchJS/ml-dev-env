@@ -372,6 +372,8 @@ spec:
         - name: host-sys
           mountPath: /host-sys
           readOnly: true
+        - name: workspace
+          mountPath: /workspace
 
         securityContext:
           privileged: false
@@ -388,3 +390,13 @@ spec:
         hostPath:
           path: /sys
           type: Directory
+
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: ocs-external-storagecluster-ceph-rbd
