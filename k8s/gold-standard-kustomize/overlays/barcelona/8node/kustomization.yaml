@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../../base
+
+# Set replica count to 8
+replicas:
+- name: nccl-benchmark
+  count: 8
+
+# Patch node list to include all 8 H100 nodes
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/1/values
+      value:
+      - moc-r4pcc04u09-nairr
+      - moc-r4pcc04u11-nairr
+      - moc-r4pcc04u12-nairr
+      - moc-r4pcc04u16-nairr
+      - moc-r4pcc04u25-nairr
+      - moc-r4pcc02u05
+      - moc-r4pcc02u32
+      - moc-r4pcc02u35
+  target:
+    kind: StatefulSet
+    name: nccl-benchmark

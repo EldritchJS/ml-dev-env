@@ -1,0 +1,63 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../../base
+
+# EXAMPLE: Custom 3-node configuration
+# Modify the replica count and node list below for your use case
+
+# Set replica count
+replicas:
+- name: nccl-benchmark
+  count: 3
+
+# Patch node list to include your custom nodes
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/1/values
+      value:
+      - moc-r4pcc04u09-nairr
+      - moc-r4pcc04u11-nairr
+      - moc-r4pcc04u12-nairr
+  target:
+    kind: StatefulSet
+    name: nccl-benchmark
+
+# USAGE:
+# 1. Copy this directory: cp -r overlays/custom overlays/my-config
+# 2. Edit overlays/my-config/kustomization.yaml
+# 3. Change "count" to your desired number of nodes
+# 4. Update the node list in the "value" array
+# 5. Deploy: kubectl apply -k k8s/gold-standard-kustomize/overlays/my-config -n <namespace>
+#
+# EXAMPLE: 2-node configuration
+#   replicas:
+#   - name: nccl-benchmark
+#     count: 2
+#
+#   patches:
+#   - patch: |-
+#       - op: replace
+#         path: /spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/1/values
+#         value:
+#         - moc-r4pcc02u05
+#         - moc-r4pcc02u32
+#
+# EXAMPLE: 6-node configuration (rack 4 + 2 from rack 2)
+#   replicas:
+#   - name: nccl-benchmark
+#     count: 6
+#
+#   patches:
+#   - patch: |-
+#       - op: replace
+#         path: /spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/1/values
+#         value:
+#         - moc-r4pcc04u09-nairr
+#         - moc-r4pcc04u11-nairr
+#         - moc-r4pcc04u12-nairr
+#         - moc-r4pcc04u16-nairr
+#         - moc-r4pcc02u05
+#         - moc-r4pcc02u32
