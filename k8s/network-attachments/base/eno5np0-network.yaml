@@ -1,0 +1,29 @@
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: eno5np0-network
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: openshift.io/eno5np0rdma
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "eno5np0-network",
+      "type": "sriov",
+      "mtu": 9000,
+      "vlan": 0,
+      "spoofchk": "off",
+      "trust": "on",
+      "vlanQoS": 0,
+      "link_state": "enable",
+      "logLevel": "info",
+      "ipam": {
+        "type": "whereabouts",
+        "range": "10.0.103.0/24",
+        "routes": [
+          {
+            "dst": "192.168.77.0/24"
+          }
+        ]
+      }
+    }
