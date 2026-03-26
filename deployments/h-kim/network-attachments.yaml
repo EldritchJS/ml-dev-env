@@ -1,0 +1,132 @@
+---
+# SR-IOV Network Attachment Definitions for NCCL Benchmarks
+#
+# CRITICAL: Each NIC must have its own isolated subnet
+# DO NOT modify the IPAM ranges - they are specifically configured for:
+# - GPU 0 → net1 (eno5np0) → 10.0.103.0/24
+# - GPU 1 → net2 (eno6np0) → 10.0.104.0/24
+# - GPU 2 → net3 (eno7np0) → 10.0.105.0/24
+# - GPU 3 → net4 (eno8np0) → 10.0.106.0/24
+#
+# These separate subnets are required for NCCL_CROSS_NIC=0 configuration
+# which provides optimal performance with H100 GPUs.
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: eno5np0-network
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: openshift.io/eno5np0rdma
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "eno5np0-network",
+      "type": "sriov",
+      "mtu": 9000,
+      "vlan": 0,
+      "spoofchk": "off",
+      "trust": "on",
+      "vlanQoS": 0,
+      "link_state": "enable",
+      "logLevel": "info",
+      "ipam": {
+        "type": "whereabouts",
+        "range": "10.0.103.0/24",
+        "routes": [
+          {
+            "dst": "192.168.77.0/24"
+          }
+        ]
+      }
+    }
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: eno6np0-network
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: openshift.io/eno6np0rdma
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "eno6np0-network",
+      "type": "sriov",
+      "mtu": 9000,
+      "vlan": 0,
+      "spoofchk": "off",
+      "trust": "on",
+      "vlanQoS": 0,
+      "link_state": "enable",
+      "logLevel": "info",
+      "ipam": {
+        "type": "whereabouts",
+        "range": "10.0.104.0/24",
+        "routes": [
+          {
+            "dst": "192.168.78.0/24"
+          }
+        ]
+      }
+    }
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: eno7np0-network
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: openshift.io/eno7np0rdma
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "eno7np0-network",
+      "type": "sriov",
+      "mtu": 9000,
+      "vlan": 0,
+      "spoofchk": "off",
+      "trust": "on",
+      "vlanQoS": 0,
+      "link_state": "enable",
+      "logLevel": "info",
+      "ipam": {
+        "type": "whereabouts",
+        "range": "10.0.105.0/24",
+        "routes": [
+          {
+            "dst": "192.168.79.0/24"
+          }
+        ]
+      }
+    }
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: eno8np0-network
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: openshift.io/eno8np0rdma
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "eno8np0-network",
+      "type": "sriov",
+      "mtu": 9000,
+      "vlan": 0,
+      "spoofchk": "off",
+      "trust": "on",
+      "vlanQoS": 0,
+      "link_state": "enable",
+      "logLevel": "info",
+      "ipam": {
+        "type": "whereabouts",
+        "range": "10.0.106.0/24",
+        "routes": [
+          {
+            "dst": "192.168.80.0/24"
+          }
+        ]
+      }
+    }
