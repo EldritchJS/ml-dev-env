@@ -184,13 +184,15 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                # All 8 H100 nodes
+                # All H100 nodes (10 total, benchmark uses 8 by default)
                 - moc-r4pcc04u09-nairr
                 - moc-r4pcc04u11-nairr
                 - moc-r4pcc04u12-nairr
                 - moc-r4pcc04u16-nairr
                 - moc-r4pcc04u25-nairr
+                - moc-r4pcc04u37-nairr
                 - moc-r4pcc02u05
+                - moc-r4pcc02u25-nairr
                 - moc-r4pcc02u32
                 - moc-r4pcc02u35
 
