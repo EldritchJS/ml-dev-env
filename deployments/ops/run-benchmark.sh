@@ -3,25 +3,74 @@
 # run-benchmark.sh
 # Execute N-node NCCL benchmark in parallel across all pods
 #
-# Usage: ./run-benchmark.sh [NUM_NODES] [GPUS_PER_NODE] [NAMESPACE] [ITERATIONS]
-#   NUM_NODES:      Number of nodes (default: 4)
-#   GPUS_PER_NODE:  Number of GPUs per node (default: 4)
-#   NAMESPACE:      Kubernetes namespace (default: nccl-test)
-#   ITERATIONS:     Number of benchmark iterations (default: 3)
+# Usage: ./run-benchmark.sh [OPTIONS]
+#
+# Options:
+#   -N, --nodes NUM        Number of nodes (default: 16)
+#   -g, --gpus NUM         GPUs per node (default: 4)
+#   -n, --namespace NS     Kubernetes namespace (default: nccl-test)
+#   -i, --iterations NUM   Benchmark iterations (default: 3)
+#   -h, --help             Show this help message
 #
 # Examples:
-#   ./run-benchmark.sh                    # 4 nodes, 4 GPUs, nccl-test namespace, 3 iterations
-#   ./run-benchmark.sh 8                  # 8 nodes, 4 GPUs, nccl-test namespace, 3 iterations
-#   ./run-benchmark.sh 8 4 nccl-test 5    # 8 nodes, 4 GPUs, nccl-test namespace, 5 iterations
-#   ./run-benchmark.sh 2 4 my-namespace   # 2 nodes, 4 GPUs, my-namespace, 3 iterations
+#   ./run-benchmark.sh                                    # Use all defaults
+#   ./run-benchmark.sh -N 8                               # 8 nodes, other defaults
+#   ./run-benchmark.sh --namespace b-efficient-memory-offloading-765cab
+#   ./run-benchmark.sh -N 16 -i 5                         # 16 nodes, 5 iterations
+#   ./run-benchmark.sh -n my-namespace -N 4 -g 4 -i 3    # Specify all
 #
 
 set -e
 
-NUM_NODES="${1:-16}"
-GPUS_PER_NODE="${2:-4}"
-NAMESPACE="${3:-nccl-test}"
-ITERATIONS="${4:-3}"
+# Default values
+NUM_NODES=16
+GPUS_PER_NODE=4
+NAMESPACE="nccl-test"
+ITERATIONS=3
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -N|--nodes)
+      NUM_NODES="$2"
+      shift 2
+      ;;
+    -g|--gpus)
+      GPUS_PER_NODE="$2"
+      shift 2
+      ;;
+    -n|--namespace)
+      NAMESPACE="$2"
+      shift 2
+      ;;
+    -i|--iterations)
+      ITERATIONS="$2"
+      shift 2
+      ;;
+    -h|--help)
+      echo "Usage: $0 [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  -N, --nodes NUM        Number of nodes (default: 16)"
+      echo "  -g, --gpus NUM         GPUs per node (default: 4)"
+      echo "  -n, --namespace NS     Kubernetes namespace (default: nccl-test)"
+      echo "  -i, --iterations NUM   Benchmark iterations (default: 3)"
+      echo "  -h, --help             Show this help message"
+      echo ""
+      echo "Examples:"
+      echo "  $0                                    # Use all defaults"
+      echo "  $0 -N 8                               # 8 nodes"
+      echo "  $0 --namespace my-namespace           # Custom namespace"
+      echo "  $0 -N 16 -i 5                         # 16 nodes, 5 iterations"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Use -h or --help for usage information"
+      exit 1
+      ;;
+  esac
+done
 MASTER_ADDR="nccl-benchmark-0.nccl-benchmark-svc"
 MASTER_PORT="29501"
 

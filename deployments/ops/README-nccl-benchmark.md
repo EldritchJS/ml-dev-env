@@ -166,42 +166,43 @@ nccl-benchmark-2   1/1     Running   0          2m
 nccl-benchmark-3   1/1     Running   0          2m
 ```
 
-### 5. Run the Benchmark
+### 6. Run the Benchmark
 
-The script accepts optional parameters to configure the benchmark run:
+The script accepts optional flags to configure the benchmark run:
 
 ```bash
-./deployments/ops/run-benchmark.sh [NUM_NODES] [GPUS_PER_NODE] [NAMESPACE] [ITERATIONS]
-```
+./deployments/ops/run-benchmark.sh [OPTIONS]
 
-**Parameters:**
-- `NUM_NODES`: Number of nodes (default: 4)
-- `GPUS_PER_NODE`: Number of GPUs per node (default: 4)
-- `NAMESPACE`: Kubernetes namespace (default: nccl-test)
-- `ITERATIONS`: Number of benchmark iterations (default: 3)
+Options:
+  -N, --nodes NUM        Number of nodes (default: 16)
+  -g, --gpus NUM         GPUs per node (default: 4)
+  -n, --namespace NS     Kubernetes namespace (default: nccl-test)
+  -i, --iterations NUM   Benchmark iterations (default: 3)
+  -h, --help             Show help message
+```
 
 **Examples:**
 
 ```bash
-# Use all defaults (4 nodes, 4 GPUs, nccl-test namespace, 3 iterations)
+# Use all defaults (16 nodes, 4 GPUs, nccl-test namespace, 3 iterations)
 ./deployments/ops/run-benchmark.sh
 
-# 8 nodes with defaults for other parameters
-./deployments/ops/run-benchmark.sh 8
+# Just specify namespace
+./deployments/ops/run-benchmark.sh -n b-efficient-memory-offloading-765cab
 
-# 2 nodes with 5 iterations
-./deployments/ops/run-benchmark.sh 2 4 nccl-test 5
+# 8 nodes with more iterations
+./deployments/ops/run-benchmark.sh -N 8 -i 5
 
-# Custom namespace
-./deployments/ops/run-benchmark.sh 4 4 my-namespace
+# Custom namespace and node count
+./deployments/ops/run-benchmark.sh --namespace my-namespace --nodes 4
 
 # Full customization
-./deployments/ops/run-benchmark.sh 8 4 nccl-test 10
+./deployments/ops/run-benchmark.sh -N 16 -g 4 -n nccl-test -i 10
 ```
 
 **Note:** The number of nodes must match your deployment's replica count. The script automatically runs torchrun on all pods in parallel.
 
-### 6. View Results
+### 7. View Results
 
 The script automatically displays results from the master node (rank 0). Results include:
 - Bandwidth per message size (GB/s)
