@@ -46,13 +46,56 @@ values:
 kubectl get nodes -l nvidia.com/gpu.product=NVIDIA-H100-80GB-HBM3
 ```
 
-### 2. Deploy the Benchmark
+### 2. Verify NCCL_IB_HCA Settings (IMPORTANT)
+
+Before deploying, verify that the InfiniBand device names match your cluster. The default is `mlx5_6,mlx5_7,mlx5_8,mlx5_9`.
+
+**Check IB devices on your nodes:**
+```bash
+# Pick one of your target nodes
+NODE_NAME="your-node-1"
+
+# Method 1: Using ibdev2netdev (if available)
+kubectl debug node/$NODE_NAME --image=nvcr.io/nvidia/mellanox/doca-driver:24.01-0.3.8.0-0-24.01-1.1.4.0-ubuntu22.04-amd64 \
+  -- chroot /host ibdev2netdev
+
+# Method 2: Check /sys/class/infiniband
+kubectl debug node/$NODE_NAME --image=registry.access.redhat.com/ubi9/ubi:latest \
+  -- chroot /host ls -1 /sys/class/infiniband/
+```
+
+**Expected output from ibdev2netdev:**
+```
+mlx5_6 port 1 ==> eno5np0 (Up)
+mlx5_7 port 1 ==> eno6np0 (Up)
+mlx5_8 port 1 ==> eno7np0 (Up)
+mlx5_9 port 1 ==> eno8np0 (Up)
+```
+
+**Expected output from ls /sys/class/infiniband:**
+```
+mlx5_6
+mlx5_7
+mlx5_8
+mlx5_9
+```
+
+**If device names are different** (e.g., `mlx5_0,mlx5_1,mlx5_2,mlx5_3`), edit the YAML before deploying:
+
+```yaml
+- name: NCCL_IB_HCA
+  value: "mlx5_0,mlx5_1,mlx5_2,mlx5_3"  # Update with your device names
+```
+
+**Note:** Device names typically follow the pattern `mlx5_X` where X is the device index. On some clusters, the first NICs might be `mlx5_0-3`, while on others they start at higher indices like `mlx5_6-9`. Use **all 4 InfiniBand devices** for optimal performance.
+
+### 3. Deploy the Benchmark
 
 ```bash
 kubectl apply -f deployments/ops/nccl-benchmark-4node-template.yaml
 ```
 
-### 3. Wait for Pods to be Running
+### 4. Wait for Pods to be Running
 
 ```bash
 kubectl get pods -n nccl-test -w
@@ -67,7 +110,7 @@ nccl-benchmark-2   1/1     Running   0          2m
 nccl-benchmark-3   1/1     Running   0          2m
 ```
 
-### 4. Run the Benchmark
+### 5. Run the Benchmark
 
 ```bash
 ./deployments/ops/run-4node-benchmark.sh
@@ -78,7 +121,7 @@ nccl-benchmark-3   1/1     Running   0          2m
 ./deployments/ops/run-4node-benchmark.sh 5  # Run 5 iterations instead of default 3
 ```
 
-### 5. View Results
+### 6. View Results
 
 The script automatically displays results from the master node (rank 0). Results include:
 - Bandwidth per message size (GB/s)
@@ -249,8 +292,9 @@ kubectl logs -n nccl-test nccl-benchmark-0
    - Fix: Must be "0" for isolated subnet configuration
 
 3. **Wrong NCCL_IB_HCA**
-   - Symptom: Only using 1-2 NICs instead of all 4
-   - Fix: Verify mlx5_6,mlx5_7,mlx5_8,mlx5_9 are correct device names
+   - Symptom: Only using 1-2 NICs instead of all 4, or NCCL errors about missing devices
+   - Fix: See "Quick Start - Step 2" to verify correct device names for your cluster
+   - Check NCCL logs: `kubectl logs -n nccl-test nccl-benchmark-0 | grep "NET/IB"` to see which devices NCCL detected
 
 4. **Rate limiting applied**
    - Symptom: Capped at ~49 GB/s
@@ -302,17 +346,19 @@ image: your-registry/your-image:tag
 
 ### Changing Network Interfaces
 
-If your cluster uses different InfiniBand device names, update `NCCL_IB_HCA`:
+**See "Quick Start - Step 2: Verify NCCL_IB_HCA Settings" for detailed instructions.**
 
-```bash
-# On each node, find IB device names
-kubectl debug node/your-node -- chroot /host ibdev2netdev
-```
+If your cluster uses different InfiniBand device names than the default `mlx5_6,mlx5_7,mlx5_8,mlx5_9`, you must update `NCCL_IB_HCA` in the YAML:
 
-Then update the YAML:
 ```yaml
 - name: NCCL_IB_HCA
   value: "mlx5_0,mlx5_1,mlx5_2,mlx5_3"  # Your device names
+```
+
+To find device names:
+```bash
+kubectl debug node/your-node --image=registry.access.redhat.com/ubi9/ubi:latest \
+  -- chroot /host ls -1 /sys/class/infiniband/
 ```
 
 ## Performance Validation
