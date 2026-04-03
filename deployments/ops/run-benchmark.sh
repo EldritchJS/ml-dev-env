@@ -1,23 +1,32 @@
 #!/bin/bash
 #
-# run-4node-benchmark.sh
-# Execute 4-node NCCL benchmark in parallel across all pods
+# run-benchmark.sh
+# Execute N-node NCCL benchmark in parallel across all pods
 #
-# Usage: ./run-4node-benchmark.sh [iterations]
-#   iterations: Number of benchmark iterations (default: 3)
+# Usage: ./run-benchmark.sh [NUM_NODES] [GPUS_PER_NODE] [NAMESPACE] [ITERATIONS]
+#   NUM_NODES:      Number of nodes (default: 4)
+#   GPUS_PER_NODE:  Number of GPUs per node (default: 4)
+#   NAMESPACE:      Kubernetes namespace (default: nccl-test)
+#   ITERATIONS:     Number of benchmark iterations (default: 3)
+#
+# Examples:
+#   ./run-benchmark.sh                    # 4 nodes, 4 GPUs, nccl-test namespace, 3 iterations
+#   ./run-benchmark.sh 8                  # 8 nodes, 4 GPUs, nccl-test namespace, 3 iterations
+#   ./run-benchmark.sh 8 4 nccl-test 5    # 8 nodes, 4 GPUs, nccl-test namespace, 5 iterations
+#   ./run-benchmark.sh 2 4 my-namespace   # 2 nodes, 4 GPUs, my-namespace, 3 iterations
 #
 
 set -e
 
-NAMESPACE="nccl-test"
-NUM_NODES=4
-GPUS_PER_NODE=4
+NUM_NODES="${1:-4}"
+GPUS_PER_NODE="${2:-4}"
+NAMESPACE="${3:-nccl-test}"
+ITERATIONS="${4:-3}"
 MASTER_ADDR="nccl-benchmark-0.nccl-benchmark-svc"
 MASTER_PORT="29501"
-ITERATIONS="${1:-3}"
 
 echo "=========================================="
-echo "4-Node NCCL Benchmark Execution Script"
+echo "N-Node NCCL Benchmark Execution Script"
 echo "=========================================="
 echo "Namespace:       $NAMESPACE"
 echo "Nodes:           $NUM_NODES"
