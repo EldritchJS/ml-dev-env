@@ -1,10 +1,10 @@
-# 4-Node NCCL Benchmark - Gold Standard Configuration
+# N-Node NCCL Benchmark - Gold Standard Configuration
 
-This directory contains templates and scripts for running the gold standard 4-node NCCL benchmark on any H100 cluster.
+This directory contains templates and scripts for running the gold standard NCCL benchmark on any H100 cluster with N nodes.
 
 ## Overview
 
-The 4-node benchmark tests NCCL AllReduce performance across 4 nodes with 4 GPUs each (16 GPUs total). This configuration validates:
+The benchmark tests NCCL AllReduce performance across multiple nodes with 4 GPUs each. This configuration validates:
 - Multi-node GPU communication via RDMA
 - Network performance and bandwidth
 - NCCL collective operation efficiency
@@ -12,13 +12,14 @@ The 4-node benchmark tests NCCL AllReduce performance across 4 nodes with 4 GPUs
 
 ## Files
 
-- **nccl-benchmark-4node-template.yaml**: StatefulSet and Service definitions
-- **run-4node-benchmark.sh**: Parallel execution script for torchrun
-- **README-4node-nccl-benchmark.md**: This file
+- **nccl-benchmark-template.yaml**: StatefulSet and Service definitions (template for N nodes)
+- **run-benchmark.sh**: Parallel execution script for torchrun (configurable for N nodes)
+- **README-nccl-benchmark.md**: This file
+
 
 ## Prerequisites
 
-1. **Kubernetes cluster** with 4+ H100 nodes (4 GPUs per node)
+1. **Kubernetes cluster** with N H100 nodes (4 GPUs per node, where N ≥ 2)
 2. **NVIDIA GPU Operator** installed and functional
 3. **Container image** with NCCL, PyTorch, and benchmark code
 4. **Network configuration**:
@@ -28,18 +29,28 @@ The 4-node benchmark tests NCCL AllReduce performance across 4 nodes with 4 GPUs
 
 ## Quick Start
 
-### 1. Modify Node Selection
+### 1. Configure Node Count and Selection
 
-Edit `nccl-benchmark-4node-template.yaml` and replace the node names in the `nodeAffinity` section:
+Edit `nccl-benchmark-template.yaml`:
 
+**A. Set number of nodes (replicas):**
+```yaml
+spec:
+  replicas: 4  # CHANGE THIS: 2, 4, 8, 16, etc.
+```
+
+**B. List target nodes in nodeAffinity:**
 ```yaml
 values:
-  # MODIFY THESE NODE NAMES - Replace with your target nodes
+  # MODIFY THESE NODE NAMES - Must match replicas count
   - your-node-1
   - your-node-2
   - your-node-3
   - your-node-4
+  # Add more nodes if replicas > 4
 ```
+
+**Important:** The number of nodes in the `values` list must equal or exceed the `replicas` count.
 
 **How to find available nodes:**
 ```bash
@@ -92,7 +103,7 @@ mlx5_9
 ### 3. Deploy the Benchmark
 
 ```bash
-kubectl apply -f deployments/ops/nccl-benchmark-4node-template.yaml
+kubectl apply -f deployments/ops/nccl-benchmark-template.yaml
 ```
 
 ### 4. Wait for Pods to be Running
@@ -101,7 +112,7 @@ kubectl apply -f deployments/ops/nccl-benchmark-4node-template.yaml
 kubectl get pods -n nccl-test -w
 ```
 
-All 4 pods must show `Running` status before proceeding:
+All N pods must show `Running` status before proceeding. Example for 4 nodes:
 ```
 NAME               READY   STATUS    RESTARTS   AGE
 nccl-benchmark-0   1/1     Running   0          2m
@@ -112,14 +123,24 @@ nccl-benchmark-3   1/1     Running   0          2m
 
 ### 5. Run the Benchmark
 
+**A. Update script for your node count:**
+
+Edit `run-benchmark.sh` and change:
 ```bash
-./deployments/ops/run-4node-benchmark.sh
+NUM_NODES=4  # Change to match your replicas count (2, 8, 16, etc.)
+```
+
+**B. Execute the benchmark:**
+```bash
+./deployments/ops/run-benchmark.sh
 ```
 
 **With custom iteration count:**
 ```bash
-./deployments/ops/run-4node-benchmark.sh 5  # Run 5 iterations instead of default 3
+./deployments/ops/run-benchmark.sh 5  # Run 5 iterations instead of default 3
 ```
+
+**Note:** The script automatically runs torchrun on all NUM_NODES pods in parallel.
 
 ### 6. View Results
 
@@ -132,15 +153,30 @@ The script automatically displays results from the master node (rank 0). Results
 
 ### Without Rate Limiting
 
-For 4 nodes with ConnectX-7 400G NICs:
-- **8GB messages**: ~194 GB/s (typical)
+For ConnectX-7 400G NICs with Ring AllReduce:
+- **Per-GPU bandwidth**: ~12 GB/s (independent of node count)
+- **Total aggregate**: ~48 GB/s per node (4 GPUs × 12 GB/s)
+- **8GB messages**: Optimal performance
 - **Smaller messages**: Lower bandwidth due to latency
+
+**Examples by node count:**
+- 2 nodes (8 GPUs): ~96 GB/s aggregate
+- 4 nodes (16 GPUs): ~194 GB/s aggregate
+- 8 nodes (32 GPUs): ~388 GB/s aggregate
+
+**Note:** Ring AllReduce provides constant per-GPU bandwidth regardless of cluster size. Total aggregate bandwidth scales linearly with GPU count.
 
 ### With 100 Gbps Rate Limiting
 
 If hardware rate limiting is applied (100 Gbps per NIC):
-- **8GB messages**: ~49 GB/s
-- **Efficiency**: Should be >97% of theoretical maximum (50 GB/s)
+- **Per-GPU bandwidth**: ~3 GB/s
+- **Total per node**: ~12 GB/s (4 GPUs × 3 GB/s)
+- **8GB messages**: Best efficiency (>97% of theoretical maximum)
+
+**Examples by node count:**
+- 2 nodes: ~24 GB/s aggregate
+- 4 nodes: ~49 GB/s aggregate
+- 8 nodes: ~98 GB/s aggregate
 
 ## Configuration Details
 
@@ -235,21 +271,33 @@ kubectl exec -n nccl-test nccl-benchmark-0 -- cat /workspace/benchmark-output.lo
 
 ## Scaling to Different Node Counts
 
-### 8-Node Benchmark
+The template works for any number of nodes. Simply adjust the configuration:
 
-1. Change `replicas: 4` to `replicas: 8` in YAML
-2. Add 4 more node names to the `values` list
-3. Update `NUM_NODES=8` in the script (or pass different node count)
-4. Run: `./run-4node-benchmark.sh` (update script name/copy for 8-node)
+### General Process
 
-### 2-Node Benchmark
+1. **Set replicas** in YAML to desired node count (2, 8, 16, etc.)
+2. **List N node names** in the `values` section (must match replicas)
+3. **Update NUM_NODES** in the script to match replicas
+4. **Run benchmark**
 
-1. Change `replicas: 4` to `replicas: 2` in YAML
-2. Use only 2 node names in the `values` list
-3. Update `NUM_NODES=2` in the script
-4. Run benchmark
+### Examples
 
-**Note:** The Ring AllReduce algorithm provides consistent per-GPU bandwidth regardless of node count.
+**2-Node (8 GPUs):**
+- YAML: `replicas: 2`, list 2 nodes
+- Script: `NUM_NODES=2`
+- Expected: ~96 GB/s aggregate (no rate limiting)
+
+**8-Node (32 GPUs):**
+- YAML: `replicas: 8`, list 8 nodes
+- Script: `NUM_NODES=8`
+- Expected: ~388 GB/s aggregate (no rate limiting)
+
+**16-Node (64 GPUs):**
+- YAML: `replicas: 16`, list 16 nodes
+- Script: `NUM_NODES=16`
+- Expected: ~776 GB/s aggregate (no rate limiting)
+
+**Note:** The Ring AllReduce algorithm provides consistent per-GPU bandwidth regardless of node count. Total aggregate bandwidth scales linearly.
 
 ## Troubleshooting
 
@@ -318,7 +366,7 @@ kubectl get pods -n nccl-test nccl-benchmark-0 -o jsonpath='{.status.containerSt
 ### Delete Benchmark Resources
 
 ```bash
-kubectl delete -f deployments/ops/nccl-benchmark-4node-template.yaml
+kubectl delete -f deployments/ops/nccl-benchmark-template.yaml
 ```
 
 ### Verify Cleanup
@@ -333,7 +381,7 @@ Should show no resources (only default ConfigMaps).
 
 ### Using Different Container Image
 
-Edit the `image:` field in `nccl-benchmark-4node-template.yaml`:
+Edit the `image:` field in `nccl-benchmark-template.yaml`:
 
 ```yaml
 image: your-registry/your-image:tag
@@ -363,25 +411,37 @@ kubectl debug node/your-node --image=registry.access.redhat.com/ubi9/ubi:latest 
 
 ## Performance Validation
 
-### Baseline Expectations
+### Baseline Expectations (Per-GPU Bandwidth)
 
-For 4 nodes × 4 GPUs (16 GPUs total) with ConnectX-7 400G NICs:
+With ConnectX-7 400G NICs and Ring AllReduce, expect ~12 GB/s per GPU regardless of cluster size:
 
-| Message Size | Expected Bandwidth | Notes |
-|--------------|-------------------|-------|
-| 8 GB         | ~194 GB/s         | Ring AllReduce, no rate limiting |
-| 4 GB         | ~190 GB/s         | Close to maximum |
-| 2 GB         | ~180 GB/s         | Slightly lower |
-| 1 GB         | ~165 GB/s         | Latency starts to matter |
-| 512 MB       | ~145 GB/s         | More latency impact |
+| Message Size | Per-GPU BW | Notes |
+|--------------|-----------|-------|
+| 8 GB         | ~12 GB/s  | Optimal for Ring AllReduce |
+| 4 GB         | ~11.8 GB/s| Close to maximum |
+| 2 GB         | ~11.2 GB/s| Slightly lower |
+| 1 GB         | ~10.3 GB/s| Latency starts to matter |
+| 512 MB       | ~9.0 GB/s | More latency impact |
 
-### With 100 Gbps Rate Limiting
+### Aggregate Bandwidth by Cluster Size
 
-| Message Size | Expected Bandwidth | Efficiency |
-|--------------|-------------------|------------|
-| 8 GB         | ~49.0 GB/s        | 98-99%     |
-| 4 GB         | ~48.8 GB/s        | 97-98%     |
-| 2 GB         | ~48.5 GB/s        | 97%        |
+**Without rate limiting:**
+
+| Node Count | Total GPUs | Aggregate BW (8GB messages) |
+|-----------|-----------|---------------------------|
+| 2 nodes   | 8 GPUs    | ~96 GB/s                  |
+| 4 nodes   | 16 GPUs   | ~194 GB/s                 |
+| 8 nodes   | 32 GPUs   | ~388 GB/s                 |
+| 16 nodes  | 64 GPUs   | ~776 GB/s                 |
+
+**With 100 Gbps rate limiting (3 GB/s per GPU):**
+
+| Node Count | Total GPUs | Aggregate BW (8GB messages) |
+|-----------|-----------|---------------------------|
+| 2 nodes   | 8 GPUs    | ~24 GB/s                  |
+| 4 nodes   | 16 GPUs   | ~49 GB/s                  |
+| 8 nodes   | 32 GPUs   | ~98 GB/s                  |
+| 16 nodes  | 64 GPUs   | ~195 GB/s                 |
 
 If you see significantly lower performance, review the Troubleshooting section.
 
