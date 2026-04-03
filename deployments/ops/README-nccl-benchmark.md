@@ -12,10 +12,13 @@ The benchmark tests NCCL AllReduce performance across multiple nodes with 4 GPUs
 
 ## Files
 
-- **nccl-benchmark-template.yaml**: StatefulSet and Service definitions (template for N nodes)
+- **nccl-benchmark-template.yaml**: Complete benchmark deployment for N nodes
+  - **ConfigMap**: Contains the `allreduce-loop.py` benchmark script
+  - **StatefulSet**: Deploys N pods with the benchmark environment
+  - **Service**: Headless service for pod-to-pod communication
+  - The benchmark script is automatically mounted at `/benchmark/allreduce-loop.py` in each pod
 - **run-benchmark.sh**: Parallel execution script for torchrun (configurable for N nodes)
 - **README-nccl-benchmark.md**: This file
-
 
 ## Prerequisites
 
@@ -385,13 +388,19 @@ kubectl get pods -n nccl-test nccl-benchmark-0 -o jsonpath='{.status.containerSt
 kubectl delete -f deployments/ops/nccl-benchmark-template.yaml
 ```
 
+This deletes:
+- ConfigMap (nccl-benchmark-script)
+- StatefulSet (nccl-benchmark)
+- Service (nccl-benchmark-svc)
+- All associated pods
+
 ### Verify Cleanup
 
 ```bash
-kubectl get all -n nccl-test
+kubectl get all,configmap -n nccl-test
 ```
 
-Should show no resources (only default ConfigMaps).
+Should show no benchmark resources (only default cluster ConfigMaps like `kube-root-ca.crt`).
 
 ## Customization
 
@@ -405,8 +414,28 @@ image: your-registry/your-image:tag
 
 **Requirements for custom image:**
 - NVIDIA PyTorch with NCCL support
-- Benchmark script at `/benchmark/allreduce-loop.py`
 - CUDA and NCCL libraries compatible with H100
+
+**Note:** The benchmark script is provided via ConfigMap, so your image doesn't need to include it. The ConfigMap mounts `/benchmark/allreduce-loop.py` into the container automatically.
+
+### Modifying the Benchmark Script
+
+The benchmark script is defined in the ConfigMap at the top of `nccl-benchmark-template.yaml`. To customize:
+
+1. Edit the `allreduce-loop.py` content in the ConfigMap section
+2. Common modifications:
+   - Change message sizes (line with `for nMB in [...]`)
+   - Adjust iteration counts (`maxiter` calculations)
+   - Modify warmup behavior
+   - Add custom tensor operations
+
+3. Redeploy with the updated ConfigMap:
+   ```bash
+   kubectl delete -f deployments/ops/nccl-benchmark-template.yaml
+   kubectl apply -f deployments/ops/nccl-benchmark-template.yaml
+   ```
+
+**Tip:** The script is from IBM and tests NCCL AllReduce across various message sizes from 0.1 MB to 8 GB.
 
 ### Changing Network Interfaces
 
