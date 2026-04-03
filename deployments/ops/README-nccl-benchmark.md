@@ -170,27 +170,27 @@ The script automatically displays results from the master node (rank 0). Results
 ### Without Rate Limiting
 
 For ConnectX-7 400G NICs with Ring AllReduce:
-- **Per-GPU bandwidth**: ~12 GB/s (independent of node count)
-- **Total aggregate**: ~48 GB/s per node (4 GPUs × 12 GB/s)
+- **Per-GPU bandwidth**: ~12.4 GB/s (independent of node count)
+- **Total aggregate**: ~49.5 GB/s per node (4 GPUs × 12.4 GB/s)
 - **8GB messages**: Optimal performance
 - **Smaller messages**: Lower bandwidth due to latency
 
 **Examples by node count:**
-- 2 nodes (8 GPUs): ~96 GB/s aggregate
-- 4 nodes (16 GPUs): ~194 GB/s aggregate
-- 8 nodes (32 GPUs): ~388 GB/s aggregate
+- 2 nodes (8 GPUs): ~99 GB/s aggregate
+- 4 nodes (16 GPUs): ~198 GB/s aggregate
+- 8 nodes (32 GPUs): ~396 GB/s aggregate
 
 **Note:** Ring AllReduce provides constant per-GPU bandwidth regardless of cluster size. Total aggregate bandwidth scales linearly with GPU count.
 
 ### With 100 Gbps Rate Limiting
 
 If hardware rate limiting is applied (100 Gbps per NIC):
-- **Per-GPU bandwidth**: ~3 GB/s
-- **Total per node**: ~12 GB/s (4 GPUs × 3 GB/s)
-- **8GB messages**: Best efficiency (>97% of theoretical maximum)
+- **Per-GPU bandwidth**: ~3.06 GB/s
+- **Total per node**: ~12.25 GB/s (4 GPUs × 3.06 GB/s)
+- **8GB messages**: Best efficiency (>98% of theoretical 12.5 GB/s per node)
 
 **Examples by node count:**
-- 2 nodes: ~24 GB/s aggregate
+- 2 nodes: ~24.5 GB/s aggregate
 - 4 nodes: ~49 GB/s aggregate
 - 8 nodes: ~98 GB/s aggregate
 
@@ -301,17 +301,17 @@ The template works for any number of nodes. Simply adjust the configuration:
 **2-Node (8 GPUs):**
 - YAML: `replicas: 2`, list 2 nodes
 - Script: `NUM_NODES=2`
-- Expected: ~96 GB/s aggregate (no rate limiting)
+- Expected: ~99 GB/s aggregate (no rate limiting)
 
 **8-Node (32 GPUs):**
 - YAML: `replicas: 8`, list 8 nodes
 - Script: `NUM_NODES=8`
-- Expected: ~388 GB/s aggregate (no rate limiting)
+- Expected: ~396 GB/s aggregate (no rate limiting)
 
 **16-Node (64 GPUs):**
 - YAML: `replicas: 16`, list 16 nodes
 - Script: `NUM_NODES=16`
-- Expected: ~776 GB/s aggregate (no rate limiting)
+- Expected: ~792 GB/s aggregate (no rate limiting)
 
 **Note:** The Ring AllReduce algorithm provides consistent per-GPU bandwidth regardless of node count. Total aggregate bandwidth scales linearly.
 
@@ -348,7 +348,7 @@ kubectl logs -n nccl-test nccl-benchmark-0
 **Common causes:**
 
 1. **Missing NCCL_DMABUF_ENABLE=1**
-   - Symptom: ~10-20 GB/s instead of ~194 GB/s
+   - Symptom: ~10-20 GB/s instead of ~198 GB/s (4-node)
    - Fix: Verify environment variable is set
 
 2. **NCCL_CROSS_NIC=1 (wrong value)**
@@ -522,15 +522,15 @@ All pods should show all 4 InfiniBand devices available on their respective node
 
 ### Baseline Expectations (Per-GPU Bandwidth)
 
-With ConnectX-7 400G NICs and Ring AllReduce, expect ~12 GB/s per GPU regardless of cluster size:
+With ConnectX-7 400G NICs and Ring AllReduce, expect ~12.4 GB/s per GPU regardless of cluster size:
 
 | Message Size | Per-GPU BW | Notes |
 |--------------|-----------|-------|
-| 8 GB         | ~12 GB/s  | Optimal for Ring AllReduce |
-| 4 GB         | ~11.8 GB/s| Close to maximum |
-| 2 GB         | ~11.2 GB/s| Slightly lower |
-| 1 GB         | ~10.3 GB/s| Latency starts to matter |
-| 512 MB       | ~9.0 GB/s | More latency impact |
+| 8 GB         | ~12.4 GB/s| Optimal for Ring AllReduce |
+| 4 GB         | ~12.2 GB/s| Close to maximum |
+| 2 GB         | ~11.5 GB/s| Slightly lower |
+| 1 GB         | ~10.6 GB/s| Latency starts to matter |
+| 512 MB       | ~9.3 GB/s | More latency impact |
 
 ### Aggregate Bandwidth by Cluster Size
 
@@ -538,19 +538,19 @@ With ConnectX-7 400G NICs and Ring AllReduce, expect ~12 GB/s per GPU regardless
 
 | Node Count | Total GPUs | Aggregate BW (8GB messages) |
 |-----------|-----------|---------------------------|
-| 2 nodes   | 8 GPUs    | ~96 GB/s                  |
-| 4 nodes   | 16 GPUs   | ~194 GB/s                 |
-| 8 nodes   | 32 GPUs   | ~388 GB/s                 |
-| 16 nodes  | 64 GPUs   | ~776 GB/s                 |
+| 2 nodes   | 8 GPUs    | ~99 GB/s                  |
+| 4 nodes   | 16 GPUs   | ~198 GB/s                 |
+| 8 nodes   | 32 GPUs   | ~396 GB/s                 |
+| 16 nodes  | 64 GPUs   | ~792 GB/s                 |
 
-**With 100 Gbps rate limiting (3 GB/s per GPU):**
+**With 100 Gbps rate limiting (~3.06 GB/s per GPU):**
 
 | Node Count | Total GPUs | Aggregate BW (8GB messages) |
 |-----------|-----------|---------------------------|
-| 2 nodes   | 8 GPUs    | ~24 GB/s                  |
+| 2 nodes   | 8 GPUs    | ~24.5 GB/s                |
 | 4 nodes   | 16 GPUs   | ~49 GB/s                  |
 | 8 nodes   | 32 GPUs   | ~98 GB/s                  |
-| 16 nodes  | 64 GPUs   | ~195 GB/s                 |
+| 16 nodes  | 64 GPUs   | ~196 GB/s                 |
 
 If you see significantly lower performance, review the Troubleshooting section.
 
