@@ -1,0 +1,103 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nccl-benchmark-svc
+  namespace: nccl-test
+spec:
+  clusterIP: None
+  selector:
+    app: nccl-benchmark
+  ports:
+  - port: 29501
+    targetPort: 29501
+    name: torchrun
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nccl-benchmark
+  namespace: nccl-test
+spec:
+  serviceName: nccl-benchmark-svc
+  replicas: 4
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: nccl-benchmark
+  template:
+    metadata:
+      labels:
+        app: nccl-benchmark
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: nccl-benchmark
+            topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                # MODIFY THESE NODE NAMES - Replace with your target nodes
+                - moc-r4pcc04u09-nairr
+                - moc-r4pcc04u11-nairr
+                - moc-r4pcc04u12-nairr
+                - moc-r4pcc04u16-nairr
+      containers:
+      - name: nccl-test
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env@sha256:8f99384b8277ff732153c58874679fa4d6592104bfa0fe21ca2d5750ee213bed
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            nvidia.com/gpu: 4
+          limits:
+            nvidia.com/gpu: 4
+        env:
+        # Critical NCCL settings - DO NOT MODIFY unless you know what you're doing
+        - name: NCCL_DMABUF_ENABLE
+          value: "1"
+        - name: NCCL_CROSS_NIC
+          value: "0"
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
+
+        # Performance tuning
+        - name: NCCL_MIN_NCHANNELS
+          value: "8"
+        - name: NCCL_MAX_NCHANNELS
+          value: "16"
+        - name: NCCL_NET_GDR_LEVEL
+          value: "5"
+        - name: NCCL_NET_GDR_READ
+          value: "1"
+        - name: NCCL_PROTO
+          value: "Simple"
+        - name: NCCL_ALGO
+          value: "Ring"
+
+        # Debugging (optional - comment out for production)
+        # - name: NCCL_DEBUG
+        #   value: "INFO"
+        # - name: NCCL_DEBUG_SUBSYS
+        #   value: "INIT,NET"
+
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: shm
+          mountPath: /dev/shm
+      volumes:
+      - name: workspace
+        emptyDir: {}
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
