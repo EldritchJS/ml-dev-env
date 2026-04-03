@@ -25,10 +25,15 @@ The benchmark tests NCCL AllReduce performance across multiple nodes with 4 GPUs
 1. **Kubernetes cluster** with N H100 nodes (4 GPUs per node, where N ≥ 2)
 2. **NVIDIA GPU Operator** installed and functional
 3. **Container image** with NCCL, PyTorch, and benchmark code
-4. **Network configuration**:
-   - SR-IOV network interfaces configured
+4. **SR-IOV Network Operator** with network attachments configured:
+   - `eno5np0-network` (net1)
+   - `eno6np0-network` (net2)
+   - `eno7np0-network` (net3)
+   - `eno8np0-network` (net4)
+5. **Network configuration**:
    - RDMA enabled on ConnectX NICs
-   - Proper subnet configuration (isolated /24 subnets for multi-NIC)
+   - Isolated /24 subnets for each SR-IOV interface
+   - SR-IOV device plugin exposing `openshift.io/eno[5-8]np0rdma` resources
 
 ## Quick Start
 
@@ -439,7 +444,9 @@ The benchmark script is defined in the ConfigMap at the top of `nccl-benchmark-t
 
 ### Changing Network Interfaces
 
-**See "Quick Start - Step 2: Verify NCCL_IB_HCA Settings" for detailed instructions.**
+**InfiniBand Device Names:**
+
+See "Quick Start - Step 2: Verify NCCL_IB_HCA Settings" for detailed instructions.
 
 If your cluster uses different InfiniBand device names than the default `mlx5_6,mlx5_7,mlx5_8,mlx5_9`, you must update `NCCL_IB_HCA` in the YAML:
 
@@ -453,6 +460,32 @@ To find device names:
 kubectl debug node/your-node --image=registry.access.redhat.com/ubi9/ubi:latest \
   -- chroot /host ls -1 /sys/class/infiniband/
 ```
+
+**SR-IOV Network Names:**
+
+This template uses SR-IOV network attachments. If your cluster uses different network names, update:
+
+1. **Pod annotations** (spec.template.metadata.annotations):
+   ```yaml
+   k8s.v1.cni.cncf.io/networks: your-net1,your-net2,your-net3,your-net4
+   ```
+
+2. **NCCL_SOCKET_IFNAME** environment variable:
+   ```yaml
+   - name: NCCL_SOCKET_IFNAME
+     value: "your-net1,your-net2,your-net3,your-net4"
+   ```
+
+3. **SR-IOV resource requests** (must match your SR-IOV device plugin resource names):
+   ```yaml
+   resources:
+     requests:
+       your-cluster.io/rdma-resource-1: 1
+       your-cluster.io/rdma-resource-2: 1
+       # etc.
+   ```
+
+**Note:** This cluster uses OpenShift with `eno5np0-network`, `eno6np0-network`, `eno7np0-network`, `eno8np0-network` network attachments and `openshift.io/eno[5-8]np0rdma` SR-IOV resources.
 
 ## Advanced Configuration
 
