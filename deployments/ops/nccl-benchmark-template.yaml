@@ -267,9 +267,17 @@ spec:
         hostPath:
           path: /sys
           type: Directory
-      - name: workspace
-        emptyDir: {}
       - name: shm
         emptyDir:
           medium: Memory
           sizeLimit: 32Gi
+
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: ocs-external-storagecluster-ceph-rbd
