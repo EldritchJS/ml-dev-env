@@ -147,24 +147,38 @@ nccl-benchmark-3   1/1     Running   0          2m
 
 ### 5. Run the Benchmark
 
-**A. Update script for your node count:**
+The script accepts optional parameters to configure the benchmark run:
 
-Edit `run-benchmark.sh` and change:
 ```bash
-NUM_NODES=4  # Change to match your replicas count (2, 8, 16, etc.)
+./deployments/ops/run-benchmark.sh [NUM_NODES] [GPUS_PER_NODE] [NAMESPACE] [ITERATIONS]
 ```
 
-**B. Execute the benchmark:**
+**Parameters:**
+- `NUM_NODES`: Number of nodes (default: 4)
+- `GPUS_PER_NODE`: Number of GPUs per node (default: 4)
+- `NAMESPACE`: Kubernetes namespace (default: nccl-test)
+- `ITERATIONS`: Number of benchmark iterations (default: 3)
+
+**Examples:**
+
 ```bash
+# Use all defaults (4 nodes, 4 GPUs, nccl-test namespace, 3 iterations)
 ./deployments/ops/run-benchmark.sh
+
+# 8 nodes with defaults for other parameters
+./deployments/ops/run-benchmark.sh 8
+
+# 2 nodes with 5 iterations
+./deployments/ops/run-benchmark.sh 2 4 nccl-test 5
+
+# Custom namespace
+./deployments/ops/run-benchmark.sh 4 4 my-namespace
+
+# Full customization
+./deployments/ops/run-benchmark.sh 8 4 nccl-test 10
 ```
 
-**With custom iteration count:**
-```bash
-./deployments/ops/run-benchmark.sh 5  # Run 5 iterations instead of default 3
-```
-
-**Note:** The script automatically runs torchrun on all NUM_NODES pods in parallel.
+**Note:** The number of nodes must match your deployment's replica count. The script automatically runs torchrun on all pods in parallel.
 
 ### 6. View Results
 
@@ -301,24 +315,23 @@ The template works for any number of nodes. Simply adjust the configuration:
 
 1. **Set replicas** in YAML to desired node count (2, 8, 16, etc.)
 2. **List N node names** in the `values` section (must match replicas)
-3. **Update NUM_NODES** in the script to match replicas
-4. **Run benchmark**
+3. **Run benchmark** with node count parameter
 
 ### Examples
 
 **2-Node (8 GPUs):**
 - YAML: `replicas: 2`, list 2 nodes
-- Script: `NUM_NODES=2`
+- Script: `./deployments/ops/run-benchmark.sh 2`
 - Expected: ~99 GB/s aggregate (no rate limiting)
 
 **8-Node (32 GPUs):**
 - YAML: `replicas: 8`, list 8 nodes
-- Script: `NUM_NODES=8`
+- Script: `./deployments/ops/run-benchmark.sh 8`
 - Expected: ~396 GB/s aggregate (no rate limiting)
 
 **16-Node (64 GPUs):**
 - YAML: `replicas: 16`, list 16 nodes
-- Script: `NUM_NODES=16`
+- Script: `./deployments/ops/run-benchmark.sh 16`
 - Expected: ~792 GB/s aggregate (no rate limiting)
 
 **Note:** The Ring AllReduce algorithm provides consistent per-GPU bandwidth regardless of node count. Total aggregate bandwidth scales linearly.
