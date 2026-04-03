@@ -223,14 +223,29 @@ spec:
         volumeMounts:
         - name: benchmark-script
           mountPath: /benchmark
+        - name: host-sys
+          mountPath: /host-sys
+          readOnly: true
         - name: workspace
           mountPath: /workspace
         - name: shm
           mountPath: /dev/shm
+
+        securityContext:
+          privileged: false
+          capabilities:
+            add:
+            - IPC_LOCK
+            - SYS_ADMIN
+
       volumes:
       - name: benchmark-script
         configMap:
           name: nccl-benchmark-script
+      - name: host-sys
+        hostPath:
+          path: /sys
+          type: Directory
       - name: workspace
         emptyDir: {}
       - name: shm
