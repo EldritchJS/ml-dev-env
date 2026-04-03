@@ -104,6 +104,26 @@ data:
     dist.destroy_process_group()
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nccl-benchmark
+  namespace: nccl-test
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nccl-benchmark-scc-binding
+  namespace: nccl-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:nccl-scc
+subjects:
+- kind: ServiceAccount
+  name: nccl-benchmark
+  namespace: nccl-test
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: nccl-benchmark-svc
@@ -136,6 +156,7 @@ spec:
       annotations:
         k8s.v1.cni.cncf.io/networks: eno5np0-network,eno6np0-network,eno7np0-network,eno8np0-network
     spec:
+      serviceAccountName: nccl-benchmark
       hostIPC: true
       affinity:
         podAntiAffinity:

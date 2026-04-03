@@ -37,7 +37,23 @@ The benchmark tests NCCL AllReduce performance across multiple nodes with 4 GPUs
 
 ## Quick Start
 
-### 1. Configure Node Count and Selection
+### 1. Configure Namespace (If Not Using nccl-test)
+
+The template defaults to the `nccl-test` namespace. If using a different namespace, update all namespace references:
+
+```bash
+# Replace nccl-test with your namespace (e.g., b-efficient)
+sed -i 's/namespace: nccl-test/namespace: YOUR-NAMESPACE/g' deployments/ops/nccl-benchmark-template.yaml
+```
+
+Or manually edit these sections:
+- ServiceAccount metadata
+- RoleBinding metadata and subjects
+- Service metadata
+- StatefulSet metadata
+- ConfigMap metadata
+
+### 2. Configure Node Count and Selection
 
 Edit `nccl-benchmark-template.yaml`:
 
