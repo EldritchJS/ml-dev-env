@@ -124,7 +124,7 @@ metadata:
   namespace: nccl-test
 spec:
   serviceName: nccl-benchmark-svc
-  replicas: 4
+  replicas: 16
   podManagementPolicy: Parallel
   selector:
     matchLabels:
@@ -152,13 +152,29 @@ spec:
                 operator: In
                 values:
                 # MODIFY THESE NODE NAMES - Replace with your target nodes
+                - moc-r4pcc04u03-nairr
                 - moc-r4pcc04u09-nairr
                 - moc-r4pcc04u11-nairr
                 - moc-r4pcc04u12-nairr
+                - moc-r4pcc04u15-jason
                 - moc-r4pcc04u16-nairr
+                - moc-r4pcc04u25-nairr
+                - moc-r4pcc04u37-nairr
+                - moc-r4pcc02u05
+                - moc-r4pcc02u10-nairr
+                - moc-r4pcc02u18-nairr
+                - moc-r4pcc02u25-nairr
+                - moc-r4pcc02u30-nairr
+                - moc-r4pcc02u32
+                - moc-r4pcc02u35
+                - moc-r4pcc02u16-yunshi
+                #- moc-r4pcc04u09-nairr
+                #- moc-r4pcc04u11-nairr
+                #- moc-r4pcc04u12-nairr
+                #- moc-r4pcc04u16-nairr
       containers:
       - name: nccl-test
-        image: image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env@sha256:8f99384b8277ff732153c58874679fa4d6592104bfa0fe21ca2d5750ee213bed
+        image: quay.io/jschless/ml-dev-env:latest
         command: ["sleep", "infinity"]
         resources:
           requests:
