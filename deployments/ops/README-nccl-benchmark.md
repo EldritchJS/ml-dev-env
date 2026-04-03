@@ -424,8 +424,32 @@ kubectl get pods -n nccl-test nccl-benchmark-0 -o jsonpath='{.status.containerSt
 
 ### Delete Benchmark Resources
 
+**IMPORTANT:** Use the same namespace substitution when deleting:
+
 ```bash
-kubectl delete -f deployments/ops/nccl-benchmark-template.yaml
+# Delete from nccl-test namespace
+kubectl delete -f <(sed 's/NAMESPACE_PLACEHOLDER/nccl-test/g' deployments/ops/nccl-benchmark-template.yaml)
+
+# Delete from H Kim's namespace
+kubectl delete -f <(sed 's/NAMESPACE_PLACEHOLDER/b-efficient-memory-offloading-765cab/g' deployments/ops/nccl-benchmark-template.yaml)
+
+# Delete from custom namespace
+NAMESPACE=your-namespace
+kubectl delete -f <(sed "s/NAMESPACE_PLACEHOLDER/$NAMESPACE/g" deployments/ops/nccl-benchmark-template.yaml)
+```
+
+**Or delete resources directly by name:**
+
+```bash
+# Set your namespace
+NAMESPACE=b-efficient-memory-offloading-765cab
+
+# Delete all benchmark resources
+kubectl delete statefulset nccl-benchmark -n $NAMESPACE
+kubectl delete service nccl-benchmark-svc -n $NAMESPACE
+kubectl delete configmap nccl-benchmark-script -n $NAMESPACE
+kubectl delete rolebinding nccl-benchmark-scc-binding -n $NAMESPACE
+kubectl delete serviceaccount nccl-benchmark -n $NAMESPACE
 ```
 
 This deletes:
