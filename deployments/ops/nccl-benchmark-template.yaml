@@ -245,7 +245,7 @@ spec:
         - name: benchmark-script
           mountPath: /benchmark
         - name: host-sys
-          mountPath: /sys
+          mountPath: /host-sys
           readOnly: true
         - name: workspace
           mountPath: /workspace
