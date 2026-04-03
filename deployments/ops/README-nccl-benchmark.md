@@ -100,6 +100,22 @@ mlx5_9
 
 **Note:** Device names typically follow the pattern `mlx5_X` where X is the device index. On some clusters, the first NICs might be `mlx5_0-3`, while on others they start at higher indices like `mlx5_6-9`. Use **all 4 InfiniBand devices** for optimal performance.
 
+**⚠️ HETEROGENEOUS CLUSTERS:**
+
+If your nodes have **different** mlx5 device assignments (e.g., node-1 uses `mlx5_0-3`, node-2 uses `mlx5_6-9`), **you cannot use a single hardcoded NCCL_IB_HCA value**. See "Advanced Configuration - Auto-Detecting IB Devices" below for solutions.
+
+To check if you have a heterogeneous cluster:
+```bash
+# Check multiple nodes
+for node in node-1 node-2 node-3; do
+  echo "=== $node ==="
+  kubectl debug node/$node --image=registry.access.redhat.com/ubi9/ubi:latest \
+    -- chroot /host ls -1 /sys/class/infiniband/
+done
+```
+
+If the output shows different device names across nodes, use auto-detection.
+
 ### 3. Deploy the Benchmark
 
 ```bash
@@ -408,6 +424,99 @@ To find device names:
 kubectl debug node/your-node --image=registry.access.redhat.com/ubi9/ubi:latest \
   -- chroot /host ls -1 /sys/class/infiniband/
 ```
+
+## Advanced Configuration
+
+### Auto-Detecting IB Devices (Heterogeneous Clusters)
+
+If different nodes have different mlx5 device assignments, use this approach to auto-detect InfiniBand devices at runtime.
+
+**Option 1: Wrapper Script (Recommended)**
+
+Modify the container `command` in the YAML to use a startup script:
+
+```yaml
+containers:
+- name: nccl-test
+  image: your-image:tag
+  command: ["/bin/bash", "-c"]
+  args:
+  - |
+    # Auto-detect InfiniBand devices
+    IB_DEVICES=$(ls /sys/class/infiniband/ | sort | tr '\n' ',' | sed 's/,$//')
+    export NCCL_IB_HCA="$IB_DEVICES"
+
+    echo "Auto-detected NCCL_IB_HCA=$NCCL_IB_HCA"
+
+    # Keep container running for benchmark execution
+    sleep infinity
+  env:
+  # Remove or comment out hardcoded NCCL_IB_HCA
+  # - name: NCCL_IB_HCA
+  #   value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
+  - name: NCCL_DMABUF_ENABLE
+    value: "1"
+  # ... other env vars
+```
+
+**Option 2: Init Container**
+
+Add an init container that writes device names to a shared volume:
+
+```yaml
+initContainers:
+- name: detect-ib-devices
+  image: registry.access.redhat.com/ubi9/ubi:latest
+  command: ["/bin/bash", "-c"]
+  args:
+  - |
+    IB_DEVICES=$(ls /sys/class/infiniband/ | sort | tr '\n' ',' | sed 's/,$//')
+    echo "export NCCL_IB_HCA=\"$IB_DEVICES\"" > /config/nccl-env.sh
+    cat /config/nccl-env.sh
+  volumeMounts:
+  - name: nccl-config
+    mountPath: /config
+
+containers:
+- name: nccl-test
+  image: your-image:tag
+  command: ["/bin/bash", "-c"]
+  args:
+  - |
+    source /config/nccl-env.sh
+    echo "Using NCCL_IB_HCA=$NCCL_IB_HCA"
+    sleep infinity
+  volumeMounts:
+  - name: nccl-config
+    mountPath: /config
+  env:
+  - name: NCCL_DMABUF_ENABLE
+    value: "1"
+  # ... other env vars except NCCL_IB_HCA
+
+volumes:
+- name: nccl-config
+  emptyDir: {}
+```
+
+**Option 3: Per-Node ConfigMaps (Complex)**
+
+For very heterogeneous clusters, create separate ConfigMaps per node with specific NCCL_IB_HCA values, then use `envFrom` with node-specific selectors.
+
+**Verification:**
+
+After deploying with auto-detection, verify each pod detected the correct devices:
+
+```bash
+# Check detected devices on each pod
+for i in {0..3}; do
+  echo "=== Pod nccl-benchmark-$i ==="
+  kubectl exec -n nccl-test nccl-benchmark-$i -- bash -c 'echo $NCCL_IB_HCA'
+  kubectl exec -n nccl-test nccl-benchmark-$i -- ls /sys/class/infiniband/
+done
+```
+
+All pods should show all 4 InfiniBand devices available on their respective nodes.
 
 ## Performance Validation
 
