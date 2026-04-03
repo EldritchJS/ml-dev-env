@@ -18,7 +18,7 @@
 
 set -e
 
-NUM_NODES="${1:-4}"
+NUM_NODES="${1:-16}"
 GPUS_PER_NODE="${2:-4}"
 NAMESPACE="${3:-nccl-test}"
 ITERATIONS="${4:-3}"

@@ -37,21 +37,22 @@ The benchmark tests NCCL AllReduce performance across multiple nodes with 4 GPUs
 
 ## Quick Start
 
-### 1. Configure Namespace (If Not Using nccl-test)
+### 1. Apply to Your Namespace
 
-The template defaults to the `nccl-test` namespace. If using a different namespace, update all namespace references:
+The template uses `NAMESPACE_PLACEHOLDER` which you replace when applying:
 
 ```bash
-# Replace nccl-test with your namespace (e.g., b-efficient)
-sed -i 's/namespace: nccl-test/namespace: YOUR-NAMESPACE/g' deployments/ops/nccl-benchmark-template.yaml
+# For nccl-test namespace
+kubectl apply -f <(sed 's/NAMESPACE_PLACEHOLDER/nccl-test/g' deployments/ops/nccl-benchmark-template.yaml)
+
+# For H Kim's namespace
+kubectl apply -f <(sed 's/NAMESPACE_PLACEHOLDER/b-efficient-memory-offloading-765cab/g' deployments/ops/nccl-benchmark-template.yaml)
+
+# For any other namespace
+kubectl apply -f <(sed 's/NAMESPACE_PLACEHOLDER/YOUR-NAMESPACE/g' deployments/ops/nccl-benchmark-template.yaml)
 ```
 
-Or manually edit these sections:
-- ServiceAccount metadata
-- RoleBinding metadata and subjects
-- Service metadata
-- StatefulSet metadata
-- ConfigMap metadata
+**Note:** The ServiceAccount and RoleBinding will be created automatically with the correct namespace
 
 ### 2. Configure Node Count and Selection
 
@@ -140,16 +141,20 @@ done
 
 If the output shows different device names across nodes, use auto-detection.
 
-### 3. Deploy the Benchmark
+### 4. Deploy the Benchmark
+
+Deploy using the namespace replacement pattern from Step 1:
 
 ```bash
-kubectl apply -f deployments/ops/nccl-benchmark-template.yaml
+# Example for nccl-test namespace
+NAMESPACE=nccl-test
+kubectl apply -f <(sed "s/NAMESPACE_PLACEHOLDER/$NAMESPACE/g" deployments/ops/nccl-benchmark-template.yaml)
 ```
 
-### 4. Wait for Pods to be Running
+### 5. Wait for Pods to be Running
 
 ```bash
-kubectl get pods -n nccl-test -w
+kubectl get pods -n $NAMESPACE -w
 ```
 
 All N pods must show `Running` status before proceeding. Example for 4 nodes:
