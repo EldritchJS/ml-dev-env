@@ -174,7 +174,7 @@ The script accepts optional flags to configure the benchmark run:
 ./deployments/ops/run-benchmark.sh [OPTIONS]
 
 Options:
-  -N, --nodes NUM        Number of nodes (default: 16)
+  -N, --nodes NUM        Number of nodes (default: 15)
   -g, --gpus NUM         GPUs per node (default: 4)
   -n, --namespace NS     Kubernetes namespace (default: nccl-test)
   -i, --iterations NUM   Benchmark iterations (default: 3)
@@ -184,7 +184,7 @@ Options:
 **Examples:**
 
 ```bash
-# Use all defaults (16 nodes, 4 GPUs, nccl-test namespace, 3 iterations)
+# Use all defaults (15 nodes, 4 GPUs, nccl-test namespace, 3 iterations)
 ./deployments/ops/run-benchmark.sh
 
 # Just specify namespace
@@ -197,7 +197,7 @@ Options:
 ./deployments/ops/run-benchmark.sh --namespace my-namespace --nodes 4
 
 # Full customization
-./deployments/ops/run-benchmark.sh -N 16 -g 4 -n nccl-test -i 10
+./deployments/ops/run-benchmark.sh -N 15 -g 4 -n nccl-test -i 10
 ```
 
 **Note:** The number of nodes must match your deployment's replica count. The script automatically runs torchrun on all pods in parallel.
@@ -348,13 +348,13 @@ The template works for any number of nodes. Simply adjust the configuration:
 
 **8-Node (32 GPUs):**
 - YAML: `replicas: 8`, list 8 nodes
-- Script: `./deployments/ops/run-benchmark.sh 8`
+- Script: `./deployments/ops/run-benchmark.sh -N 8`
 - Expected: ~396 GB/s aggregate (no rate limiting)
 
-**16-Node (64 GPUs):**
-- YAML: `replicas: 16`, list 16 nodes
-- Script: `./deployments/ops/run-benchmark.sh 16`
-- Expected: ~792 GB/s aggregate (no rate limiting)
+**15-Node (60 GPUs) - Default H Kim Configuration:**
+- YAML: `replicas: 15`, list 15 nodes (excludes problematic moc-r4pcc04u15-jason)
+- Script: `./deployments/ops/run-benchmark.sh -N 15` or `./deployments/ops/run-benchmark.sh`
+- Expected: ~743 GB/s aggregate (no rate limiting)
 
 **Note:** The Ring AllReduce algorithm provides consistent per-GPU bandwidth regardless of node count. Total aggregate bandwidth scales linearly.
 
@@ -662,7 +662,7 @@ With ConnectX-7 400G NICs and Ring AllReduce, expect ~12.4 GB/s per GPU regardle
 | 2 nodes   | 8 GPUs    | ~99 GB/s                  |
 | 4 nodes   | 16 GPUs   | ~198 GB/s                 |
 | 8 nodes   | 32 GPUs   | ~396 GB/s                 |
-| 16 nodes  | 64 GPUs   | ~792 GB/s                 |
+| 15 nodes  | 60 GPUs   | ~743 GB/s                 |
 
 **With 100 Gbps rate limiting (~3.06 GB/s per GPU):**
 
@@ -671,7 +671,7 @@ With ConnectX-7 400G NICs and Ring AllReduce, expect ~12.4 GB/s per GPU regardle
 | 2 nodes   | 8 GPUs    | ~24.5 GB/s                |
 | 4 nodes   | 16 GPUs   | ~49 GB/s                  |
 | 8 nodes   | 32 GPUs   | ~98 GB/s                  |
-| 16 nodes  | 64 GPUs   | ~196 GB/s                 |
+| 15 nodes  | 60 GPUs   | ~184 GB/s                 |
 
 If you see significantly lower performance, review the Troubleshooting section.
 

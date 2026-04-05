@@ -6,24 +6,24 @@
 # Usage: ./run-benchmark.sh [OPTIONS]
 #
 # Options:
-#   -N, --nodes NUM        Number of nodes (default: 16)
+#   -N, --nodes NUM        Number of nodes (default: 15)
 #   -g, --gpus NUM         GPUs per node (default: 4)
 #   -n, --namespace NS     Kubernetes namespace (default: nccl-test)
 #   -i, --iterations NUM   Benchmark iterations (default: 3)
 #   -h, --help             Show this help message
 #
 # Examples:
-#   ./run-benchmark.sh                                    # Use all defaults
+#   ./run-benchmark.sh                                    # Use all defaults (15 nodes)
 #   ./run-benchmark.sh -N 8                               # 8 nodes, other defaults
 #   ./run-benchmark.sh --namespace b-efficient-memory-offloading-765cab
-#   ./run-benchmark.sh -N 16 -i 5                         # 16 nodes, 5 iterations
+#   ./run-benchmark.sh -N 15 -i 5                         # 15 nodes, 5 iterations
 #   ./run-benchmark.sh -n my-namespace -N 4 -g 4 -i 3    # Specify all
 #
 
 set -e
 
 # Default values
-NUM_NODES=16
+NUM_NODES=15
 GPUS_PER_NODE=4
 NAMESPACE="nccl-test"
 ITERATIONS=3
@@ -51,17 +51,17 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
-      echo "  -N, --nodes NUM        Number of nodes (default: 16)"
+      echo "  -N, --nodes NUM        Number of nodes (default: 15)"
       echo "  -g, --gpus NUM         GPUs per node (default: 4)"
       echo "  -n, --namespace NS     Kubernetes namespace (default: nccl-test)"
       echo "  -i, --iterations NUM   Benchmark iterations (default: 3)"
       echo "  -h, --help             Show this help message"
       echo ""
       echo "Examples:"
-      echo "  $0                                    # Use all defaults"
+      echo "  $0                                    # Use all defaults (15 nodes)"
       echo "  $0 -N 8                               # 8 nodes"
       echo "  $0 --namespace my-namespace           # Custom namespace"
-      echo "  $0 -N 16 -i 5                         # 16 nodes, 5 iterations"
+      echo "  $0 -N 15 -i 5                         # 15 nodes, 5 iterations"
       exit 0
       ;;
     *)

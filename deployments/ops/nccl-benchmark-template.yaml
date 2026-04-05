@@ -144,7 +144,7 @@ metadata:
   namespace: NAMESPACE_PLACEHOLDER
 spec:
   serviceName: nccl-benchmark-svc
-  replicas: 16
+  replicas: 15
   podManagementPolicy: Parallel
   selector:
     matchLabels:
@@ -172,15 +172,16 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                # MODIFY THESE NODE NAMES - Replace with your target nodes
+                # H Kim's 15 usable nodes (excludes problematic moc-r4pcc04u15-jason)
+                # Rack 4 (7 nodes)
                 - moc-r4pcc04u03-nairr
                 - moc-r4pcc04u09-nairr
                 - moc-r4pcc04u11-nairr
                 - moc-r4pcc04u12-nairr
-                - moc-r4pcc04u15-jason
                 - moc-r4pcc04u16-nairr
                 - moc-r4pcc04u25-nairr
                 - moc-r4pcc04u37-nairr
+                # Rack 2 (8 nodes)
                 - moc-r4pcc02u05
                 - moc-r4pcc02u10-nairr
                 - moc-r4pcc02u18-nairr
@@ -189,10 +190,6 @@ spec:
                 - moc-r4pcc02u32
                 - moc-r4pcc02u35
                 - moc-r4pcc02u16-yunshi
-                #- moc-r4pcc04u09-nairr
-                #- moc-r4pcc04u11-nairr
-                #- moc-r4pcc04u12-nairr
-                #- moc-r4pcc04u16-nairr
       containers:
       - name: nccl-test
         image: quay.io/jschless/ml-dev-env:latest
