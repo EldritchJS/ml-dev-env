@@ -29,7 +29,7 @@
 - moc-r4pcc02u16-yunshi
 
 **Configuration:**
-- Rate limiting: ENABLED (100 Gbps per NIC)
+- Rate limiting: DISABLED (unlimited bandwidth)
 - Total nodes: 15
 - Total GPUs: 60 (4 GPUs per node)
 
@@ -68,7 +68,7 @@
 
 ### moc-r4pcc02u16-yunshi
 - Included in H Kim's 15-node experiments
-- Will be rate limited
+- No rate limiting (unlimited bandwidth)
 - Active workloads: May have user workloads (do not disturb)
 
 ---
@@ -77,35 +77,35 @@
 
 | Node Name | Owner | Experiment Type | Rate Limited | Active Workloads | Notes |
 |-----------|-------|-----------------|--------------|------------------|-------|
-| moc-r4pcc02u05 | H Kim | 15-node | Yes | None | |
-| moc-r4pcc02u10-nairr | H Kim | 15-node | Yes | None | |
+| moc-r4pcc02u05 | H Kim | 15-node | No | None | |
+| moc-r4pcc02u10-nairr | H Kim | 15-node | No | None | |
 | moc-r4pcc02u15-yunshi | Yunshi | 2-node | No | interactive-jupyter, tsfm-node-0 | Do not disturb |
-| moc-r4pcc02u16-yunshi | H Kim | 15-node | Yes | Possible | Do not disturb |
-| moc-r4pcc02u18-nairr | H Kim | 15-node | Yes | None | |
-| moc-r4pcc02u25-nairr | H Kim | 15-node | Yes | None | |
-| moc-r4pcc02u30-nairr | H Kim | 15-node | Yes | None | |
-| moc-r4pcc02u32 | H Kim | 15-node | Yes | None | |
-| moc-r4pcc02u35 | H Kim | 15-node | Yes | None | |
-| moc-r4pcc04u03-nairr | H Kim | 15-node | Yes | None | |
-| moc-r4pcc04u09-nairr | H Kim | 15-node | Yes | None | |
+| moc-r4pcc02u16-yunshi | H Kim | 15-node | No | Possible | Do not disturb |
+| moc-r4pcc02u18-nairr | H Kim | 15-node | No | None | |
+| moc-r4pcc02u25-nairr | H Kim | 15-node | No | None | |
+| moc-r4pcc02u30-nairr | H Kim | 15-node | No | None | |
+| moc-r4pcc02u32 | H Kim | 15-node | No | None | |
+| moc-r4pcc02u35 | H Kim | 15-node | No | None | |
+| moc-r4pcc04u03-nairr | H Kim | 15-node | No | None | |
+| moc-r4pcc04u09-nairr | H Kim | 15-node | No | None | |
 | moc-r4pcc04u10-nairr | Yunshi | 2-node | No | tsfm-node-1 | Reserved for different project |
-| moc-r4pcc04u11-nairr | H Kim | 15-node | Yes | None | |
-| moc-r4pcc04u12-nairr | H Kim | 15-node | Yes | None | |
+| moc-r4pcc04u11-nairr | H Kim | 15-node | No | None | |
+| moc-r4pcc04u12-nairr | H Kim | 15-node | No | None | |
 | moc-r4pcc04u15-jason | EXCLUDED | N/A | N/A | None | **PROBLEMATIC - Do not use** |
-| moc-r4pcc04u16-nairr | H Kim | 15-node | Yes | None | |
-| moc-r4pcc04u25-nairr | H Kim | 15-node | Yes | None | |
-| moc-r4pcc04u37-nairr | H Kim | 15-node | Yes | None | |
+| moc-r4pcc04u16-nairr | H Kim | 15-node | No | None | |
+| moc-r4pcc04u25-nairr | H Kim | 15-node | No | None | |
+| moc-r4pcc04u37-nairr | H Kim | 15-node | No | None | |
 
 ---
 
 ## Rate Limiting Configuration
 
-**H Kim 15-node experiment (100 Gbps rate limit):**
-- Applied via mlnx_qos hardware rate limiting
-- Target: 100 Gbps per ConnectX-7 NIC
+**H Kim 15-node experiment (NO rate limiting):**
+- Rate limiting: DISABLED
+- All traffic classes set to unlimited (0,0,0,0,0,0,0,0)
+- Full ConnectX-7 400G bandwidth available
 - 4 NICs per node (eno5np0, eno6np0, eno7np0, eno8np0)
-- Total nodes with rate limiting: 15
-- Expected NCCL performance: ~49 GB/s aggregate per 4 nodes with rate limiting
+- Expected NCCL performance: ~194 GB/s aggregate for 8 nodes, ~12.4 GB/s per GPU
 
 **Yunshi 2-node experiment (no rate limiting):**
 - No rate limits applied
@@ -116,4 +116,5 @@
 
 **Last Updated:** April 5, 2026
 **Change Log:**
+- April 5, 2026 (later): Removed rate limiting from all 15 H Kim nodes (now unlimited bandwidth)
 - April 5, 2026: Excluded moc-r4pcc04u15-jason (problematic node), reduced H Kim allocation from 16 to 15 nodes
