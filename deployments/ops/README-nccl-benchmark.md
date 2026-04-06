@@ -10,6 +10,18 @@ The benchmark tests NCCL AllReduce performance across multiple nodes with 4 GPUs
 - NCCL collective operation efficiency
 - GPUDirect RDMA with DMA-BUF
 
+## ⚡ Important: Multi-Rack Clusters
+
+**If your cluster spans multiple racks**, use the rack-aware benchmark script for optimal performance:
+
+```bash
+./deployments/ops/run-nccl-rack-grouped.sh
+```
+
+This automatically groups pods by rack to minimize cross-rack traffic, achieving **100% of expected performance** vs 54-84% with default scheduling.
+
+📖 **See [README-rack-aware-benchmark.md](README-rack-aware-benchmark.md) for details**
+
 ## Files
 
 - **nccl-benchmark-template.yaml**: Complete benchmark deployment for N nodes
@@ -18,7 +30,9 @@ The benchmark tests NCCL AllReduce performance across multiple nodes with 4 GPUs
   - **Service**: Headless service for pod-to-pod communication
   - The benchmark script is automatically mounted at `/benchmark/allreduce-loop.py` in each pod
 - **run-benchmark.sh**: Parallel execution script for torchrun (configurable for N nodes)
+- **run-nccl-rack-grouped.sh**: Rack-aware benchmark script (automatic rank assignment for multi-rack clusters)
 - **README-nccl-benchmark.md**: This file
+- **README-rack-aware-benchmark.md**: Rack-aware benchmark guide
 
 ## Prerequisites
 
