@@ -28,6 +28,21 @@ This directory contains operational guides and best practices for managing the H
   - Running in privileged pods
   - Firmware parameter management
 
+- **[connectx7-firmware-reference.md](./connectx7-firmware-reference.md)** - ConnectX-7 firmware reference
+  - Complete firmware parameter documentation from working reference node
+  - Critical parameters for NCCL performance
+  - Known firmware differences between node types
+
+- **[connectx7-phy-rate-mask-bug.md](./connectx7-phy-rate-mask-bug.md)** - ConnectX-7 PHY_RATE_MASK firmware bug
+  - Firmware version 28.37.1014 bug where PHY_RATE_MASK_P1 is enforced even when override=False
+  - Symptoms: ~100 Gbps rate limiting despite 400G link
+  - Workaround: Set PHY_RATE_MASK_P1=4000 on all NICs
+
+- **[check-iommu-status.md](./check-iommu-status.md)** - Verify IOMMU status
+  - How to check if IOMMU is enabled/disabled
+  - OS-level verification (not just dmesg)
+  - Impact on RDMA/GPUDirect performance
+
 ## Quick Links
 
 ### Rate Limiting
