@@ -33,7 +33,7 @@ The `run-nccl-rack-grouped.sh` script automatically:
 Use any existing benchmark template to create pods:
 
 ```bash
-# Example: 15-node deployment
+# Example: 16-node deployment
 kubectl apply -f <(sed 's/NAMESPACE_PLACEHOLDER/nccl-test/g' deployments/ops/nccl-benchmark-template.yaml)
 ```
 
@@ -64,8 +64,8 @@ That's it! The script handles everything automatically.
 ```
 === Discovering pod placement ===
 
-Found 15 total pods:
-  RACK-4: 7 pods
+Found 16 total pods:
+  RACK-4: 8 pods
   RACK-2: 8 pods
 ```
 
@@ -79,12 +79,12 @@ Rank | Pod                  | Node                           | Rack
 0    | nccl-benchmark-0     | moc-r4pcc04u37-nairr           | RACK-4
 1    | nccl-benchmark-10    | moc-r4pcc04u09-nairr           | RACK-4
 ...
-6    | nccl-benchmark-9     | moc-r4pcc04u03-nairr           | RACK-4
-7    | nccl-benchmark-1     | moc-r4pcc02u30-nairr           | RACK-2
+7    | nccl-benchmark-9     | moc-r4pcc04u10-nairr           | RACK-4
+8    | nccl-benchmark-1     | moc-r4pcc02u30-nairr           | RACK-2
 ...
-14   | nccl-benchmark-8     | moc-r4pcc02u10-nairr           | RACK-2
+15   | nccl-benchmark-8     | moc-r4pcc02u10-nairr           | RACK-2
 
-Cross-rack transitions in ring: 2 out of 14 (at rank 6→7 and rank 14→0)
+Cross-rack transitions in ring: 2 out of 16 (at rank 7→8 and rank 15→0)
 ```
 
 **Key point:** All RACK-4 nodes get consecutive ranks (0-6), then all RACK-2 nodes get consecutive ranks (7-14). This creates a ring topology where communication stays within each rack except for 2 transitions.
