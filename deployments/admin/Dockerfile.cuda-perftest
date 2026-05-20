@@ -1,0 +1,19 @@
+FROM nvcr.io/nvidia/cuda:12.4.1-runtime-ubuntu22.04
+
+# Install perftest and basic networking tools
+RUN apt-get update && apt-get install -y \
+    perftest \
+    ibverbs-utils \
+    iproute2 \
+    iputils-ping \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify perftest tools and CUDA are available
+RUN which ib_write_bw && \
+    which ib_read_bw && \
+    which ib_send_bw && \
+    ls -la /usr/local/cuda/lib64/libcudart.so* && \
+    ibv_devinfo -l || true
+
+# Default to bash
+CMD ["/bin/bash"]
