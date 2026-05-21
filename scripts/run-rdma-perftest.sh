@@ -214,7 +214,7 @@ spec:
         CMD="\$CMD -q $NUM_QPS"
       fi
       if [[ "$GPUDIRECT" == "true" ]]; then
-        CMD="\$CMD --use_cuda=$GPU_ID"
+        CMD="\$CMD --use_cuda=$GPU_ID --use_cuda_dmabuf"
         echo "GPU: $GPU_ID"
         nvidia-smi --query-gpu=index,name,memory.total --format=csv
         echo ""
@@ -297,7 +297,7 @@ spec:
         CMD="\$CMD -q $NUM_QPS"
       fi
       if [[ "$GPUDIRECT" == "true" ]]; then
-        CMD="\$CMD --use_cuda=$GPU_ID"
+        CMD="\$CMD --use_cuda=$GPU_ID --use_cuda_dmabuf"
         echo "GPU: $GPU_ID"
         nvidia-smi --query-gpu=index,name,memory.total --format=csv
         echo ""
