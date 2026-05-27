@@ -31,7 +31,6 @@ deployments/deepti/
 │   └── pod-debug-deepti-nerc.yaml
 ├── scripts/                            # Deployment scripts
 │   └── deploy-deepti-nerc.sh
-├── docs/                               # Documentation (empty, for future use)
 └── workspace/                          # Test scripts and outputs
     ├── deepti.py
     ├── deepti-simple.py

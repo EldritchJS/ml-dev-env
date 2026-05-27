@@ -27,7 +27,6 @@ deployments/deepti/
 │   └── pod-debug-deepti-nerc.yaml          Debug pod for NERC
 ├── scripts/                            # Deployment scripts
 │   └── deploy-deepti-nerc.sh               Deploy to NERC
-├── docs/                               # Documentation
 └── workspace/                          # Test scripts and outputs
     ├── deepti.py                           Full multimodal test
     ├── deepti-simple.py                    Simplified test
