@@ -1,6 +1,6 @@
 # Deepti Deployment - Quick Start
 
-Qwen2.5-Omni multimodal model testing on OpenShift with GPU acceleration.
+Qwen2.5-Omni multimodal model testing and multi-node distributed training on OpenShift NERC production cluster.
 
 > **For general VSCode setup, debugging, and development workflows, see the main documentation:**
 > - **[QUICKSTART.md](../../docs/QUICKSTART.md)** - General quickstart guide
@@ -12,13 +12,7 @@ Qwen2.5-Omni multimodal model testing on OpenShift with GPU acceleration.
 
 ### 1. Deploy Test Pod
 
-**Barcelona Cluster (with RDMA):**
-```bash
-cd deployments/deepti
-oc apply -f generated/pod-deepti-barcelona.yaml
-```
-
-**NERC Cluster:**
+**NERC Production Cluster:**
 ```bash
 cd deployments/deepti
 oc apply -f generated/pod-deepti-nerc.yaml
@@ -45,12 +39,7 @@ Expected output:
 
 ## 📦 Deployment Options
 
-### Using Deploy Scripts
-
-**Barcelona (automated):**
-```bash
-./scripts/deploy-deepti-barcelona.sh
-```
+### Using Deploy Script
 
 **NERC (automated):**
 ```bash
@@ -59,19 +48,14 @@ Expected output:
 
 ### Different PyTorch Versions
 
-**PyTorch 2.8:**
-```bash
-oc apply -f generated/pod-deepti-barcelona-pytorch28.yaml
-```
-
 **PyTorch 2.9:**
 ```bash
-oc apply -f generated/pod-deepti-barcelona-pytorch29.yaml
+oc apply -f generated/pod-deepti-nerc-pytorch29.yaml
 ```
 
 **Latest stable:**
 ```bash
-oc apply -f generated/pod-deepti-barcelona.yaml
+oc apply -f generated/pod-deepti-nerc.yaml
 ```
 
 ---
@@ -133,6 +117,87 @@ python deepti-simple.py
 
 ---
 
+## 🔗 Multi-Node Distributed Training
+
+### Quick Setup for 2-Node Training
+
+**1. Create headless service:**
+```bash
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepti-train-svc
+spec:
+  clusterIP: None
+  selector:
+    app: deepti-train
+  ports:
+  - port: 29500
+    name: nccl
+EOF
+```
+
+**2. Deploy master node (rank 0):**
+```bash
+# Modify pod-deepti-nerc.yaml:
+# - name: deepti-train-0
+# - hostname: deepti-train-0
+# - subdomain: deepti-train-svc
+# - labels: app: deepti-train
+# - command: run torchrun with --node_rank=0
+
+oc apply -f deepti-train-0.yaml
+```
+
+**3. Deploy worker node (rank 1):**
+```bash
+# Similar to master but with --node_rank=1
+oc apply -f deepti-train-1.yaml
+```
+
+**4. Monitor training:**
+```bash
+# Watch logs from master
+oc logs -f deepti-train-0
+
+# Watch logs from worker
+oc logs -f deepti-train-1
+```
+
+### NCCL Environment Variables
+
+Set these in your pod spec for multi-node training:
+
+```yaml
+env:
+- name: NCCL_DEBUG
+  value: "INFO"
+- name: NCCL_IB_DISABLE
+  value: "1"              # No RDMA on NERC
+- name: NCCL_SOCKET_IFNAME
+  value: "eth0"           # TCP networking
+- name: NCCL_P2P_LEVEL
+  value: "NVL"
+- name: NCCL_NET_GDR_LEVEL
+  value: "0"
+```
+
+### Training Command Example
+
+```bash
+# Inside pod, run:
+torchrun \
+  --nnodes=2 \
+  --nproc_per_node=4 \
+  --node_rank=0 \
+  --master_addr=deepti-train-0.deepti-train-svc \
+  --master_port=29500 \
+  train.py
+```
+
+---
+
 ## 🧪 Test Scripts
 
 ### deepti.py - Full Multimodal Test
@@ -175,7 +240,7 @@ oc exec deepti-test -- nvidia-smi
 oc exec deepti-test -- nvcc --version
 ```
 
-Expected: 4 GPUs visible
+Expected: 4 GPUs visible per node
 
 ### Verify Flash Attention
 
@@ -187,16 +252,16 @@ oc exec deepti-test -- python -c "import flash_attn; print(f'Flash Attention {fl
 oc exec deepti-test -- python -c "import torch; print(f'CUDA: {torch.version.cuda}, PyTorch: {torch.__version__}')"
 ```
 
-### RDMA Verification (Barcelona Only)
+### Verify NCCL Configuration
 
 ```bash
-# InfiniBand devices
-oc exec deepti-test -- ls -la /sys/class/infiniband/
-
-# NCCL configuration
+# Check NCCL environment
 oc exec deepti-test -- env | grep NCCL
 
-# Expected devices: mlx5_6, mlx5_7, mlx5_10, mlx5_11
+# Expected:
+# NCCL_DEBUG=INFO
+# NCCL_IB_DISABLE=1
+# NCCL_SOCKET_IFNAME=eth0
 ```
 
 ---
@@ -253,6 +318,22 @@ oc exec deepti-test -- nvidia-smi --query-gpu=memory.used,memory.total --format=
 oc exec deepti-test -- nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv
 ```
 
+### Multi-Node Training Metrics
+
+```bash
+# Monitor NCCL communication
+oc logs -f deepti-train-0 | grep "NCCL INFO"
+
+# Check training throughput
+oc logs deepti-train-0 | grep -i "samples/sec\|iter/sec"
+
+# Watch GPU utilization across nodes
+for pod in deepti-train-0 deepti-train-1; do
+  echo "=== $pod ==="
+  oc exec $pod -- nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader
+done
+```
+
 ---
 
 ## 🔧 Troubleshooting
@@ -301,6 +382,43 @@ oc exec deepti-test -- python -c "import torch; print(f'GPUs: {torch.cuda.device
 oc exec deepti-test -- python -c "import torch; x = torch.randn(1000, 1000).cuda(); print('GPU works!')"
 ```
 
+### Multi-Node Training Issues
+
+```bash
+# Check network connectivity between pods
+oc exec deepti-train-0 -- ping -c 3 deepti-train-1.deepti-train-svc
+
+# Verify NCCL settings on all nodes
+for pod in deepti-train-0 deepti-train-1; do
+  echo "=== $pod ==="
+  oc exec $pod -- env | grep NCCL
+done
+
+# Check for NCCL errors
+oc logs deepti-train-0 | grep -i "nccl error"
+
+# Common issues:
+# - NCCL_IB_DISABLE not set (tries to use RDMA)
+# - Wrong master_addr hostname
+# - Network policy blocking pod communication
+# - Port conflict on master_port
+```
+
+### Slow Training Performance
+
+```bash
+# Check if all GPUs are utilized
+oc exec deepti-train-0 -- nvidia-smi
+
+# Monitor inter-node communication
+oc logs deepti-train-0 | grep "NCCL INFO.*Send\|Recv"
+
+# Tune NCCL for better TCP performance:
+# Add to pod env:
+# NCCL_SOCKET_NTHREADS=8
+# NCCL_NSOCKS_PERTHREAD=8
+```
+
 ### Out of Memory (OOM)
 
 ```bash
@@ -308,10 +426,11 @@ oc exec deepti-test -- python -c "import torch; x = torch.randn(1000, 1000).cuda
 oc exec deepti-test -- nvidia-smi
 
 # If OOM:
-# - Reduce batch size (if applicable)
+# - Reduce batch size
 # - Use BF16 instead of FP32
 # - Enable Flash Attention
 # - Use device_map="auto" for model sharding
+# - For multi-node: use gradient accumulation
 ```
 
 ---
@@ -319,12 +438,13 @@ oc exec deepti-test -- nvidia-smi
 ## 🎯 What You Get
 
 ### Hardware (per pod)
-- **4 GPUs** (NVIDIA A100 or H100)
+- **4 GPUs** (NVIDIA H100 80GB HBM3)
 - **128-256Gi memory**
 - **32-64 CPU cores**
+- **TCP networking** for multi-node
 
 ### Software
-- **PyTorch** 2.8 or 2.9
+- **PyTorch** 2.8 or 2.9 with NCCL
 - **CUDA** 11.6+
 - **Flash Attention 2** (optional, recommended)
 - **Transformers** library
@@ -336,27 +456,26 @@ oc exec deepti-test -- nvidia-smi
 - **Optimized**: Flash Attention 2
 - **Precision**: BF16 mixed precision
 
-### Cluster Support
-- **Barcelona**: RDMA enabled (80+ GiB/s)
-- **NERC**: Standard networking
+### Cluster
+- **NERC Production**: Standard Ethernet networking
+- **Multi-node capable**: NCCL over TCP
+- **Scalable**: 2+ nodes for distributed training
 
 ---
 
 ## 📝 Configuration
 
-### Cluster Selection
+### Cluster: NERC Production
 
-**Barcelona (RDMA):**
-- High-performance RDMA networking
-- 4x InfiniBand HCAs
-- Best for distributed workloads
-- Uses `pod-deepti-barcelona.yaml`
+**Network:**
+- Standard Ethernet (TCP/IP)
+- NCCL communication over TCP sockets
+- No RDMA required
 
-**NERC (Standard):**
-- Standard GPU networking
-- Good for testing
-- No RDMA requirements
-- Uses `pod-deepti-nerc.yaml`
+**Best for:**
+- Multi-node distributed training
+- Production workloads
+- Large-scale model training
 
 ### PyTorch Version Selection
 
@@ -367,7 +486,7 @@ Choose based on your needs:
 
 ### Resource Limits
 
-Default configuration:
+Default configuration per pod:
 ```yaml
 resources:
   requests:
@@ -387,10 +506,11 @@ Adjust in YAML if needed for your workload.
 ## ⚡ Next Steps
 
 1. **Run initial test** to verify setup works
-2. **Modify test scripts** in workspace/ for your use case
-3. **Try different models** from HuggingFace
-4. **Optimize configuration** for your workload
-5. **Use VSCode debugging** for development (see main docs)
+2. **Try multi-node training** with 2+ nodes
+3. **Modify test scripts** in workspace/ for your use case
+4. **Try different models** from HuggingFace
+5. **Optimize NCCL settings** for your network
+6. **Use VSCode debugging** for development (see main docs)
 
 For more details, see [README.md](README.md) and main documentation.
 
@@ -407,6 +527,11 @@ For more details, see [README.md](README.md) and main documentation.
 ### Deployment-Specific
 - **[README.md](README.md)** - Deepti deployment overview
 - **[MIGRATION.md](MIGRATION.md)** - Migration from old structure
+
+### External Resources
+- **[PyTorch Distributed Training](https://pytorch.org/tutorials/beginner/dist_overview.html)** - Official guide
+- **[NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/)** - NVIDIA NCCL docs
+- **[PyTorch DDP Tutorial](https://pytorch.org/docs/stable/notes/ddp.html)** - DDP best practices
 
 ---
 
@@ -425,13 +550,16 @@ oc exec deepti-test -- nvidia-smi
 
 # Python environment
 oc exec deepti-test -- pip list | grep -E "torch|transformers|flash"
+
+# NCCL environment
+oc exec deepti-test -- env | grep NCCL
 ```
 
 **Common commands:**
 ```bash
 # Restart test
 oc delete pod deepti-test
-oc apply -f generated/pod-deepti-barcelona.yaml
+oc apply -f generated/pod-deepti-nerc.yaml
 
 # Access pod
 oc exec -it deepti-test -- bash
@@ -443,8 +571,21 @@ oc cp local-file.py deepti-test:/workspace/
 oc cp deepti-test:/workspace/output.txt ./output.txt
 ```
 
+**Multi-node training commands:**
+```bash
+# Delete all training pods
+oc delete pod -l app=deepti-train
+
+# Check service connectivity
+oc get svc deepti-train-svc
+oc get endpoints deepti-train-svc
+
+# Test pod-to-pod communication
+oc exec deepti-train-0 -- ping deepti-train-1.deepti-train-svc
+```
+
 ---
 
-Happy testing! 🚀
+Happy training! 🚀
 
 For data management, file downloads, and PVC workflows, see the main [QUICKSTART.md](../../docs/QUICKSTART.md).

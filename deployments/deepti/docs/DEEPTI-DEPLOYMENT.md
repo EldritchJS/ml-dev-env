@@ -43,8 +43,9 @@ The deployment:
 - CPU: 32 cores request, 64 cores limit
 
 **Network Mode:**
-- TCP mode (NERC doesn't have RDMA)
+- TCP networking (standard Ethernet)
 - NVLink for intra-node GPU communication
+- NCCL over TCP for multi-node communication
 
 ## Monitoring
 

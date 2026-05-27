@@ -65,7 +65,7 @@ These archived guides were moved from the repository root directory to maintain 
 
 | Feature | Current Docs | Archived Docs | Status |
 |---------|-------------|---------------|--------|
-| **Multi-cluster support** | ✅ Barcelona + NERC | NERC only | Active docs |
+| **Production cluster** | ✅ NERC | NERC only | Active docs |
 | **PyTorch versions** | ✅ Multiple variants | Single version | Active docs |
 | **Deployment methods** | ✅ Multiple options | ConfigMap only | Active docs |
 | **VSCode debugging** | ✅ Integrated | ✅ Original source | **Merged** |

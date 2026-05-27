@@ -8,14 +8,10 @@ All deepti related files have been organized into `deployments/deepti/` followin
 
 | Old Location | New Location | Type |
 |-------------|--------------|------|
-| `k8s/pod-deepti-barcelona.yaml` | `deployments/deepti/generated/pod-deepti-barcelona.yaml` | K8s Pod |
-| `k8s/pod-deepti-barcelona-pytorch28.yaml` | `deployments/deepti/generated/pod-deepti-barcelona-pytorch28.yaml` | K8s Pod |
-| `k8s/pod-deepti-barcelona-pytorch29.yaml` | `deployments/deepti/generated/pod-deepti-barcelona-pytorch29.yaml` | K8s Pod |
 | `k8s/pod-deepti-nerc.yaml` | `deployments/deepti/generated/pod-deepti-nerc.yaml` | K8s Pod |
 | `k8s/pod-deepti-nerc-pytorch29.yaml` | `deployments/deepti/generated/pod-deepti-nerc-pytorch29.yaml` | K8s Pod |
 | `k8s/pod-deepti-nerc-pytorch29-test.yaml` | `deployments/deepti/generated/pod-deepti-nerc-pytorch29-test.yaml` | K8s Pod |
 | `k8s/pod-debug-deepti-nerc.yaml` | `deployments/deepti/generated/pod-debug-deepti-nerc.yaml` | K8s Pod |
-| `scripts/deploy-deepti-barcelona.sh` | `deployments/deepti/scripts/deploy-deepti-barcelona.sh` | Script |
 | `scripts/deploy-deepti-nerc.sh` | `deployments/deepti/scripts/deploy-deepti-nerc.sh` | Script |
 | `deepti.py` | `deployments/deepti/workspace/deepti.py` | Test script |
 | `deepti-simple.py` | `deployments/deepti/workspace/deepti-simple.py` | Test script |
@@ -29,15 +25,11 @@ deployments/deepti/
 ├── QUICKSTART.md                       # Quick start guide (NEW)
 ├── MIGRATION.md                        # This file (NEW)
 ├── generated/                          # K8s manifests
-│   ├── pod-deepti-barcelona.yaml
-│   ├── pod-deepti-barcelona-pytorch28.yaml
-│   ├── pod-deepti-barcelona-pytorch29.yaml
 │   ├── pod-deepti-nerc.yaml
 │   ├── pod-deepti-nerc-pytorch29.yaml
 │   ├── pod-deepti-nerc-pytorch29-test.yaml
 │   └── pod-debug-deepti-nerc.yaml
 ├── scripts/                            # Deployment scripts
-│   ├── deploy-deepti-barcelona.sh
 │   └── deploy-deepti-nerc.sh
 ├── docs/                               # Documentation (empty, for future use)
 └── workspace/                          # Test scripts and outputs
