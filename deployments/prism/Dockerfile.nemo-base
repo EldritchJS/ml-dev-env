@@ -16,54 +16,32 @@ RUN apt-get update && apt-get install -y \
     rdma-core \
     && rm -rf /var/lib/apt/lists/*
 
-# NeMo base includes: nemo_toolkit, PyTorch, CUDA, transformers, deepspeed, lightning
-# But we'll explicitly install/upgrade everything from requirements.txt to be sure
+# NeMo base already includes: nemo_toolkit, PyTorch, CUDA, transformers, deepspeed, lightning, etc.
+# Install ONLY packages that are missing, WITHOUT --upgrade to respect NeMo's pinned versions
 
-# Core PyTorch stack (likely already in base, but ensure correct versions)
-RUN pip install --no-cache-dir --upgrade \
-    torch \
-    torchvision \
-    torchaudio
-
-# HuggingFace ecosystem
-RUN pip install --no-cache-dir --upgrade \
-    transformers \
-    datasets \
-    accelerate \
-    tokenizers \
-    huggingface_hub \
-    safetensors \
-    sentencepiece
-
-# Training utilities
-RUN pip install --no-cache-dir --upgrade \
+# Install missing HuggingFace packages (only if not present)
+RUN pip install --no-cache-dir \
     peft \
     trl \
-    evaluate \
+    evaluate
+
+# Install missing utilities
+RUN pip install --no-cache-dir \
     scikit-learn
 
-# Distributed / large-model training (ensure latest versions)
-RUN pip install --no-cache-dir --upgrade \
-    deepspeed \
-    lightning
-
-# Common numerical / system utilities
-RUN pip install --no-cache-dir --upgrade \
-    numpy \
-    pandas \
-    pyarrow \
-    protobuf \
-    einops \
-    packaging \
-    psutil \
-    tqdm \
-    pyyaml \
-    requests
-
-# Logging / experiment tracking
-RUN pip install --no-cache-dir --upgrade \
+# Ensure logging tools are present
+RUN pip install --no-cache-dir \
     wandb \
     tensorboard
+
+# NOTE: The following are likely already in NeMo base, but install if missing:
+# torch, torchvision, torchaudio, transformers, datasets, accelerate, tokenizers,
+# huggingface_hub, safetensors, sentencepiece, deepspeed, lightning,
+# numpy, pandas, pyarrow, protobuf, einops, packaging, psutil, tqdm, pyyaml, requests
+
+# Verify these are present (NeMo should have them)
+RUN pip list | grep -E "torch|transformers|datasets|accelerate|deepspeed|lightning|numpy|pandas" || \
+    echo "Some expected packages missing - NeMo base should include these"
 
 # NOTE: kernels>=0.12.0 intentionally skipped (pulls in tensorstore with 4+ hour build)
 # If MXFP4 support is needed, install manually after deployment
@@ -74,7 +52,7 @@ RUN echo "* soft memlock unlimited" >> /etc/security/limits.conf && \
 
 WORKDIR /workspace
 
-# Verify all critical packages are installed
+# Verify all critical packages are installed and importable
 RUN python -c "import torch; print(f'PyTorch: {torch.__version__}')" && \
     python -c "import torchvision; print(f'TorchVision: {torchvision.__version__}')" && \
     python -c "import torchaudio; print(f'TorchAudio: {torchaudio.__version__}')" && \
@@ -90,6 +68,6 @@ RUN python -c "import torch; print(f'PyTorch: {torch.__version__}')" && \
     python -c "import sklearn; print(f'Scikit-learn: {sklearn.__version__}')" && \
     python -c "import pandas; print(f'Pandas: {pandas.__version__}')" && \
     python -c "import numpy; print(f'NumPy: {numpy.__version__}')" && \
-    echo "All required packages verified successfully"
+    echo "✅ All required packages verified successfully"
 
 CMD ["/bin/bash"]
