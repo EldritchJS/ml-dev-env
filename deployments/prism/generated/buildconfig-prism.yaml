@@ -21,6 +21,10 @@ spec:
       dockerfilePath: Dockerfile.nemo-base
       # Using NeMo base container - much faster build
 
+  # Pin builds to same node to leverage image cache
+  nodeSelector:
+    kubernetes.io/hostname: moc-r4pcc02u15-yunshi
+
   output:
     to:
       kind: ImageStreamTag
