@@ -35,8 +35,9 @@ network:
   # RDMA/InfiniBand settings
   rdma:
     enabled: true
-    # Mellanox devices (original configuration from Barcelona)
-    devices: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
+    # Mellanox devices - VERIFIED 2026-07-10 on all 5 nodes (u17/u18/u25-nairr, u15/u16-yunshi)
+    # When SR-IOV networks are attached, these 4 devices appear consistently across all nodes
+    devices: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
     # Network interfaces for RDMA
     interfaces: "net1,net2,net3,net4"
     # GID index for RoCE v2
