@@ -85,8 +85,8 @@ RUN echo "* soft memlock unlimited" >> /etc/security/limits.conf && \
 WORKDIR /workspace
 
 # Verify all critical packages are installed and importable
-# NOTE: torch/torchvision/torchaudio/nemo/peft/trl skipped - require CUDA runtime not available in build container
-# peft/trl trigger transformers imports that load torchaudio internally
+# NOTE: torch/torchvision/torchaudio/nemo/peft/trl/evaluate skipped - require CUDA runtime not available in build container
+# peft/trl/evaluate trigger transformers imports that load torchaudio internally
 # They are verified as installed via pip list check above
 RUN \
     python -c "import transformers; print(f'Transformers: {transformers.__version__}')" && \
@@ -96,7 +96,6 @@ RUN \
     python -c "import huggingface_hub; print(f'HF Hub: {huggingface_hub.__version__}')" && \
     python -c "import safetensors; print(f'Safetensors: {safetensors.__version__}')" && \
     python -c "import sentencepiece; print(f'SentencePiece: {sentencepiece.__version__}')" && \
-    python -c "import evaluate; print(f'Evaluate: {evaluate.__version__}')" && \
     python -c "import sklearn; print(f'Scikit-learn: {sklearn.__version__}')" && \
     python -c "import deepspeed; print(f'DeepSpeed: {deepspeed.__version__}')" && \
     python -c "import lightning; print(f'Lightning: {lightning.__version__}')" && \
