@@ -4,7 +4,7 @@
 
 FROM nvcr.io/nvidia/pytorch:25.06-py3
 
-LABEL maintainer="NAIRR ML Dev Team"
+LABEL maintainer="rhr team"
 LABEL description="BEACON pre-training environment with HuggingFace stack, DeepSpeed, Lightning"
 LABEL cluster="barcelona"
 
