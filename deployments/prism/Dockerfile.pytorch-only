@@ -1,0 +1,65 @@
+# Prism Deployment - BEACON Continued Pre-training Environment
+# Base: NVIDIA PyTorch NGC Container (NO NeMo - researcher can install at runtime if needed)
+# Target: Barcelona H100 cluster with RDMA/InfiniBand
+
+FROM nvcr.io/nvidia/pytorch:25.06-py3
+
+LABEL maintainer="NAIRR ML Dev Team"
+LABEL description="BEACON pre-training environment with HuggingFace stack, DeepSpeed, Lightning"
+LABEL cluster="barcelona"
+
+# Install system dependencies for RDMA/InfiniBand
+RUN apt-get update && apt-get install -y \
+    infiniband-diags \
+    ibverbs-utils \
+    libibverbs-dev \
+    rdma-core \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install distributed training frameworks
+RUN pip install --no-cache-dir \
+    deepspeed \
+    lightning
+
+# Install HuggingFace ecosystem
+RUN pip install --no-cache-dir \
+    transformers \
+    datasets \
+    accelerate \
+    tokenizers \
+    huggingface_hub \
+    safetensors
+
+# Install training utilities
+RUN pip install --no-cache-dir \
+    peft \
+    trl \
+    evaluate \
+    scikit-learn
+
+# Install logging tools
+RUN pip install --no-cache-dir \
+    wandb \
+    tensorboard
+
+# Set unlimited memlock for RDMA
+RUN echo "* soft memlock unlimited" >> /etc/security/limits.conf && \
+    echo "* hard memlock unlimited" >> /etc/security/limits.conf
+
+WORKDIR /workspace
+
+# Verify critical packages
+RUN python -c "import torch; print(f'PyTorch: {torch.__version__}')" && \
+    python -c "import torchvision; print(f'TorchVision: {torchvision.__version__}')" && \
+    python -c "import transformers; print(f'Transformers: {transformers.__version__}')" && \
+    python -c "import datasets; print(f'Datasets: {datasets.__version__}')" && \
+    python -c "import accelerate; print(f'Accelerate: {accelerate.__version__}')" && \
+    python -c "import peft; print(f'PEFT: {peft.__version__}')" && \
+    python -c "import trl; print(f'TRL: {trl.__version__}')" && \
+    python -c "import deepspeed; print(f'DeepSpeed: {deepspeed.__version__}')" && \
+    python -c "import lightning; print(f'Lightning: {lightning.__version__}')" && \
+    python -c "import wandb; print(f'WandB: {wandb.__version__}')" && \
+    python -c "import sklearn; print(f'Scikit-learn: {sklearn.__version__}')" && \
+    echo "✅ All required packages verified successfully"
+
+CMD ["/bin/bash"]

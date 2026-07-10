@@ -18,8 +18,8 @@ spec:
   strategy:
     type: Docker
     dockerStrategy:
-      dockerfilePath: Dockerfile.nemo-base
-      # Using NeMo base container - much faster build
+      dockerfilePath: Dockerfile.pytorch-only
+      # PyTorch base without NeMo - researcher can install NeMo at runtime if needed
 
   # Pin builds to same node to leverage image cache
   nodeSelector:
