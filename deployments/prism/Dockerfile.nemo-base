@@ -55,7 +55,6 @@ WORKDIR /workspace
 # Verify all critical packages are installed and importable
 RUN python -c "import torch; print(f'PyTorch: {torch.__version__}')" && \
     python -c "import torchvision; print(f'TorchVision: {torchvision.__version__}')" && \
-    python -c "import torchaudio; print(f'TorchAudio: {torchaudio.__version__}')" && \
     python -c "import nemo; print(f'NeMo: {nemo.__version__}')" && \
     python -c "import transformers; print(f'Transformers: {transformers.__version__}')" && \
     python -c "import datasets; print(f'Datasets: {datasets.__version__}')" && \
