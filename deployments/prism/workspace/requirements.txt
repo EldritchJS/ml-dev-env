@@ -1,0 +1,50 @@
+# BEACON continued-pretraining environment
+# Intended for NVIDIA H100/B200-style GPU images with CUDA + NCCL already available.
+# For OpenShift/NERC, prefer a CUDA/PyTorch base image and install these Python packages on top.
+
+# Core PyTorch stack
+# NOTE: Install torch/torchvision/torchaudio using the CUDA wheel index appropriate for the image.
+# Example for CUDA 12.8:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+torch
+torchvision
+torchaudio
+
+# Hugging Face / model loading / dataset handling
+transformers
+datasets
+accelerate
+tokenizers
+huggingface_hub
+safetensors
+sentencepiece
+
+# Training utilities
+peft
+trl
+evaluate
+scikit-learn
+
+# GPT-OSS / MXFP4 kernels support
+kernels>=0.12.0
+
+# Distributed / large-model training helpers
+deepspeed
+lightning
+nemo_toolkit[nlp]
+
+# Common numerical / system utilities
+numpy
+pandas
+pyarrow
+protobuf
+einops
+packaging
+psutil
+tqdm
+pyyaml
+requests
+
+# Logging / experiment tracking, optional but useful
+wandb
+tensorboard

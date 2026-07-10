@@ -1,0 +1,275 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: prism-test
+  labels:
+    app: prism
+    workload: beacon-pretraining
+    test: single-node
+spec:
+  restartPolicy: Never
+
+  # Node selector to ensure placement on GPU nodes
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  # Service account for permissions
+  serviceAccountName: ml-dev-sa
+
+  # Init container to auto-detect RDMA interfaces
+  initContainers:
+  - name: detect-rdma
+    image: image-registry.openshift-image-registry.svc:5000/nccl-test/prism:test
+    command:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+      echo "Detecting RDMA interfaces for Barcelona cluster..."
+
+      # Detect InfiniBand devices
+      if command -v ibv_devinfo &> /dev/null; then
+        IB_DEVICES=$(ibv_devinfo -l 2>/dev/null | grep -v "^$" | tr '\n' ',' | sed 's/,$//' || echo "")
+        if [ -n "$IB_DEVICES" ]; then
+          echo "export NCCL_IB_HCA=\"$IB_DEVICES\"" >> /shared/nccl-env.sh
+          echo "Detected IB devices: $IB_DEVICES"
+        else
+          echo "# No IB devices detected" >> /shared/nccl-env.sh
+          echo "Warning: No IB devices found"
+        fi
+      else
+        echo "# ibv_devinfo not available" >> /shared/nccl-env.sh
+        echo "Warning: ibv_devinfo not available"
+      fi
+
+      # Detect RDMA network interfaces (net1, net2, net3, net4)
+      RDMA_IFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^net[0-9]+$' | tr '\n' ',' | sed 's/,$//' || echo "eth0")
+      if [ -n "$RDMA_IFACES" ]; then
+        echo "export NCCL_SOCKET_IFNAME=\"$RDMA_IFACES\"" >> /shared/nccl-env.sh
+        echo "Detected RDMA interfaces: $RDMA_IFACES"
+      else
+        echo "export NCCL_SOCKET_IFNAME=\"eth0\"" >> /shared/nccl-env.sh
+        echo "Warning: No RDMA interfaces found, using eth0"
+      fi
+
+      echo "RDMA detection complete"
+      cat /shared/nccl-env.sh
+    volumeMounts:
+    - name: nccl-env
+      mountPath: /shared
+
+  containers:
+  - name: prism
+    image: image-registry.openshift-image-registry.svc:5000/nccl-test/prism:test
+    imagePullPolicy: Always
+
+    # Security context for RDMA - SYS_RESOURCE allows setting unlimited memlock
+    securityContext:
+      capabilities:
+        add:
+          - IPC_LOCK
+          - SYS_RESOURCE
+
+    # Request 4 GPUs (single node test)
+    resources:
+      requests:
+        nvidia.com/gpu: 4
+        rdma/rdma_shared_device_a: 4
+        memory: 128Gi
+        cpu: 32
+      limits:
+        nvidia.com/gpu: 4
+        rdma/rdma_shared_device_a: 4
+        memory: 256Gi
+        cpu: 64
+
+    # Environment variables for Barcelona H100 cluster with RDMA
+    env:
+    # GPU configuration
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: "all"
+    - name: NVIDIA_DRIVER_CAPABILITIES
+      value: "compute,utility"
+    - name: CUDA_VISIBLE_DEVICES
+      value: "0,1,2,3"
+
+    # NCCL debug and basic settings
+    - name: NCCL_DEBUG
+      value: "INFO"
+    - name: NCCL_DEBUG_SUBSYS
+      value: "INIT,NET"
+
+    # RDMA/InfiniBand settings (Barcelona cluster)
+    - name: NCCL_IB_DISABLE
+      value: "0"
+    # NCCL_IB_HCA: auto-detected by init container (expected: mlx5_6,mlx5_7,mlx5_10,mlx5_11)
+    - name: NCCL_IB_GID_INDEX
+      value: "3"
+    - name: NCCL_NET_GDR_LEVEL
+      value: "5"
+    - name: NCCL_IB_TIMEOUT
+      value: "22"
+
+    # GPUDirect RDMA (check if dmabuf is needed on Barcelona)
+    - name: NCCL_DMABUF_ENABLE
+      value: "1"
+
+    # Network interface settings
+    # NCCL_SOCKET_IFNAME: auto-detected by init container
+    - name: NCCL_P2P_LEVEL
+      value: "NVL"
+
+    # NCCL channel settings from Barcelona config
+    - name: NCCL_MIN_NCHANNELS
+      value: "4"
+    - name: NCCL_CROSS_NIC
+      value: "1"
+
+    # Performance settings
+    - name: OMP_NUM_THREADS
+      value: "8"
+
+    # Working directory
+    workingDir: /workspace
+
+    # Startup command - run verification tests
+    command:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+
+      # Set unlimited memlock for RDMA
+      ulimit -l unlimited
+      echo "Memlock limit: $(ulimit -l)"
+      echo ""
+
+      # Source auto-detected RDMA configuration
+      if [ -f /shared/nccl-env.sh ]; then
+        echo "Loading auto-detected RDMA configuration..."
+        source /shared/nccl-env.sh
+        echo "NCCL_IB_HCA=$NCCL_IB_HCA"
+        echo "NCCL_SOCKET_IFNAME=$NCCL_SOCKET_IFNAME"
+        export NCCL_IB_HCA
+        export NCCL_SOCKET_IFNAME
+      else
+        echo "Warning: /shared/nccl-env.sh not found, using defaults"
+      fi
+      echo ""
+
+      echo "=========================================="
+      echo "Prism Environment Test - Barcelona Cluster"
+      echo "=========================================="
+      echo ""
+
+      # Show GPU information
+      echo "=== GPU Information ==="
+      nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader
+      echo ""
+
+      echo "=== GPU Topology ==="
+      nvidia-smi topo -m
+      echo ""
+
+      # Show InfiniBand devices
+      echo "=== InfiniBand Devices ==="
+      if command -v ibstat &> /dev/null; then
+        ibstat
+      else
+        echo "ibstat not available"
+      fi
+      echo ""
+
+      if command -v ibv_devinfo &> /dev/null; then
+        echo "=== IB Device Info ==="
+        ibv_devinfo -l
+      fi
+      echo ""
+
+      # Verify Python environment and critical packages
+      echo "=== Python Environment ==="
+      python --version
+      echo ""
+
+      echo "=== PyTorch ==="
+      python -c "import torch; print(f'Version: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA version: {torch.version.cuda}'); print(f'GPUs: {torch.cuda.device_count()}')"
+      echo ""
+
+      echo "=== NeMo Toolkit ==="
+      python -c "import nemo; print(f'Version: {nemo.__version__}')" || echo "ERROR: NeMo import failed"
+      echo ""
+
+      echo "=== Transformers ==="
+      python -c "import transformers; print(f'Version: {transformers.__version__}')"
+      echo ""
+
+      echo "=== DeepSpeed ==="
+      python -c "import deepspeed; print(f'Version: {deepspeed.__version__}')"
+      echo ""
+
+      echo "=== Lightning ==="
+      python -c "import lightning; print(f'Version: {lightning.__version__}')"
+      echo ""
+
+      echo "=== Accelerate ==="
+      python -c "import accelerate; print(f'Version: {accelerate.__version__}')"
+      echo ""
+
+      echo "=== PEFT ==="
+      python -c "import peft; print(f'Version: {peft.__version__}')"
+      echo ""
+
+      echo "=== Datasets ==="
+      python -c "import datasets; print(f'Version: {datasets.__version__}')"
+      echo ""
+
+      echo "=== Kernels (MXFP4) ==="
+      python -c "import kernels; print(f'Version: {kernels.__version__}')" || echo "WARNING: kernels package not available"
+      echo ""
+
+      echo "=== NCCL Test (Simple) ==="
+      python -c "
+import torch
+import torch.distributed as dist
+
+# Initialize NCCL
+if torch.cuda.is_available():
+    device_count = torch.cuda.device_count()
+    print(f'Found {device_count} GPUs')
+
+    # Test tensor creation on each GPU
+    for i in range(device_count):
+        with torch.cuda.device(i):
+            t = torch.randn(1000, 1000).cuda()
+            print(f'GPU {i}: tensor created, shape {t.shape}')
+
+    print('Basic CUDA operations: OK')
+else:
+    print('ERROR: CUDA not available')
+"
+      echo ""
+
+      echo "=========================================="
+      echo "Environment verification complete!"
+      echo "=========================================="
+      echo ""
+      echo "Next steps:"
+      echo "1. If all packages imported successfully, image is ready"
+      echo "2. Run multi-GPU NCCL test (optional)"
+      echo "3. Push image to quay for production use"
+
+    # Volume mounts
+    volumeMounts:
+    - name: nccl-env
+      mountPath: /shared
+
+  volumes:
+  - name: nccl-env
+    emptyDir: {}
+
+  # Tolerate GPU node taints
+  tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
