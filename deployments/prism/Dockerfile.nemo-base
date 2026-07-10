@@ -2,7 +2,7 @@
 # Base: NVIDIA NeMo Container (pre-includes NeMo Toolkit)
 # Target: Barcelona H100 cluster with RDMA/InfiniBand
 
-FROM nvcr.io/nvidia/nemo:25.01
+FROM nvcr.io/nvidia/nemo:25.04.02
 
 LABEL maintainer="NAIRR ML Dev Team"
 LABEL description="BEACON continued pre-training environment with NeMo (pre-installed) and additional packages"
