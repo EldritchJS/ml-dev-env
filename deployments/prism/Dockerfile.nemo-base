@@ -29,6 +29,10 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir \
     scikit-learn
 
+# Install DeepSpeed (NeMo base doesn't include it)
+RUN pip install --no-cache-dir \
+    deepspeed
+
 # Ensure logging tools are present
 RUN pip install --no-cache-dir \
     wandb \
