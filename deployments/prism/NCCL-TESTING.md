@@ -52,7 +52,7 @@ NCCL_ALGO=Ring
 
 ```bash
 # From the prism directory
-kubectl apply -f nccl-test-5node.yaml -n nccl-test
+oc apply -f nccl-test-5node.yaml -n nccl-test
 ```
 
 This creates a StatefulSet with 5 pods (one per node), each with 4 GPUs.
@@ -60,7 +60,7 @@ This creates a StatefulSet with 5 pods (one per node), each with 4 GPUs.
 ### Step 2: Wait for All Pods to be Running
 
 ```bash
-kubectl get pods -n nccl-test -l app=prism-nccl-test -w
+oc get pods -n nccl-test -l app=prism-nccl-test -w
 ```
 
 Wait until all 5 pods show `1/1 Running`. Press Ctrl+C when ready.
@@ -71,7 +71,7 @@ The benchmark must be run **on each pod separately** with a different `--node_ra
 
 **On pod-0 (master):**
 ```bash
-kubectl exec -it prism-nccl-test-0 -n nccl-test -- torchrun \
+oc exec -it prism-nccl-test-0 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=0 \
@@ -82,7 +82,7 @@ kubectl exec -it prism-nccl-test-0 -n nccl-test -- torchrun \
 
 **On pod-1:**
 ```bash
-kubectl exec -it prism-nccl-test-1 -n nccl-test -- torchrun \
+oc exec -it prism-nccl-test-1 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=1 \
@@ -93,7 +93,7 @@ kubectl exec -it prism-nccl-test-1 -n nccl-test -- torchrun \
 
 **On pod-2:**
 ```bash
-kubectl exec -it prism-nccl-test-2 -n nccl-test -- torchrun \
+oc exec -it prism-nccl-test-2 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=2 \
@@ -104,7 +104,7 @@ kubectl exec -it prism-nccl-test-2 -n nccl-test -- torchrun \
 
 **On pod-3:**
 ```bash
-kubectl exec -it prism-nccl-test-3 -n nccl-test -- torchrun \
+oc exec -it prism-nccl-test-3 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=3 \
@@ -115,7 +115,7 @@ kubectl exec -it prism-nccl-test-3 -n nccl-test -- torchrun \
 
 **On pod-4:**
 ```bash
-kubectl exec -it prism-nccl-test-4 -n nccl-test -- torchrun \
+oc exec -it prism-nccl-test-4 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=4 \
@@ -138,13 +138,7 @@ The benchmark output appears on **pod-0** (the master). Look for the final line:
 
 ## Alternative: Using tmux for Parallel Execution
 
-You can use the provided script to run all 5 commands in parallel tmux panes:
-
-```bash
-./run-nccl-test.sh
-```
-
-This opens a tmux session with 5 panes, one for each pod. The benchmark starts automatically on all pods.
+You can use tmux to run all 5 commands in parallel panes and execute them manually in each pane.
 
 ## Expected NCCL Output
 
@@ -165,7 +159,7 @@ prism-nccl-test-0:36:36 [0] NCCL INFO comm 0x... rank 0 nranks 20 cudaDev 0 busI
 **Cause:** Not all pods are running or not all torchrun commands started.
 
 **Fix:** 
-1. Check all 5 pods are Running: `kubectl get pods -n nccl-test -l app=prism-nccl-test`
+1. Check all 5 pods are Running: `oc get pods -n nccl-test -l app=prism-nccl-test`
 2. Ensure you ran all 5 torchrun commands with correct `--node_rank` (0, 1, 2, 3, 4)
 
 ### Issue: Low bandwidth (< 100 GB/s total)
@@ -174,7 +168,7 @@ prism-nccl-test-0:36:36 [0] NCCL INFO comm 0x... rank 0 nranks 20 cudaDev 0 busI
 
 **Fix:** Check the pod logs for NCCL warnings:
 ```bash
-kubectl logs prism-nccl-test-0 -n nccl-test | grep -i nccl
+oc logs prism-nccl-test-0 -n nccl-test | grep -i nccl
 ```
 
 Look for:
@@ -191,7 +185,7 @@ Look for:
 ## Cleaning Up
 
 ```bash
-kubectl delete -f nccl-test-5node.yaml -n nccl-test
+oc delete -f nccl-test-5node.yaml -n nccl-test
 ```
 
 ## References
