@@ -45,10 +45,11 @@ RUN pip install --no-cache-dir \
     evaluate==0.4.3 \
     scikit-learn==1.5.2
 
-# Layer 5: Install specialized kernels for MXFP4 support
-# Note: kernels package may require specific CUDA version compatibility
-RUN pip install --no-cache-dir \
-    kernels>=0.12.0 || echo "WARNING: kernels package installation failed, continuing..."
+# Layer 5: Install specialized kernels for MXFP4 support (SKIPPED - too slow)
+# Note: kernels package pulls in tensorstore which takes 30+ minutes to compile via bazel
+# If needed, install manually after image is built or use a pre-compiled wheel
+# RUN pip install --no-cache-dir kernels>=0.12.0 || true
+RUN echo "Skipping kernels package installation (tensorstore dependency is too slow to build)"
 
 # Layer 6: Install numerical and data processing libraries
 RUN pip install --no-cache-dir \
