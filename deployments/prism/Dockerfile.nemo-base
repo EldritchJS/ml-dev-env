@@ -16,24 +16,52 @@ RUN apt-get update && apt-get install -y \
     rdma-core \
     && rm -rf /var/lib/apt/lists/*
 
-# NeMo base already includes: nemo_toolkit, PyTorch, CUDA, transformers, deepspeed, lightning, etc.
-# Install ONLY packages that are missing, WITHOUT --upgrade to respect NeMo's pinned versions
+# NeMo base already includes: nemo_toolkit, PyTorch, CUDA, transformers, lightning, etc.
+# Install ALL packages from requirements.txt, WITHOUT --upgrade to respect NeMo's pinned versions
+# Most will already be present, but we explicitly ensure they're all there
 
-# Install missing HuggingFace packages (only if not present)
+# Core PyTorch stack (likely already in NeMo base, but ensure present)
+RUN pip install --no-cache-dir \
+    torch \
+    torchvision \
+    torchaudio
+
+# HuggingFace ecosystem
+RUN pip install --no-cache-dir \
+    transformers \
+    datasets \
+    accelerate \
+    tokenizers \
+    huggingface_hub \
+    safetensors \
+    sentencepiece
+
+# Training utilities
 RUN pip install --no-cache-dir \
     peft \
     trl \
-    evaluate
-
-# Install missing utilities
-RUN pip install --no-cache-dir \
+    evaluate \
     scikit-learn
 
-# Install DeepSpeed (NeMo base doesn't include it)
+# Distributed training
 RUN pip install --no-cache-dir \
-    deepspeed
+    deepspeed \
+    lightning
 
-# Ensure logging tools are present
+# Common numerical/system utilities (likely already present)
+RUN pip install --no-cache-dir \
+    numpy \
+    pandas \
+    pyarrow \
+    protobuf \
+    einops \
+    packaging \
+    psutil \
+    tqdm \
+    pyyaml \
+    requests
+
+# Logging tools
 RUN pip install --no-cache-dir \
     wandb \
     tensorboard
@@ -59,18 +87,33 @@ WORKDIR /workspace
 # Verify all critical packages are installed and importable
 RUN python -c "import torch; print(f'PyTorch: {torch.__version__}')" && \
     python -c "import torchvision; print(f'TorchVision: {torchvision.__version__}')" && \
+    python -c "import torchaudio; print(f'TorchAudio: {torchaudio.__version__}')" && \
     python -c "import nemo; print(f'NeMo: {nemo.__version__}')" && \
     python -c "import transformers; print(f'Transformers: {transformers.__version__}')" && \
     python -c "import datasets; print(f'Datasets: {datasets.__version__}')" && \
     python -c "import accelerate; print(f'Accelerate: {accelerate.__version__}')" && \
+    python -c "import tokenizers; print(f'Tokenizers: {tokenizers.__version__}')" && \
+    python -c "import huggingface_hub; print(f'HF Hub: {huggingface_hub.__version__}')" && \
+    python -c "import safetensors; print(f'Safetensors: {safetensors.__version__}')" && \
+    python -c "import sentencepiece; print(f'SentencePiece: {sentencepiece.__version__}')" && \
     python -c "import peft; print(f'PEFT: {peft.__version__}')" && \
     python -c "import trl; print(f'TRL: {trl.__version__}')" && \
+    python -c "import evaluate; print(f'Evaluate: {evaluate.__version__}')" && \
+    python -c "import sklearn; print(f'Scikit-learn: {sklearn.__version__}')" && \
     python -c "import deepspeed; print(f'DeepSpeed: {deepspeed.__version__}')" && \
     python -c "import lightning; print(f'Lightning: {lightning.__version__}')" && \
-    python -c "import wandb; print(f'WandB: {wandb.__version__}')" && \
-    python -c "import sklearn; print(f'Scikit-learn: {sklearn.__version__}')" && \
-    python -c "import pandas; print(f'Pandas: {pandas.__version__}')" && \
     python -c "import numpy; print(f'NumPy: {numpy.__version__}')" && \
+    python -c "import pandas; print(f'Pandas: {pandas.__version__}')" && \
+    python -c "import pyarrow; print(f'PyArrow: {pyarrow.__version__}')" && \
+    python -c "import google.protobuf; print(f'Protobuf: {google.protobuf.__version__}')" && \
+    python -c "import einops; print(f'Einops: {einops.__version__}')" && \
+    python -c "import packaging; print(f'Packaging: {packaging.__version__}')" && \
+    python -c "import psutil; print(f'Psutil: {psutil.__version__}')" && \
+    python -c "import tqdm; print(f'Tqdm: {tqdm.__version__}')" && \
+    python -c "import yaml; print(f'PyYAML: {yaml.__version__}')" && \
+    python -c "import requests; print(f'Requests: {requests.__version__}')" && \
+    python -c "import wandb; print(f'WandB: {wandb.__version__}')" && \
+    python -c "import tensorboard; print(f'TensorBoard: {tensorboard.__version__}')" && \
     echo "✅ All required packages verified successfully"
 
 CMD ["/bin/bash"]
