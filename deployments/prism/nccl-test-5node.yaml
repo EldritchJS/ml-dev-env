@@ -1,0 +1,330 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prism-nccl-test
+  namespace: nccl-test
+  labels:
+    app: prism-nccl-test
+spec:
+  clusterIP: None
+  selector:
+    app: prism-nccl-test
+  ports:
+  - port: 29500
+    name: master
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prism-nccl-bench
+  namespace: nccl-test
+data:
+  nccl_torch_bench.py: |
+    #!/usr/bin/env python3
+    """IBM AllReduce NCCL Benchmark - Barcelona 5-Node Configuration"""
+    import argparse
+    import torch
+    import torch.distributed as dist
+    import time
+
+    def run_allreduce_benchmark(num_iterations=3):
+        """Run NCCL AllReduce benchmark with multiple message sizes"""
+
+        dist.init_process_group(backend='nccl')
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+        device = torch.device(f'cuda:{rank % 4}')
+
+        if rank == 0:
+            print(f"\n{'='*60}")
+            print(f"NCCL AllReduce Benchmark - Barcelona 5-Node")
+            print(f"{'='*60}")
+            print(f"World size: {world_size} ({world_size // 4} nodes x 4 GPUs)")
+            print(f"Iterations per size: {num_iterations}")
+            print(f"{'='*60}\n")
+
+        # Message sizes: 8MB to 8GB
+        sizes_mb = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+
+        for size_mb in sizes_mb:
+            size = size_mb * 1024 * 1024 // 4  # Convert MB to float32 elements
+            tensor = torch.randn(size, device=device)
+
+            # Warmup
+            for _ in range(2):
+                dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
+
+            torch.cuda.synchronize()
+            dist.barrier()
+
+            # Benchmark
+            start = time.time()
+            for _ in range(num_iterations):
+                dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
+            torch.cuda.synchronize()
+            dist.barrier()
+            end = time.time()
+
+            # Calculate bandwidth
+            elapsed = end - start
+            data_size_gb = (size_mb / 1024) * num_iterations
+            bandwidth_gbps = data_size_gb / elapsed
+
+            if rank == 0:
+                print(f"{size_mb:5d}MB messages: {bandwidth_gbps:6.2f} GB/s")
+
+        if rank == 0:
+            print(f"\n{'='*60}")
+            print("Benchmark complete!")
+            print(f"{'='*60}\n")
+
+        dist.destroy_process_group()
+
+    if __name__ == "__main__":
+        parser = argparse.ArgumentParser(description='NCCL AllReduce Benchmark')
+        parser.add_argument('-r', '--iterations', type=int, default=3,
+                          help='Number of iterations per message size (default: 3)')
+        args = parser.parse_args()
+
+        run_allreduce_benchmark(num_iterations=args.iterations)
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prism-nccl-test
+  namespace: nccl-test
+  labels:
+    app: prism-nccl-test
+spec:
+  serviceName: prism-nccl-test
+  replicas: 5
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: prism-nccl-test
+
+  template:
+    metadata:
+      labels:
+        app: prism-nccl-test
+      annotations:
+        k8s.v1.cni.cncf.io/networks: nccl-test/eno5np0-network, nccl-test/eno6np0-network, nccl-test/eno7np0-network, nccl-test/eno8np0-network
+    spec:
+      restartPolicy: Always
+
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - prism-nccl-test
+            topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - moc-r4pcc02u17-nairr
+                - moc-r4pcc02u18-nairr
+                - moc-r4pcc02u25-nairr
+                - moc-r4pcc02u15-yunshi
+                - moc-r4pcc02u16-yunshi
+
+      containers:
+      - name: benchmark
+        image: image-registry.openshift-image-registry.svc:5000/nccl-test/prism:pytorch-only
+        imagePullPolicy: Always
+
+        securityContext:
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+
+        resources:
+          requests:
+            nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+            memory: 128Gi
+            cpu: 64
+          limits:
+            nvidia.com/gpu: 4
+            openshift.io/eno5np0rdma: 1
+            openshift.io/eno6np0rdma: 1
+            openshift.io/eno7np0rdma: 1
+            openshift.io/eno8np0rdma: 1
+            memory: 256Gi
+            cpu: 64
+
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0,1,2,3"
+
+        # ===== CRITICAL NCCL CONFIGURATION =====
+        # MUST HAVE - GPUDirect DMABUF (no nvidia_peermem kernel module)
+        - name: NCCL_DMABUF_ENABLE
+          value: "1"
+
+        # Debug settings
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_DEBUG_SUBSYS
+          value: "INIT,NET"
+
+        # Channel configuration
+        - name: NCCL_MIN_NCHANNELS
+          value: "8"
+        - name: NCCL_MAX_NCHANNELS
+          value: "16"
+
+        # Network interface selection
+        - name: NCCL_SOCKET_IFNAME
+          value: "net1,net2,net3,net4"
+
+        # CRITICAL: Barcelona IB devices - VERIFIED on all 5 nodes
+        # Never use auto-detect - these are the ONLY 4 devices in SR-IOV pods
+        - name: NCCL_IB_HCA
+          value: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
+
+        # GPUDirect RDMA settings
+        - name: NCCL_NET_GDR_LEVEL
+          value: "5"
+        - name: NCCL_NET_GDR_READ
+          value: "1"
+
+        # InfiniBand settings
+        - name: NCCL_IB_GID_INDEX
+          value: "3"
+        - name: NCCL_IB_TC
+          value: "106"
+        - name: NCCL_IB_TIMEOUT
+          value: "23"
+        - name: NCCL_IB_RETRY_CNT
+          value: "7"
+        - name: NCCL_IB_SL
+          value: "0"
+        - name: NCCL_IB_AR_THRESHOLD
+          value: "8192"
+        - name: NCCL_IB_PCI_RELAXED_ORDERING
+          value: "1"
+
+        # Algorithm and protocol
+        - name: NCCL_PROTO
+          value: "Simple"
+        - name: NCCL_ALGO
+          value: "Ring"
+
+        # Buffer and thread configuration
+        - name: NCCL_BUFFSIZE
+          value: "8388608"
+        - name: NCCL_NTHREADS
+          value: "640"
+
+        # Thresholds
+        - name: NCCL_LL_THRESHOLD
+          value: "0"
+        - name: NCCL_TREE_THRESHOLD
+          value: "0"
+
+        # Socket configuration
+        - name: NCCL_SOCKET_FAMILY
+          value: "4"
+        - name: NCCL_NSOCKS_PERTHREAD
+          value: "8"
+
+        # CRITICAL: Isolated subnet configuration
+        # Barcelona has isolated /24 subnets with NO inter-subnet routing
+        - name: NCCL_CROSS_NIC
+          value: "0"
+
+        # Disable NVLink Switch for H100 PCIe
+        - name: NCCL_NVLS_ENABLE
+          value: "0"
+
+        # Shared buffers
+        - name: NCCL_NET_SHARED_BUFFERS
+          value: "1"
+
+        # Network overhead
+        - name: NCCL_NET_OVERHEAD
+          value: "0"
+
+        # CPU affinity
+        - name: NCCL_IGNORE_CPU_AFFINITY
+          value: "1"
+
+        # P2P level
+        - name: NCCL_P2P_LEVEL
+          value: "NVL"
+
+        volumeMounts:
+        - name: benchmark-script
+          mountPath: /workspace/nccl_torch_bench.py
+          subPath: nccl_torch_bench.py
+        - name: dshm
+          mountPath: /dev/shm
+
+        workingDir: /workspace
+
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+
+          echo "=========================================="
+          echo "NCCL Test Pod - Barcelona 5-Node"
+          echo "=========================================="
+          echo "Pod: $(hostname)"
+          echo "Waiting for manual torchrun execution..."
+          echo ""
+          echo "Run benchmark with:"
+          echo "  kubectl exec -it $(hostname) -n nccl-test -- torchrun \\"
+          echo "    --nnodes=5 --nproc_per_node=4 --node_rank=<0-4> \\"
+          echo "    --master_addr=prism-nccl-test-0.prism-nccl-test \\"
+          echo "    --master_port=29500 /workspace/nccl_torch_bench.py -r 3"
+          echo ""
+
+          # Set unlimited memlock
+          ulimit -l unlimited
+
+          # Show GPU info
+          echo "=== GPU Information ==="
+          nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+          echo ""
+
+          echo "=== RDMA Devices ==="
+          ibv_devinfo -l || echo "ibv_devinfo not available"
+          echo ""
+
+          echo "=== Network Interfaces ==="
+          ip addr show | grep -E "net[0-9]|10\.0\.(103|104|105|106)" || echo "SR-IOV interfaces not visible"
+          echo ""
+
+          echo "Pod ready. Keeping alive..."
+          tail -f /dev/null
+
+      volumes:
+      - name: benchmark-script
+        configMap:
+          name: prism-nccl-bench
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Gi
+
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
