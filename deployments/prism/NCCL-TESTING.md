@@ -46,7 +46,38 @@ NCCL_PROTO=Simple
 NCCL_ALGO=Ring
 ```
 
-## Quick Start: Run 5-Node NCCL Test
+## Quick Start: Run 5-Node NCCL Test (Recommended)
+
+### Gold Standard Method - Automated Script
+
+**Use this method** - it deploys the StatefulSet and auto-starts the benchmark on all 5 pods:
+
+```bash
+cd /Users/jschless/nairr/deepti/ml-dev-env/deployments/prism
+./run-5node-nccl-test.sh
+```
+
+The script will:
+1. Deploy the 5-pod StatefulSet
+2. Wait for all pods to be Running
+3. Automatically start torchrun on all 5 pods in parallel
+4. Save logs to `benchmark-pod-N.log` files
+
+**Monitor results:**
+```bash
+tail -f deployments/prism/benchmark-pod-0.log
+```
+
+**Custom number of runs:**
+```bash
+./run-5node-nccl-test.sh 5  # Run 5 iterations instead of default 3
+```
+
+---
+
+## Alternative: Manual Execution
+
+If you need to run the benchmark manually on each pod:
 
 ### Step 1: Deploy the Test Pods
 
@@ -65,7 +96,7 @@ oc get pods -n nccl-test -l app=prism-nccl-test -w
 
 Wait until all 5 pods show `1/1 Running`. Press Ctrl+C when ready.
 
-### Step 3: Run the Benchmark
+### Step 3: Run the Benchmark Manually
 
 The benchmark must be run **on each pod separately** with a different `--node_rank`:
 
@@ -136,9 +167,6 @@ The benchmark output appears on **pod-0** (the master). Look for the final line:
 - Approximately **6-7 GB/s per GPU**
 - Total: **120-140 GB/s** for 8GB messages
 
-## Alternative: Using tmux for Parallel Execution
-
-You can use tmux to run all 5 commands in parallel panes and execute them manually in each pane.
 
 ## Expected NCCL Output
 
