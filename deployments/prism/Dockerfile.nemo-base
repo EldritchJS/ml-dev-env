@@ -5,9 +5,8 @@
 FROM nvcr.io/nvidia/nemo:25.04.02
 
 LABEL maintainer="NAIRR ML Dev Team"
-LABEL description="BEACON continued pre-training environment with NeMo (pre-installed) and additional packages"
+LABEL description="BEACON continued pre-training environment with complete requirements.txt"
 LABEL cluster="barcelona"
-LABEL nemo.version="2.0.0"
 
 # Install system dependencies for RDMA/InfiniBand
 RUN apt-get update && apt-get install -y \
@@ -17,47 +16,80 @@ RUN apt-get update && apt-get install -y \
     rdma-core \
     && rm -rf /var/lib/apt/lists/*
 
-# NeMo Toolkit is already installed in the base image
-# Check what's already there:
-# - nemo_toolkit
-# - PyTorch
-# - CUDA
-# - Many dependencies
+# NeMo base includes: nemo_toolkit, PyTorch, CUDA, transformers, deepspeed, lightning
+# But we'll explicitly install/upgrade everything from requirements.txt to be sure
 
-# Install additional packages NOT in NeMo container
-# These are the extras from requirements.txt that NeMo base doesn't have
+# Core PyTorch stack (likely already in base, but ensure correct versions)
+RUN pip install --no-cache-dir --upgrade \
+    torch \
+    torchvision \
+    torchaudio
 
-# Training utilities (check if already present, install if not)
-RUN pip install --no-cache-dir \
-    peft==0.13.2 \
-    trl==0.12.1 \
-    evaluate==0.4.3
+# HuggingFace ecosystem
+RUN pip install --no-cache-dir --upgrade \
+    transformers \
+    datasets \
+    accelerate \
+    tokenizers \
+    huggingface_hub \
+    safetensors \
+    sentencepiece
 
-# Logging and experiment tracking
-RUN pip install --no-cache-dir \
-    wandb==0.18.7 \
-    tensorboard==2.18.0
+# Training utilities
+RUN pip install --no-cache-dir --upgrade \
+    peft \
+    trl \
+    evaluate \
+    scikit-learn
 
-# Additional data processing utilities (if not already present)
-RUN pip install --no-cache-dir \
-    pyarrow==18.1.0 \
-    einops==0.8.0
+# Distributed / large-model training (ensure latest versions)
+RUN pip install --no-cache-dir --upgrade \
+    deepspeed \
+    lightning
 
-# Set unlimited memlock for RDMA (container-level, also set at pod level)
+# Common numerical / system utilities
+RUN pip install --no-cache-dir --upgrade \
+    numpy \
+    pandas \
+    pyarrow \
+    protobuf \
+    einops \
+    packaging \
+    psutil \
+    tqdm \
+    pyyaml \
+    requests
+
+# Logging / experiment tracking
+RUN pip install --no-cache-dir --upgrade \
+    wandb \
+    tensorboard
+
+# NOTE: kernels>=0.12.0 intentionally skipped (pulls in tensorstore with 4+ hour build)
+# If MXFP4 support is needed, install manually after deployment
+
+# Set unlimited memlock for RDMA
 RUN echo "* soft memlock unlimited" >> /etc/security/limits.conf && \
     echo "* hard memlock unlimited" >> /etc/security/limits.conf
 
-# Set working directory
 WORKDIR /workspace
 
-# Verify critical packages are installed
+# Verify all critical packages are installed
 RUN python -c "import torch; print(f'PyTorch: {torch.__version__}')" && \
+    python -c "import torchvision; print(f'TorchVision: {torchvision.__version__}')" && \
+    python -c "import torchaudio; print(f'TorchAudio: {torchaudio.__version__}')" && \
     python -c "import nemo; print(f'NeMo: {nemo.__version__}')" && \
     python -c "import transformers; print(f'Transformers: {transformers.__version__}')" && \
+    python -c "import datasets; print(f'Datasets: {datasets.__version__}')" && \
+    python -c "import accelerate; print(f'Accelerate: {accelerate.__version__}')" && \
+    python -c "import peft; print(f'PEFT: {peft.__version__}')" && \
+    python -c "import trl; print(f'TRL: {trl.__version__}')" && \
     python -c "import deepspeed; print(f'DeepSpeed: {deepspeed.__version__}')" && \
     python -c "import lightning; print(f'Lightning: {lightning.__version__}')" && \
-    python -c "import peft; print(f'PEFT: {peft.__version__}')" && \
-    echo "All critical packages verified successfully"
+    python -c "import wandb; print(f'WandB: {wandb.__version__}')" && \
+    python -c "import sklearn; print(f'Scikit-learn: {sklearn.__version__}')" && \
+    python -c "import pandas; print(f'Pandas: {pandas.__version__}')" && \
+    python -c "import numpy; print(f'NumPy: {numpy.__version__}')" && \
+    echo "All required packages verified successfully"
 
-# Default command
 CMD ["/bin/bash"]
