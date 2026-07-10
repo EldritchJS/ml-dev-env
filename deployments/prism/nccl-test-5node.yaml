@@ -138,7 +138,7 @@ spec:
 
       containers:
       - name: benchmark
-        image: image-registry.openshift-image-registry.svc:5000/nccl-test/prism:pytorch-only
+        image: quay.io/jschless/ml-dev-env:prism-pytorch-25.06
         imagePullPolicy: Always
 
         securityContext:
