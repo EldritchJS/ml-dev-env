@@ -220,7 +220,7 @@ podman run --rm quay.io/jschless/ml-dev-env:prism-pytorch-25.06 \
 | Build | Image Tag | Status | Duration | Date |
 |-------|-----------|--------|----------|------|
 | #8 | prism-pytorch-25.06 | ✅ Success | 18m9s | 2026-07-10 |
-| #16 | prism-nemo-25.04 | 🚧 Running | - | 2026-07-10 |
+| #16 | prism-nemo-25.04 | ✅ Success | 34m11s | 2026-07-10 |
 
 ---
 
