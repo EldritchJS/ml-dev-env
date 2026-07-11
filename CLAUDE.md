@@ -12,7 +12,7 @@ This repository manages the MOC H100 GPU cluster running on OpenShift (Barcelona
 - RDMA/GPUDirect testing
 - Container image builds for ML workloads
 
-**Primary Working Directory:** `/Users/eldritchjs/github/ml-dev-env`
+**Primary Working Directory:** Repository root (`ml-dev-env/`)
 
 ---
 
