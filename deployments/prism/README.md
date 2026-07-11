@@ -1,190 +1,209 @@
 # Prism Deployment - BEACON Continued Pre-training
 
-Multi-node distributed training deployment for Barcelona H100 cluster.
+Multi-node distributed training deployment for Barcelona H100 cluster (5 nodes, 20 GPUs).
 
-## Overview
+## Quick Start
 
-This deployment provides:
-- **NeMo Toolkit** for large-scale LLM training
-- **DeepSpeed** for memory-efficient distributed training
-- **HuggingFace ecosystem** (transformers, datasets, accelerate, peft, trl)
-- **MXFP4 kernel support** (kernels>=0.12.0)
-- **Multi-node NCCL** over RDMA/InfiniBand
-- **5-node H100 setup** with GPUDirect RDMA
+**Run 5-node NCCL benchmark:**
+```bash
+cd /Users/jschless/nairr/deepti/ml-dev-env/deployments/prism
+./run-5node-nccl-test.sh
+```
 
-## Container Image
+Deploys StatefulSet, waits for pods, auto-starts benchmark on all 5 nodes. Results in `benchmark-pod-0.log`.
 
-**Base:** `nvcr.io/nvidia/pytorch:25.06-py3`
-- PyTorch 2.6+
-- CUDA 12.8
-- NCCL 2.24+
+## Container Images
 
-**Additions:**
-- NeMo Toolkit 2.0.0 [nlp]
-- DeepSpeed 0.15.4
+Two validated images available on quay.io:
+
+### 1. prism-pytorch-25.06 (PyTorch-Only Base)
+
+**Image:** `quay.io/jschless/ml-dev-env:prism-pytorch-25.06`
+
+**What it HAS:**
+- PyTorch 2.9.0 + CUDA 13.2
+- RDMA/InfiniBand tools (infiniband-diags, ibverbs-utils)
+- Validated NCCL performance: 94.47 GB/s (5 nodes, 20 GPUs)
+
+**What it DOESN'T have:**
+- NeMo Toolkit
+- HuggingFace ecosystem (transformers, datasets, accelerate, etc.)
+- DeepSpeed, Lightning
+- wandb
+
+**Use for:** NCCL testing, basic PyTorch training, single-node experiments
+
+### 2. prism-nemo-25.04 (Full NeMo Stack)
+
+**Image:** `quay.io/jschless/ml-dev-env:prism-nemo-25.04`
+
+**What it HAS (everything from pytorch-25.06 PLUS):**
+- NVIDIA NeMo Toolkit 2.3.2
+- HuggingFace Transformers 5.13.0
+- HuggingFace Datasets 5.0.0
+- HuggingFace Accelerate 1.8.1
+- PEFT, TRL 1.8.0
+- DeepSpeed 0.19.2
 - Lightning 2.4.0
-- Full HuggingFace stack
-- See `workspace/requirements.txt` for complete list
+- wandb 0.16.6
+- All dependencies from requirements.txt
 
-## Build Status
+**Use for:** Multi-node BEACON training, NeMo-based LLM workflows, production training
 
-### Phase 1: Building Image ⏳
+**See IMAGE-REFERENCE.md for complete details.**
 
-**Current status:**
-```bash
-oc get builds
-# NAME                  TYPE     FROM          STATUS
-# prism-image-build-1   Docker   Git@b9389e5   Running
-```
+## Barcelona Cluster - 5 H100 Nodes
 
-**Follow build logs:**
-```bash
-oc logs -f bc/prism-image-build
-```
+**Nodes:**
+- moc-r4pcc02u17-nairr
+- moc-r4pcc02u18-nairr
+- moc-r4pcc02u25-nairr
+- moc-r4pcc02u15-yunshi
+- moc-r4pcc02u16-yunshi
 
-**Build time:** ~15-20 minutes (NeMo installation is slow)
+**Per-node hardware:**
+- 4x H100 80GB GPUs
+- 4x ConnectX-7 400G NICs (eno5np0, eno6np0, eno7np0, eno8np0)
+- Isolated /24 subnets: 10.0.103/104/105/106.0/24 (NO inter-subnet routing)
 
-**Image location (after build):**
-```
-image-registry.openshift-image-registry.svc:5000/nccl-test/prism:test
-```
+**RDMA devices (SR-IOV pods):**
+- mlx5_6, mlx5_7, mlx5_8, mlx5_9 (mapped to net1, net2, net3, net4)
 
-### Phase 2: Test Single-Node Pod (Next)
+## Critical NCCL Configuration
 
-After build completes:
-```bash
-# Deploy test pod
-oc apply -f generated/pod-prism-test.yaml
-
-# Monitor pod startup
-oc get pod prism-test -w
-
-# Check test results
-oc logs prism-test
-```
-
-**Expected test output:**
-- ✅ GPU detection (4x H100)
-- ✅ RDMA device detection (mlx5_6, mlx5_7, mlx5_10, mlx5_11)
-- ✅ All Python packages import successfully
-- ✅ PyTorch CUDA operations work
-- ✅ NCCL initialized correctly
-
-### Phase 3: Push to Quay (If tests pass)
+**MUST HAVE - These are REQUIRED:**
 
 ```bash
-# Tag for quay
-oc tag prism:test quay.io/jschless/ml-dev-env:prism
+# GPUDirect DMABUF - no nvidia_peermem kernel module
+NCCL_DMABUF_ENABLE=1
 
-# Or manually push
-podman pull image-registry.openshift-image-registry.svc:5000/nccl-test/prism:test
-podman tag <image-id> quay.io/jschless/ml-dev-env:prism
-podman push quay.io/jschless/ml-dev-env:prism
+# Isolated subnet configuration - NO cross-NIC communication
+NCCL_CROSS_NIC=0
+
+# Explicit IB device specification - auto-detect fails in SR-IOV
+NCCL_IB_HCA=mlx5_6,mlx5_7,mlx5_8,mlx5_9
 ```
 
-### Phase 4: Multi-Node Deployment (Future)
+**Performance Settings:**
 
-After image validated and pushed to quay:
-- Create 5-node StatefulSet
-- Configure NCCL for multi-node RDMA
-- Set up shared PVCs for datasets/checkpoints
-
-## Barcelona Cluster Configuration
-
-### RDMA Devices (Auto-detected)
-- **IB devices:** mlx5_6, mlx5_7, mlx5_10, mlx5_11
-- **Network interfaces:** net1, net2, net3, net4
-- **GID index:** 3 (RoCE v2)
-
-### NCCL Settings
 ```bash
-NCCL_IB_DISABLE=0                    # RDMA enabled
-NCCL_IB_GID_INDEX=3                  # RoCE v2
-NCCL_NET_GDR_LEVEL=5                 # GPUDirect RDMA
-NCCL_IB_TIMEOUT=22                   
-NCCL_DMABUF_ENABLE=1                 # GPUDirect without nvidia_peermem
-NCCL_CROSS_NIC=1                     # Barcelona setting
-NCCL_MIN_NCHANNELS=4
-NCCL_P2P_LEVEL=NVL                   # NVLink intra-node
+NCCL_MIN_NCHANNELS=8
+NCCL_MAX_NCHANNELS=16
+NCCL_NET_GDR_LEVEL=5          # GPUDirect RDMA level
+NCCL_NET_GDR_READ=1           # Enable GPUDirect read
+NCCL_PROTO=Simple
+NCCL_ALGO=Ring
 ```
 
-### Resource Allocation (per pod)
-- **GPUs:** 4x H100 80GB
-- **RDMA:** 4x rdma_shared_device_a
-- **Memory:** 128Gi request, 256Gi limit
-- **CPU:** 32 cores request, 64 cores limit
+**InfiniBand Settings:**
+
+```bash
+NCCL_IB_GID_INDEX=3           # RoCE v2
+NCCL_IB_TC=106                # Traffic class
+NCCL_IB_TIMEOUT=23
+NCCL_IB_RETRY_CNT=7
+NCCL_IB_SL=0
+NCCL_IB_AR_THRESHOLD=8192
+NCCL_IB_PCI_RELAXED_ORDERING=1
+```
+
+**Buffer and Thread Configuration:**
+
+```bash
+NCCL_BUFFSIZE=8388608
+NCCL_NTHREADS=640
+NCCL_LL_THRESHOLD=0
+NCCL_TREE_THRESHOLD=0
+NCCL_SOCKET_FAMILY=4
+NCCL_NSOCKS_PERTHREAD=8
+```
+
+**Other Settings:**
+
+```bash
+NCCL_NVLS_ENABLE=0            # Disable NVLink Switch (H100 PCIe)
+NCCL_NET_SHARED_BUFFERS=1
+NCCL_NET_OVERHEAD=0
+NCCL_IGNORE_CPU_AFFINITY=1
+NCCL_P2P_LEVEL=NVL
+NCCL_SOCKET_IFNAME=net1,net2,net3,net4
+```
+
+**See nccl-test-5node.yaml for complete gold standard configuration.**
+
+## Validated Performance
+
+**5-node NCCL AllReduce benchmark:**
+- Configuration: 5 nodes × 4 GPUs = 20 GPUs
+- Image: prism-pytorch-25.06
+- 8GB messages: **94.47 GB/s**
+- Date: 2026-07-10
 
 ## Files
 
 ```
 deployments/prism/
-├── Dockerfile                           # Container image definition
-├── README.md                            # This file
-├── generated/
-│   ├── buildconfig-prism.yaml          # OpenShift BuildConfig
-│   └── pod-prism-test.yaml             # Single-node test pod
+├── README.md                       # This file
+├── IMAGE-REFERENCE.md              # Detailed image documentation
+├── NCCL-TESTING.md                 # Complete NCCL testing guide
+├── nccl-test-5node.yaml            # 5-node StatefulSet manifest
+├── run-5node-nccl-test.sh          # Automated test runner (gold standard)
+├── Dockerfile.pytorch-base         # PyTorch-only image build
+├── Dockerfile.nemo-base            # NeMo full-stack image build
 └── workspace/
-    └── requirements.txt                # Python dependencies
+    └── requirements.txt            # Python dependencies (for NeMo image)
 ```
+
+## Running NCCL Benchmarks
+
+### Method 1: Automated Script (Recommended)
+
+```bash
+cd deployments/prism
+./run-5node-nccl-test.sh          # Default 3 runs
+./run-5node-nccl-test.sh 5        # Custom number of runs
+```
+
+### Method 2: Manual Execution
+
+See NCCL-TESTING.md for complete manual execution instructions.
 
 ## Troubleshooting
 
-### Build Issues
+### Low NCCL Performance
 
-**Check build logs:**
+**Check critical settings:**
 ```bash
-oc logs -f bc/prism-image-build
+oc logs prism-nccl-test-0 -n nccl-test | grep NCCL_DMABUF
+oc logs prism-nccl-test-0 -n nccl-test | grep NCCL_CROSS_NIC
+oc logs prism-nccl-test-0 -n nccl-test | grep NCCL_IB_HCA
 ```
 
 **Common issues:**
-- NeMo installation timeout → Increase build resources
-- Dependency conflicts → Check version compatibility
-- Git clone failure → Verify GitHub repo accessibility
+- `NCCL_DMABUF_ENABLE` not set → Use DMABUF for GPUDirect
+- `NCCL_CROSS_NIC=1` → Should be 0 (isolated subnets)
+- `NCCL_IB_HCA` not set → Must specify mlx5_6,7,8,9 explicitly
 
-**Rebuild:**
+### Pod Creation Fails
+
+**Missing SecurityContextConstraint:**
 ```bash
-oc start-build prism-image-build
+oc adm policy add-scc-to-user nccl-rdma-scc -z default -n nccl-test
 ```
 
-### Test Pod Issues
+### Benchmark Hangs
 
-**Pod won't start:**
+**Not all pods running:**
 ```bash
-oc describe pod prism-test
-# Check Events section
+oc get pods -n nccl-test -l app=prism-nccl-test
 ```
 
-**Package import failures:**
-```bash
-oc logs prism-test | grep -i error
-```
-
-**RDMA detection issues:**
-```bash
-# Check init container logs
-oc logs prism-test -c detect-rdma
-
-# Expected output:
-# Detected IB devices: mlx5_6,mlx5_7,mlx5_10,mlx5_11
-# Detected RDMA interfaces: net1,net2,net3,net4
-```
-
-**GPU not detected:**
-```bash
-oc exec prism-test -- nvidia-smi
-```
-
-## Next Steps
-
-1. ⏳ **Wait for build to complete** (~15-20 min)
-2. ✅ **Deploy test pod** and verify all packages work
-3. ✅ **Run NCCL test** to confirm RDMA working
-4. ✅ **Push to quay** if tests pass
-5. ✅ **Build 5-node StatefulSet** for multi-node training
+All 5 pods must be Running before starting torchrun.
 
 ## Related Documentation
 
-- Barcelona cluster config: `/clusters/barcelona.yaml`
-- Deepti deployment (reference): `/deployments/deepti/`
-- H100 NCCL gold standard: `/deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
-- NCCL configuration guide: `/claude_guidance/nccl-configuration-h100-cluster.md`
+- **IMAGE-REFERENCE.md** - Complete image documentation and selection guide
+- **NCCL-TESTING.md** - Detailed NCCL testing procedures
+- **Gold standard reference:** `/deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
+- **Barcelona cluster config:** `/clusters/moc-test.yaml`
+- **NCCL config guide:** `/claude_guidance/nccl-configuration-h100-cluster.md`
