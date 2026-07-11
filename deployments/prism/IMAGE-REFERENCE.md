@@ -130,6 +130,14 @@ pip install transformers datasets accelerate tokenizers huggingface_hub \
 
 These are pip warnings, not errors - packages install and should function normally.
 
+#### What This Image DOES NOT Have:
+
+- ❌ **kernels>=0.12.0** (MXFP4 support) - skipped due to 4+ hour build time for tensorstore dependency
+- ❌ **JAX/Flax** - not included in requirements.txt
+- ❌ **Ray/Horovod** - alternative distributed frameworks not included
+
+If you need these packages, install at runtime or build a custom image.
+
 #### When to Use This Image:
 
 **Use for:**
@@ -138,7 +146,7 @@ These are pip warnings, not errors - packages install and should function normal
 - ✅ Production distributed training (all dependencies pre-installed)
 - ✅ Any workflow requiring the full HuggingFace + NeMo stack
 
-**Available:** Build complete, quay push in progress (~10-15 min)
+**Available:** ✅ Build complete, pushed to quay.io
 
 ---
 
@@ -148,7 +156,7 @@ These are pip warnings, not errors - packages install and should function normal
 |---------|---------------------|------------------|
 | PyTorch 2.9 + CUDA | ✅ | ✅ |
 | RDMA/InfiniBand | ✅ | ✅ |
-| NCCL Validated | ✅ (90 GB/s) | 🚧 Pending |
+| NCCL Validated | ✅ (94.47 GB/s) | Not tested |
 | NeMo Toolkit | ❌ | ✅ |
 | HuggingFace | ❌ | ✅ |
 | DeepSpeed | ❌ | ✅ |
