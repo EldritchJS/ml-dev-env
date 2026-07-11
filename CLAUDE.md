@@ -1,4 +1,4 @@
-# Claude Code Instructions for NAIRR ML Development Environment
+# Claude Code Instructions for MOC ML Development Environment
 
 This file contains instructions for Claude Code when working with this project.
 
@@ -6,7 +6,7 @@ This file contains instructions for Claude Code when working with this project.
 
 ## Project Overview
 
-This repository manages the NAIRR H100 GPU cluster running on OpenShift, including:
+This repository manages the MOC H100 GPU cluster running on OpenShift (Barcelona), including:
 - NCCL benchmarking and performance testing
 - Network rate limiting and QoS configuration
 - RDMA/GPUDirect testing

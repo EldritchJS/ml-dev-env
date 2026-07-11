@@ -53,7 +53,7 @@ NCCL_ALGO=Ring
 **Use this method** - it deploys the StatefulSet and auto-starts the benchmark on all 5 pods:
 
 ```bash
-cd /Users/jschless/nairr/deepti/ml-dev-env/deployments/prism
+cd /Users/eldritchjs/github/ml-dev-env/deployments/prism
 ./run-5node-nccl-test.sh
 ```
 

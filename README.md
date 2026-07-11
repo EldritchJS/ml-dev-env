@@ -1,6 +1,6 @@
-# ML Development Environment for NAIRR H100 Cluster
+# ML Development Environment for MOC H100 Cluster
 
-Operational tooling for the NAIRR H100 GPU cluster on OpenShift (Barcelona), including NCCL benchmarking, RDMA/GPUDirect testing, network rate limiting, and Mellanox firmware management.
+Operational tooling for the MOC H100 GPU cluster on OpenShift (Barcelona), including NCCL benchmarking, RDMA/GPUDirect testing, network rate limiting, and Mellanox firmware management.
 
 ## Cluster Overview
 

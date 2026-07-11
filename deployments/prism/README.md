@@ -6,7 +6,7 @@ Multi-node distributed training deployment for Barcelona H100 cluster (5 nodes, 
 
 **Run 5-node NCCL benchmark:**
 ```bash
-cd /Users/jschless/nairr/deepti/ml-dev-env/deployments/prism
+cd /Users/eldritchjs/github/ml-dev-env/deployments/prism
 ./run-5node-nccl-test.sh
 ```
 

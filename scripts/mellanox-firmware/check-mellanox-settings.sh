@@ -13,7 +13,7 @@ echo ""
 # First, re-deploy a pod if needed
 if ! oc get pod $POD -n $NAMESPACE &>/dev/null; then
     echo "Pod not found. Deploying..."
-    oc apply -f /Users/jschless/taj/cairo/pytorch-benchmark-optimized.yaml
+    oc apply -f deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml
     sleep 20
     echo "Waiting for pod to be ready..."
     oc wait --for=condition=ready pod/$POD -n $NAMESPACE --timeout=120s
