@@ -18,53 +18,33 @@ All nodes have ConnectX-7 400G NICs with 4 isolated /24 subnets (10.0.103-106.0/
 
 ## Quick Start
 
-### Run NCCL Benchmark (5-node)
+### 1. Log in to the cluster
 
 ```bash
-# Deploy the benchmark StatefulSet
+oc login https://api.barcelona.nerc.mghpcc.org:6443
+oc project nccl-test
+```
+
+### 2. Deploy a pod with GPUs
+
+Use the prism deployment as a starting point:
+
+```bash
 kubectl apply -f deployments/prism/nccl-test-5node.yaml -n nccl-test
-
-# Wait for all pods, then run the automated benchmark script
-./deployments/prism/run-5node-nccl-test.sh
+kubectl get pods -n nccl-test -w
 ```
 
-See `deployments/prism/README.md` for full details.
-
-### Run RDMA Perftest
+### 3. Access the pod
 
 ```bash
-# Basic RDMA test between two nodes
-./scripts/run-rdma-perftest.sh \
-  --server-node moc-r4pcc02u17-nairr \
-  --client-node moc-r4pcc02u18-nairr
-
-# GPUDirect test
-./scripts/run-rdma-perftest.sh \
-  --server-node moc-r4pcc02u17-nairr \
-  --client-node moc-r4pcc02u18-nairr \
-  --gpudirect --gpu-id 0 --nic-id 0
+kubectl exec -it -n nccl-test <pod-name> -- bash
 ```
 
-See `k8s/rdma-perftest/README.md` for all options.
-
-### Apply Rate Limits
+### 4. Verify GPUs
 
 ```bash
-kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
+nvidia-smi
 ```
-
-See `claude_guidance/manual-rate-limiting-mlnx-qos.md` for details.
-
-### Check Firmware
-
-```bash
-sed 's/mfttool-node/mfttool-u17/g; s/REPLACE_WITH_NODE_NAME/moc-r4pcc02u17-nairr/g' \
-  k8s/machineconfigs/mft-tools-template.yaml | kubectl apply -f -
-
-kubectl exec -n nccl-test mfttool-u17 -- mlxconfig -d 03:00.0 q
-```
-
-See `claude_guidance/mlxconfig-pod-setup.md` for complete procedure.
 
 ## NCCL Configuration
 
@@ -101,9 +81,55 @@ ml-dev-env/
     └── mellanox-firmware/        # Firmware check/apply scripts
 ```
 
+## Operations
+
+### NCCL Benchmarking
+
+```bash
+kubectl apply -f deployments/prism/nccl-test-5node.yaml -n nccl-test
+./deployments/prism/run-5node-nccl-test.sh
+```
+
+See `deployments/prism/README.md` and `claude_guidance/nccl-configuration-h100-cluster.md`.
+
+### RDMA Perftest
+
+```bash
+./scripts/run-rdma-perftest.sh \
+  --server-node moc-r4pcc02u17-nairr \
+  --client-node moc-r4pcc02u18-nairr
+
+# GPUDirect test
+./scripts/run-rdma-perftest.sh \
+  --server-node moc-r4pcc02u17-nairr \
+  --client-node moc-r4pcc02u18-nairr \
+  --gpudirect --gpu-id 0 --nic-id 0
+```
+
+See `k8s/rdma-perftest/README.md`.
+
+### Rate Limiting
+
+```bash
+kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
+```
+
+See `claude_guidance/manual-rate-limiting-mlnx-qos.md`.
+
+### Firmware Inspection
+
+```bash
+sed 's/mfttool-node/mfttool-u17/g; s/REPLACE_WITH_NODE_NAME/moc-r4pcc02u17-nairr/g' \
+  k8s/machineconfigs/mft-tools-template.yaml | kubectl apply -f -
+
+kubectl exec -n nccl-test mfttool-u17 -- mlxconfig -d 03:00.0 q
+```
+
+See `claude_guidance/mlxconfig-pod-setup.md`.
+
 ## Operational Guides
 
-The `claude_guidance/` directory contains step-by-step procedures for common operations:
+The `claude_guidance/` directory contains step-by-step procedures:
 
 | Guide | Covers |
 |-------|--------|
