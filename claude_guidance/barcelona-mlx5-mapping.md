@@ -33,7 +33,7 @@ NCCL_IB_HCA: "mlx5_6,mlx5_7,mlx5_8,mlx5_9"
 
 **WRONG setting (do NOT use):**
 ```yaml
-# This was in clusters/barcelona.yaml originally - INCORRECT!
+# This was in the old cluster config originally - INCORRECT!
 NCCL_IB_HCA: "mlx5_6,mlx5_7,mlx5_10,mlx5_11"
 ```
 

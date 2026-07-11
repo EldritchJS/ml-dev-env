@@ -167,7 +167,6 @@ These results were from the previous 8-node configuration. The current cluster h
 
 ```
 ├── claude_guidance/              # Operational guides (READ THESE FIRST)
-├── clusters/                     # Cluster configuration files (barcelona, nerc-production)
 ├── deployments/
 │   ├── archived/                 # Completed deployments (h-kim, yunshi, deepti)
 │   ├── ops/                      # Operational benchmark templates and tools
@@ -175,16 +174,16 @@ These results were from the previous 8-node configuration. The current cluster h
 ├── docs/                         # Documentation
 │   ├── investigations/           # Historical investigation summaries
 │   └── rdma/                     # RDMA setup documentation
-├── examples/                     # Example code and configs
 ├── k8s/                          # Kubernetes resources
 │   ├── gold-standard-kustomize/  # Kustomize-based benchmark deployments
 │   ├── network-attachments/      # Network attachment definitions
 │   ├── rdma-perftest/            # RDMA perftest pod templates and docs
-│   └── machineconfigs/           # OpenShift MachineConfig resources
-├── scripts/                      # Automation and utility scripts
-│   └── mellanox-firmware/        # Mellanox firmware check/apply scripts
-├── templates/                    # Deployment wizard templates
-└── workspace/                    # Development workspace (syncs to pod)
+│   ├── machineconfigs/           # OpenShift MachineConfig resources
+│   └── scc-modification-for-memlock.yaml
+└── scripts/                      # Automation and utility scripts
+    ├── run-rdma-perftest.sh      # Automated RDMA testing
+    ├── check-hardware-versions.sh
+    └── mellanox-firmware/        # Mellanox firmware check/apply scripts
 ```
 
 ---
@@ -261,7 +260,7 @@ Automated script for flexible RDMA testing between two nodes:
 
 1. **Check `claude_guidance/` first** - Don't reinvent documented procedures
 2. **Read existing deployment files** - Understand current configuration
-3. **Test on subset of nodes** - Don't apply to all 8 nodes immediately
+3. **Test on subset of nodes** - Don't apply to all 5 nodes immediately
 4. **Document changes** - Update relevant guides in `claude_guidance/`
 
 ### When Running Benchmarks

@@ -8,12 +8,6 @@ This directory contains the complete RDMA/InfiniBand setup for multi-node H100 G
 
 ### Configuration Files
 
-- **`/k8s/nccl-ib-autodetect-configmap.yaml`**
-  - ConfigMap with wrapper script for automatic SR-IOV device detection
-  - Sets `NCCL_IB_HCA` dynamically per pod based on allocated devices
-  - Configures unlimited memlock for RDMA
-  - Already integrated into `scripts/deploy-h-kim.sh`
-
 - **`/k8s/machineconfigs/99-worker-iommu-passthrough.yaml`**
   - MachineConfig to enable IOMMU passthrough mode (`iommu=pt`)
   - Required for RDMA and GPUDirect RDMA to work
@@ -51,9 +45,8 @@ This directory contains the complete RDMA/InfiniBand setup for multi-node H100 G
    - Required for RDMA memory registration
 
 3. **Integration**
-   - Baked into `scripts/deploy-h-kim.sh`
+   - Integrated into deployment manifests
    - No manual configuration required
-   - Portable across clusters
 
 4. **Verification**
    - Tested on H100 nodes
@@ -71,13 +64,10 @@ This directory contains the complete RDMA/InfiniBand setup for multi-node H100 G
 
 ### For Users
 
-Deploy h-kim with RDMA (auto-detection already integrated):
+Deploy with RDMA using the gold standard benchmark YAML:
 
 ```bash
-./scripts/deploy-h-kim.sh \
-  --namespace my-namespace \
-  --mode rdma \
-  --type multi
+kubectl apply -f deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml -n nccl-test
 ```
 
 ### For Administrators
@@ -154,7 +144,7 @@ Common checks:
 ## Related Documentation
 
 - `/deployments/archived/h-kim/docs/H-KIM-RDMA-SETUP.md` - Original RDMA setup guide
-- `/docs/MULTI-NODE-GUIDE.md` - Multi-node training guide
+- `/deployments/prism/README.md` - Current deployment guide
 - `/docs/investigations/IB-AUTODETECT-FINAL-SUMMARY.md` - Auto-detection implementation summary
 - `/docs/investigations/RDMA-DEBUG-SUMMARY.md` - RDMA debugging findings
 
