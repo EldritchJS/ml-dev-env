@@ -205,5 +205,5 @@ All 5 pods must be Running before starting torchrun.
 - **IMAGE-REFERENCE.md** - Complete image documentation and selection guide
 - **NCCL-TESTING.md** - Detailed NCCL testing procedures
 - **Gold standard reference:** `/deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
-- **Barcelona cluster config:** `/clusters/moc-test.yaml`
+- **Barcelona cluster config:** `/clusters/barcelona.yaml`
 - **NCCL config guide:** `/claude_guidance/nccl-configuration-h100-cluster.md`
