@@ -22,7 +22,7 @@ All nodes have ConnectX-7 400G NICs with 4 isolated /24 subnets (10.0.103-106.0/
 
 ```bash
 oc login https://api.barcelona.nerc.mghpcc.org:6443
-oc project nccl-test
+oc project <YOUR_PROJECT>
 ```
 
 ### 2. Deploy a pod with GPUs
@@ -30,14 +30,14 @@ oc project nccl-test
 Use the prism deployment as a starting point:
 
 ```bash
-kubectl apply -f deployments/prism/nccl-test-5node.yaml -n nccl-test
-kubectl get pods -n nccl-test -w
+oc apply -f deployments/prism/nccl-test-5node.yaml -n <YOUR_PROJECT>
+oc get pods -n <YOUR_PROJECT> -w
 ```
 
 ### 3. Access the pod
 
 ```bash
-kubectl exec -it -n nccl-test <pod-name> -- bash
+oc exec -it -n <YOUR_PROJECT> <pod-name> -- bash
 ```
 
 ### 4. Verify GPUs
@@ -86,7 +86,7 @@ ml-dev-env/
 ### NCCL Benchmarking
 
 ```bash
-kubectl apply -f deployments/prism/nccl-test-5node.yaml -n nccl-test
+oc apply -f deployments/prism/nccl-test-5node.yaml -n <YOUR_PROJECT>
 ./deployments/prism/run-5node-nccl-test.sh
 ```
 
@@ -111,7 +111,7 @@ See `k8s/rdma-perftest/README.md`.
 ### Rate Limiting
 
 ```bash
-kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
+oc apply -f deployments/ops/apply-100g-with-ofed-image.yaml
 ```
 
 See `claude_guidance/manual-rate-limiting-mlnx-qos.md`.
@@ -120,9 +120,9 @@ See `claude_guidance/manual-rate-limiting-mlnx-qos.md`.
 
 ```bash
 sed 's/mfttool-node/mfttool-u17/g; s/REPLACE_WITH_NODE_NAME/moc-r4pcc02u17-nairr/g' \
-  k8s/machineconfigs/mft-tools-template.yaml | kubectl apply -f -
+  k8s/machineconfigs/mft-tools-template.yaml | oc apply -f -
 
-kubectl exec -n nccl-test mfttool-u17 -- mlxconfig -d 03:00.0 q
+oc exec -n <YOUR_PROJECT> mfttool-u17 -- mlxconfig -d 03:00.0 q
 ```
 
 See `claude_guidance/mlxconfig-pod-setup.md`.
