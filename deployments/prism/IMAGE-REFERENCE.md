@@ -156,7 +156,7 @@ If you need these packages, install at runtime or build a custom image.
 |---------|---------------------|------------------|
 | PyTorch 2.9 + CUDA | ✅ | ✅ |
 | RDMA/InfiniBand | ✅ | ✅ |
-| NCCL Validated | ✅ (94.47 GB/s) | Not tested |
+| NCCL Validated | ✅ (94.47 GB/s) | ✅ (94.63 GB/s) |
 | NeMo Toolkit | ❌ | ✅ |
 | HuggingFace | ❌ | ✅ |
 | DeepSpeed | ❌ | ✅ |
