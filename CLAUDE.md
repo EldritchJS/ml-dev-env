@@ -37,57 +37,41 @@ This repository manages the NAIRR H100 GPU cluster running on OpenShift, includi
 
 ## Cluster Node Types
 
-### H100 GPU Nodes (8 total)
+### GPU Nodes (5 total, all Rack 2)
 
-**Rack 4 (-nairr suffix):**
-- moc-r4pcc04u09-nairr
-- moc-r4pcc04u11-nairr
-- moc-r4pcc04u12-nairr
-- moc-r4pcc04u16-nairr
-- moc-r4pcc04u25-nairr
+**H100 nodes (-nairr suffix):**
+- moc-r4pcc02u17-nairr
+- moc-r4pcc02u18-nairr (h100 role label)
+- moc-r4pcc02u25-nairr (h100 role label)
 
-**Rack 2 (other):**
-- moc-r4pcc02u05
-- moc-r4pcc02u32
-- moc-r4pcc02u35
-
-### AMD EPYC Nodes (-yunshi suffix)
-
-**Rack 2 (yunshi users):**
+**H100 nodes (-yunshi suffix):**
 - moc-r4pcc02u15-yunshi
 - moc-r4pcc02u16-yunshi
 
-**Hardware:** AMD EPYC 9754 128-Core Processor, ConnectX-7 400G NICs
+All GPU nodes: 4x H100 80GB HBM3, ConnectX-7 400G NICs
+
+### Other Nodes
+
+**CPU workers:** moc-r4pac08u05-s1-cpu, moc-r4pac08u07-s1-cpu, moc-r4pac08u07-s3-cpu
+**Control plane:** moc-r4pac22u33-s1b, moc-r4pac22u35-s3c, moc-r4pac24u37-s3b
+
+**Note:** The cluster previously had 8 H100 nodes (5 in rack 4, 3 in rack 2). Those were removed/relocated. Historical docs in `deployments/archived/` reference the old nodes.
 
 ---
 
 ## Node Configuration Status
 
-### PCI Configuration Scripts
+### PCI and Firmware Configuration
 
-Two scripts apply PCI optimizations: `pci_mrr.sh` (MaxReadReq) and `pci_ats.sh` (ATS enable).
+**Status: UNKNOWN — needs re-verification on current nodes.**
 
-**Status as of 2026-04-01:**
-- ✅ **Applied on -nairr nodes:** MaxReadReq=4096, ATS=0x8000
-- ❌ **NOT applied on yunshi nodes:** MaxReadReq=512, ATS=0x0000
+The previous cluster nodes (rack 4) had PCI optimizations applied (MaxReadReq=4096, ATS enabled) and firmware differences documented. The current nodes (rack 2, `u17/u18/u25-nairr` and `u15/u16-yunshi`) have not been verified for these settings.
+
+To verify, use `claude_guidance/mlxconfig-pod-setup.md` and `claude_guidance/check-iommu-status.md`.
 
 ### IOMMU Configuration
 
-**All nodes** (both -nairr and yunshi):
-- IOMMU is **disabled at BIOS level**
-- No IVRS ACPI table present
-- Empty `/sys/kernel/iommu_groups/`
-- Using SWIOTLB (software bounce buffer)
-
-**To verify IOMMU status:** Use `claude_guidance/check-iommu-status.md` procedures, not just dmesg.
-
-### Firmware Differences (ConnectX-7)
-
-| Parameter | yunshi | -nairr | Impact |
-|-----------|--------|--------|--------|
-| RDMA_SELECTIVE_REPEAT_EN | False(0) | True(1) | RDMA reliability |
-| PCI_WR_ORDERING | force_relax(1) | per_mkey(0) | PCI write ordering |
-| All other parameters | Identical | Identical | - |
+Historically disabled at BIOS level on all nodes. Current status unverified on new nodes.
 
 ---
 
@@ -166,25 +150,16 @@ NCCL_ALGO=Ring
 
 ## Performance Benchmarks
 
-### 8-Node Gold Standard Results
+### Historical 8-Node Results (old cluster)
 
-**Without rate limiting:**
-- 8GB messages: ~194 GB/s
-- Baseline performance for comparison
+**Without rate limiting:** ~194 GB/s (8GB messages)
+**With 100 Gbps rate limiting:** 49.0 GB/s (99% of theoretical 50 GB/s max)
 
-**With 100 Gbps rate limiting:**
-- 8GB messages: 49.0 GB/s
-- 99% efficiency of theoretical 50 GB/s maximum
+These results were from the previous 8-node configuration. The current cluster has 5 GPU nodes.
 
-**Benchmark command:**
-```bash
-# Run on pod-0, then on pods 1-7 separately with different --node_rank
-torchrun --nnodes=8 --nproc_per_node=4 --node_rank=0 \
-  --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
-  --master_port=29501 /benchmark/allreduce-loop.py -r 3
-```
+### Current 5-Node Benchmark
 
-**See:** `claude_guidance/nccl-configuration-h100-cluster.md` for proper execution procedure.
+**See:** `deployments/prism/` for the current benchmark setup and `deployments/prism/run-5node-nccl-test.sh` for automated execution.
 
 ---
 
@@ -243,12 +218,12 @@ kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
 ### Checking Firmware Parameters
 
 ```bash
-# Deploy MFT pod
-sed 's/mfttool-node/mfttool-u09/g; s/REPLACE_WITH_NODE_NAME/moc-r4pcc04u09-nairr/g' \
+# Deploy MFT pod (replace node name as needed)
+sed 's/mfttool-node/mfttool-u17/g; s/REPLACE_WITH_NODE_NAME/moc-r4pcc02u17-nairr/g' \
   k8s/machineconfigs/mft-tools-template.yaml | kubectl apply -f -
 
 # Query firmware
-kubectl exec -n nccl-test mfttool-u09 -- mlxconfig -d 03:00.0 q
+kubectl exec -n nccl-test mfttool-u17 -- mlxconfig -d 03:00.0 q
 ```
 
 **See:** `claude_guidance/mlxconfig-pod-setup.md` for complete procedure.
@@ -260,19 +235,19 @@ Automated script for flexible RDMA testing between two nodes:
 ```bash
 # Basic RDMA test (host memory)
 ./scripts/run-rdma-perftest.sh \
-  --server-node moc-r4pcc04u09-nairr \
-  --client-node moc-r4pcc04u11-nairr
+  --server-node moc-r4pcc02u17-nairr \
+  --client-node moc-r4pcc02u18-nairr
 
 # GPUDirect test with specific GPU and NIC
 ./scripts/run-rdma-perftest.sh \
-  --server-node moc-r4pcc04u09-nairr \
-  --client-node moc-r4pcc04u11-nairr \
+  --server-node moc-r4pcc02u17-nairr \
+  --client-node moc-r4pcc02u18-nairr \
   --gpudirect --gpu-id 0 --nic-id 0
 
 # Multiple parallel streams
 ./scripts/run-rdma-perftest.sh \
-  --server-node moc-r4pcc04u09-nairr \
-  --client-node moc-r4pcc04u11-nairr \
+  --server-node moc-r4pcc02u17-nairr \
+  --client-node moc-r4pcc02u18-nairr \
   --gpudirect --gpu-id 1 --nic-id 1 --num-qps 4
 ```
 

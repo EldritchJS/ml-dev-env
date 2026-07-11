@@ -9,13 +9,13 @@ cluster:
 
 # Node configuration
 nodes:
-  # Specific GPU nodes to use (leave empty for auto-selection)
+  # GPU nodes on Barcelona (as of 2026-07-11)
   gpu_nodes:
-    - moc-r4pcc04u25-nairr
-    - moc-r4pcc04u23-nairr
-  # Optional: Add more nodes as needed
-  # - moc-r4pcc04u17
-  # - moc-r4pcc04u18
+    - moc-r4pcc02u17-nairr
+    - moc-r4pcc02u18-nairr
+    - moc-r4pcc02u25-nairr
+    - moc-r4pcc02u15-yunshi
+    - moc-r4pcc02u16-yunshi
 
 # Storage configuration
 storage:
@@ -45,7 +45,7 @@ network:
     # GPUDirect RDMA level
     gdr_level: "5"
     # NCCL tuning
-    cross_nic: "1"
+    cross_nic: "0"
     ib_timeout: "22"
     min_nchannels: "4"
   # TCP/Ethernet fallback settings
