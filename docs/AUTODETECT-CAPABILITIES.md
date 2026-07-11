@@ -411,7 +411,7 @@ This means:
 - If user sets the variable → **use user's value**
 - If not set → **use auto-detected value**
 
-See **AUTODETECT-OVERRIDES.md** for detailed examples and common scenarios.
+See **AUTODETECT-OVERRIDES.md** (in this directory) for detailed examples and common scenarios.
 
 ## Summary
 

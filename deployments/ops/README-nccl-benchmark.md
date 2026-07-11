@@ -700,7 +700,7 @@ If you see significantly lower performance, review the Troubleshooting section.
 
 For issues specific to this cluster:
 1. Check `claude_guidance/` directory for operational guides
-2. Review `deployments/h-kim/` for investigation docs
+2. Review `deployments/archived/h-kim/` for investigation docs
 3. Check git history for related changes
 
 For NCCL-specific issues:

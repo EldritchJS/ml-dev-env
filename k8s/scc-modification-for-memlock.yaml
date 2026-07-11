@@ -4,7 +4,7 @@
 # Requires cluster-admin privileges to apply.
 #
 # Usage:
-#   1. Cluster admin: oc apply -f scc-modification-for-memlock.yaml
+#   1. Cluster admin: oc apply -f k8s/scc-modification-for-memlock.yaml
 #   2. Grant to service account: oc adm policy add-scc-to-user nccl-rdma-scc -z h-kim-sa -n <namespace>
 #   3. Pods can now use SYS_RESOURCE capability and set ulimit -l unlimited directly
 

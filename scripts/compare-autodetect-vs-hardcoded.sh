@@ -19,7 +19,7 @@ if ! oc get pod "$POD_NAME" -n "$NAMESPACE" &>/dev/null; then
     echo "ERROR: Pod $POD_NAME not found in namespace $NAMESPACE"
     echo ""
     echo "Deploy the test first:"
-    echo "  oc apply -f test-h-kim-autodetect.yaml"
+    echo "  oc apply -f deployments/archived/h-kim/test-h-kim-autodetect.yaml"
     echo ""
     exit 1
 fi

@@ -206,18 +206,18 @@ ibv_devinfo -l
 
 **Quick references:**
 - This file - Quick start
-- [GPU-NIC-AFFINITY-GUIDE.md](docs/GPU-NIC-AFFINITY-GUIDE.md) - Complete guide
-- [NCCL-AFFINITY-EXPLAINED.md](docs/NCCL-AFFINITY-EXPLAINED.md) - How NCCL uses affinity config
-- [AFFINITY-COMPARISON-EXAMPLE.md](AFFINITY-COMPARISON-EXAMPLE.md) - Auto vs explicit comparison
-- [MULTI-NODE-GUIDE.md](docs/MULTI-NODE-GUIDE.md) - Multi-node training
+- [GPU-NIC-AFFINITY-GUIDE.md](GPU-NIC-AFFINITY-GUIDE.md) - Complete guide
+- [NCCL-AFFINITY-EXPLAINED.md](NCCL-AFFINITY-EXPLAINED.md) - How NCCL uses affinity config
+- [AFFINITY-COMPARISON-EXAMPLE.md](investigations/AFFINITY-COMPARISON-EXAMPLE.md) - Auto vs explicit comparison
+- [MULTI-NODE-GUIDE.md](MULTI-NODE-GUIDE.md) - Multi-node training
 
 **Launcher scripts:**
-- [scripts/launch-with-auto-affinity.sh](scripts/launch-with-auto-affinity.sh) - Auto-detection (recommended)
-- [scripts/launch-with-explicit-affinity.sh](scripts/launch-with-explicit-affinity.sh) - Explicit per-rank
+- [scripts/launch-with-auto-affinity.sh](../scripts/launch-with-auto-affinity.sh) - Auto-detection (recommended)
+- [scripts/launch-with-explicit-affinity.sh](../scripts/launch-with-explicit-affinity.sh) - Explicit per-rank
 
 **Related:**
-- [SCC-MEMLOCK-COMPLETE.md](SCC-MEMLOCK-COMPLETE.md) - Memory locking for RDMA
-- [RDMA-AUTODETECT-IMPLEMENTATION.md](RDMA-AUTODETECT-IMPLEMENTATION.md) - Basic RDMA detection
+- [SCC-MEMLOCK-COMPLETE.md](investigations/SCC-MEMLOCK-COMPLETE.md) - Memory locking for RDMA
+- [RDMA-AUTODETECT-IMPLEMENTATION.md](investigations/RDMA-AUTODETECT-IMPLEMENTATION.md) - Basic RDMA detection
 
 ## Examples
 

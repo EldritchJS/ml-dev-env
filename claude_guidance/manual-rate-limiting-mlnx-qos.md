@@ -12,7 +12,7 @@
 Apply 100 Gbps rate limit to all NICs on all H100 nodes:
 
 ```bash
-kubectl apply -f deployments/h-kim/apply-100g-with-ofed-image.yaml
+kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
 ```
 
 Verify rate limits are applied:
@@ -92,7 +92,7 @@ We use a **standalone pod with mlnx_qos tool** instead of MachineConfig because:
 
 ### Step 1: Review the DaemonSet Manifest
 
-File: `deployments/h-kim/apply-100g-with-ofed-image.yaml`
+File: `deployments/ops/apply-100g-with-ofed-image.yaml`
 
 ```yaml
 apiVersion: apps/v1
@@ -171,7 +171,7 @@ spec:
 ### Step 2: Apply the DaemonSet
 
 ```bash
-kubectl apply -f deployments/h-kim/apply-100g-with-ofed-image.yaml
+kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
 ```
 
 Expected output:
@@ -301,7 +301,7 @@ To apply a different rate (e.g., 50 Gbps):
 2. Reapply:
    ```bash
    kubectl delete daemonset apply-100g-rate-limit -n default
-   kubectl apply -f deployments/h-kim/apply-100g-with-ofed-image.yaml
+   kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
    ```
 
 ### Different NICs
@@ -470,9 +470,9 @@ Based on testing with 8 H100 nodes (32 GPUs):
 
 ## Related Documentation
 
-- `deployments/h-kim/RATE-LIMIT-APPLIED.md` - Deployment summary
-- `deployments/h-kim/RATE-LIMIT-VERIFICATION.md` - Benchmark results
-- `deployments/h-kim/apply-100g-with-ofed-image.yaml` - DaemonSet manifest
+- `deployments/archived/h-kim/RATE-LIMIT-APPLIED.md` - Deployment summary
+- `deployments/archived/h-kim/RATE-LIMIT-VERIFICATION.md` - Benchmark results
+- `deployments/ops/apply-100g-with-ofed-image.yaml` - DaemonSet manifest
 - `claude_guidance/nccl-configuration-h100-cluster.md` - NCCL settings
 
 ---
@@ -537,6 +537,6 @@ If you encounter problems:
 2. Verify NIC firmware supports DCB: `mlnx_qos -i eno5np0 --help`
 3. Check switch DCB configuration (may need assistance from network team)
 4. Review this guide's troubleshooting section
-5. Compare against working deployment in `deployments/h-kim/`
+5. Compare against working deployment in `deployments/archived/h-kim/`
 
 For questions about NCCL performance with rate limiting, see `RATE-LIMIT-VERIFICATION.md`.

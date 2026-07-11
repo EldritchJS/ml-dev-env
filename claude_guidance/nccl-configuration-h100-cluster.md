@@ -431,11 +431,11 @@ Training iteration time:
 ## Files Reference
 
 **Gold Standard Manifest:**
-- `/deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
+- `/deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
 
 **Test Configurations:**
-- `/deployments/h-kim/nccl-benchmark-2node-dmabuf.yaml` (2-node validation)
-- `/deployments/h-kim/nccl-benchmark-8node-dmabuf.yaml` (8-node final test)
+- `/deployments/archived/h-kim/nccl-benchmark-2node-dmabuf.yaml` (2-node validation)
+- `/deployments/archived/h-kim/nccl-benchmark-8node-dmabuf.yaml` (8-node final test)
 
 **Analysis Documents:**
 - `/tmp/nccl-configuration-analysis.md` (detailed root cause analysis)
@@ -454,6 +454,6 @@ Training iteration time:
 6. Configuration errors can cause 5x performance degradation
 
 **When in doubt, refer to:**
-`/deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
+`/deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
 
 This configuration is validated and battle-tested. Do not deviate from it without good reason and thorough testing.

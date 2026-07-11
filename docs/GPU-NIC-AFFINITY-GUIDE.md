@@ -479,5 +479,5 @@ With proper affinity configuration:
 ## Related Documentation
 
 - [MULTI-NODE-GUIDE.md](MULTI-NODE-GUIDE.md) - Multi-node training setup
-- [RDMA-AUTODETECT-IMPLEMENTATION.md](../RDMA-AUTODETECT-IMPLEMENTATION.md) - Basic RDMA detection
-- [SCC-MEMLOCK-COMPLETE.md](../SCC-MEMLOCK-COMPLETE.md) - Memory locking for RDMA
+- [RDMA-AUTODETECT-IMPLEMENTATION.md](investigations/RDMA-AUTODETECT-IMPLEMENTATION.md) - Basic RDMA detection
+- [SCC-MEMLOCK-COMPLETE.md](investigations/SCC-MEMLOCK-COMPLETE.md) - Memory locking for RDMA

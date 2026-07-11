@@ -8,27 +8,27 @@ All deployment manifests and templates now use SecurityContextConstraints-based 
 
 ### Deployments (RDMA-enabled)
 
-1. **deployments/h-kim/generated/statefulset-h-kim.yaml** ✓
+1. **deployments/archived/h-kim/generated/statefulset-h-kim.yaml** ✓
    - Added serviceAccountName: h-kim-sa
    - Added SYS_RESOURCE capability
    - Added ulimit -l unlimited
 
-2. **deployments/h-kim/generated/job-h-kim-torchtitan.yaml** ✓
+2. **deployments/archived/h-kim/generated/job-h-kim-torchtitan.yaml** ✓
    - Added serviceAccountName: h-kim-sa
    - Added SYS_RESOURCE capability
    - Added ulimit -l unlimited
 
-3. **deployments/yunshi/generated/statefulset-yunshi.yaml** ✓
+3. **deployments/archived/yunshi/generated/statefulset-yunshi.yaml** ✓
    - Already has serviceAccountName: h-kim-sa
    - Added SYS_RESOURCE capability
    - Added ulimit -l unlimited
 
-4. **deployments/yunshi/generated/large_zero_shot_rdma.yaml** ✓
+4. **deployments/archived/yunshi/generated/large_zero_shot_rdma.yaml** ✓
    - Already has serviceAccountName: h-kim-sa
    - Added SYS_RESOURCE capability
    - Added ulimit -l unlimited
 
-5. **deployments/deepti/generated/pod-deepti-barcelona.yaml** ✓
+5. **deployments/archived/deepti/generated/pod-deepti-barcelona.yaml** ✓
    - Already has serviceAccountName: ml-dev-sa
    - Added SYS_RESOURCE capability
    - Added ulimit -l unlimited
@@ -53,7 +53,7 @@ All deployment manifests and templates now use SecurityContextConstraints-based 
 
 ### Scripts
 
-9. **deployments/h-kim/scripts/lm-train.sh** ✓
+9. **deployments/archived/h-kim/scripts/lm-train.sh** ✓
    - Removed prlimit wrapper
    - Simplified to: ulimit -l unlimited && exec torchrun ...
 
@@ -189,7 +189,7 @@ Optional: Consider adding SYS_RESOURCE to the NERC pods and TCP-only pods for co
 
 ## Documentation
 
-- **scc-modification-for-memlock.yaml** - Ready-to-use SCC template
+- **k8s/scc-modification-for-memlock.yaml** - Ready-to-use SCC template
 - **MEMLOCK-POD-LEVEL-OPTIONS.md** - Complete analysis of approaches
 - **SCC-MEMLOCK-COMPLETE.md** - This file
 

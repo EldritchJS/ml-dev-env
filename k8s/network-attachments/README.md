@@ -125,5 +125,5 @@ kubectl patch network-attachment-definition eno8np0-network -n <namespace> --typ
 
 ## Related Documentation
 
-- [GOLD-STANDARD-NCCL-BENCHMARK.yaml](../../deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml) - NCCL benchmark configuration
+- [GOLD-STANDARD-NCCL-BENCHMARK.yaml](../../deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml) - NCCL benchmark configuration
 - [MOC Barcelona Cluster Documentation](../../README.md) - Overall cluster setup

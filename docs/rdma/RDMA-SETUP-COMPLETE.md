@@ -153,10 +153,10 @@ Common checks:
 
 ## Related Documentation
 
-- `/docs/H-KIM-RDMA-SETUP.md` - Original RDMA setup guide
+- `/deployments/archived/h-kim/docs/H-KIM-RDMA-SETUP.md` - Original RDMA setup guide
 - `/docs/MULTI-NODE-GUIDE.md` - Multi-node training guide
-- `/IB-AUTODETECT-FINAL-SUMMARY.md` - Auto-detection implementation summary (root dir)
-- `/RDMA-DEBUG-SUMMARY.md` - RDMA debugging findings (root dir)
+- `/docs/investigations/IB-AUTODETECT-FINAL-SUMMARY.md` - Auto-detection implementation summary
+- `/docs/investigations/RDMA-DEBUG-SUMMARY.md` - RDMA debugging findings
 
 ## History
 

@@ -146,8 +146,8 @@ env:
 ## Related Work
 
 See also:
-- **PyTorch benchmarks**: `../../deployments/h-kim/pytorch-benchmark-optimized.yaml`
-- **Benchmark results**: `../../deployments/h-kim/benchmark-results-u25-u36-post-firmware-fix.txt`
+- **PyTorch benchmarks**: `../../deployments/archived/h-kim/pytorch-benchmark-optimized.yaml`
+- **Benchmark results**: `../../deployments/archived/h-kim/benchmark-results-u25-u36-post-firmware-fix.txt`
 
 ## References
 

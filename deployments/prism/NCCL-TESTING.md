@@ -218,6 +218,6 @@ oc delete -f nccl-test-5node.yaml -n nccl-test
 
 ## References
 
-- Gold standard config: `deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
+- Gold standard config: `deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
 - Barcelona mlx5 mapping: `claude_guidance/barcelona-mlx5-mapping.md`
 - NCCL configuration guide: `claude_guidance/nccl-configuration-h100-cluster.md`

@@ -69,6 +69,6 @@ These documents are maintained alongside cluster configuration changes. When upd
 
 ## Related Directories
 
-- `deployments/h-kim/` - Actual deployment manifests and results
+- `deployments/archived/h-kim/` - Historical deployment manifests and results
 - `k8s/machineconfigs/` - OpenShift MachineConfig resources
 - `k8s/` - Kubernetes resource definitions

@@ -8,21 +8,21 @@ Implemented automatic RDMA interface detection across all RDMA-enabled Kubernete
 
 ### Files Updated
 
-1. **deployments/h-kim/generated/statefulset-h-kim.yaml**
+1. **deployments/archived/h-kim/generated/statefulset-h-kim.yaml**
    - Added `detect-rdma` init container
    - Removed hardcoded `NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"`
    - Removed hardcoded `NCCL_SOCKET_IFNAME="net1,net2,net3,net4"`
    - Added `/shared/nccl-env.sh` sourcing in startup command
    - Added `nccl-env` emptyDir volume
 
-2. **deployments/yunshi/generated/statefulset-yunshi.yaml**
+2. **deployments/archived/yunshi/generated/statefulset-yunshi.yaml**
    - Added `detect-rdma` init container
    - Removed hardcoded `NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"`
    - Changed NCCL_SOCKET_IFNAME from hardcoded `"eth0"` to auto-detected
    - Added `/shared/nccl-env.sh` sourcing in startup command
    - Added `nccl-env` emptyDir volume
 
-3. **deployments/deepti/generated/pod-deepti-barcelona.yaml**
+3. **deployments/archived/deepti/generated/pod-deepti-barcelona.yaml**
    - Added `detect-rdma` init container
    - Removed hardcoded `NCCL_IB_HCA="mlx5_6,mlx5_7,mlx5_10,mlx5_11"`
    - Removed hardcoded `NCCL_SOCKET_IFNAME="net1,net2,net3,net4"`
@@ -214,13 +214,13 @@ To test the auto-detection:
 
 ```bash
 # H-Kim
-oc apply -f deployments/h-kim/generated/statefulset-h-kim.yaml
+oc apply -f deployments/archived/h-kim/generated/statefulset-h-kim.yaml
 
 # Yunshi
-oc apply -f deployments/yunshi/generated/statefulset-yunshi.yaml
+oc apply -f deployments/archived/yunshi/generated/statefulset-yunshi.yaml
 
 # Deepti
-oc apply -f deployments/deepti/generated/pod-deepti-barcelona.yaml
+oc apply -f deployments/archived/deepti/generated/pod-deepti-barcelona.yaml
 ```
 
 ### 2. Check Detection Logs
@@ -292,7 +292,7 @@ The init container will still run, but manually-set environment variables will t
 
 - [IB_AUTO_DETECTION.md](IB_AUTO_DETECTION.md) - Original auto-detection design
 - [QUICKSTART-IB-AUTODETECT.md](QUICKSTART-IB-AUTODETECT.md) - Quick start guide
-- [deployments/h-kim/docs/DEPLOY-H-KIM-IB-AUTODETECT.md](deployments/h-kim/docs/DEPLOY-H-KIM-IB-AUTODETECT.md) - H-Kim specific docs
+- [deployments/archived/h-kim/docs/DEPLOY-H-KIM-IB-AUTODETECT.md](deployments/archived/h-kim/docs/DEPLOY-H-KIM-IB-AUTODETECT.md) - H-Kim specific docs
 - [scripts/add-ib-autodetect.py](scripts/add-ib-autodetect.py) - Tool to add auto-detection to any manifest
 - [scripts/nccl-wrapper.sh](scripts/nccl-wrapper.sh) - Alternative wrapper-based approach
 

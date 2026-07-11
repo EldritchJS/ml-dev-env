@@ -12,7 +12,7 @@ This repository manages the NAIRR H100 GPU cluster running on OpenShift, includi
 - RDMA/GPUDirect testing
 - Container image builds for ML workloads
 
-**Primary Working Directory:** `/Users/jschless/nairr/deepti/ml-dev-env`
+**Primary Working Directory:** `/Users/eldritchjs/github/ml-dev-env`
 
 ---
 
@@ -160,7 +160,7 @@ NCCL_PROTO=Simple
 NCCL_ALGO=Ring
 ```
 
-**Full configuration:** See `deployments/h-kim/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
+**Full configuration:** See `deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
 
 ---
 
@@ -192,23 +192,24 @@ torchrun --nnodes=8 --nproc_per_node=4 --node_rank=0 \
 
 ```
 ├── claude_guidance/              # Operational guides (READ THESE FIRST)
-│   ├── README.md
-│   ├── check-iommu-status.md
-│   ├── manual-rate-limiting-mlnx-qos.md
-│   ├── mlxconfig-pod-setup.md
-│   ├── nccl-configuration-h100-cluster.md
-│   └── rdma-perftest-gpudirect.md
+├── clusters/                     # Cluster configuration files (barcelona, nerc-production)
 ├── deployments/
-│   ├── admin/                    # Admin tools and container images
-│   └── h-kim/                    # Deployment manifests and investigation docs
+│   ├── archived/                 # Completed deployments (h-kim, yunshi, deepti)
+│   ├── ops/                      # Operational benchmark templates and tools
+│   └── prism/                    # Active prism deployment
+├── docs/                         # Documentation
+│   ├── investigations/           # Historical investigation summaries
+│   └── rdma/                     # RDMA setup documentation
+├── examples/                     # Example code and configs
 ├── k8s/                          # Kubernetes resources
 │   ├── gold-standard-kustomize/  # Kustomize-based benchmark deployments
+│   ├── network-attachments/      # Network attachment definitions
 │   ├── rdma-perftest/            # RDMA perftest pod templates and docs
 │   └── machineconfigs/           # OpenShift MachineConfig resources
-├── scripts/                      # Automation scripts
-│   └── run-rdma-perftest.sh      # Automated RDMA testing script
-├── pci_ats.sh                    # PCI ATS enable script
-└── pci_mrr.sh                    # PCI MaxReadReq optimization script
+├── scripts/                      # Automation and utility scripts
+│   └── mellanox-firmware/        # Mellanox firmware check/apply scripts
+├── templates/                    # Deployment wizard templates
+└── workspace/                    # Development workspace (syncs to pod)
 ```
 
 ---
@@ -234,7 +235,7 @@ kubectl apply -k k8s/gold-standard-kustomize/overlays/barcelona/8node/
 ### Applying Rate Limits
 
 ```bash
-kubectl apply -f deployments/h-kim/apply-100g-with-ofed-image.yaml
+kubectl apply -f deployments/ops/apply-100g-with-ofed-image.yaml
 ```
 
 **See:** `claude_guidance/manual-rate-limiting-mlnx-qos.md` for details.
@@ -300,7 +301,7 @@ Automated script for flexible RDMA testing between two nodes:
 1. **Check recent changes** - Review git log and deployment history
 2. **Compare against working baseline** - Use gold standard results as reference
 3. **Check one variable at a time** - Don't change multiple settings simultaneously
-4. **Document findings** - Create investigation docs in `deployments/h-kim/`
+4. **Document findings** - Create investigation docs in relevant deployment directory
 
 ---
 
@@ -384,7 +385,7 @@ kubectl exec -it -n nccl-test nccl-benchmark-0 -- bash
 **DO commit:**
 - New guides in `claude_guidance/`
 - Validated configurations in `k8s/`
-- Investigation summaries in `deployments/h-kim/` (after cleanup)
+- Investigation summaries in relevant deployment directory
 - Script improvements
 
 **Commit message format:**
@@ -405,9 +406,9 @@ Examples:
 
 1. Check `claude_guidance/README.md` for guide overview
 2. Review relevant guide for the operation you're attempting
-3. Check `deployments/h-kim/` for similar past work
+3. Check `deployments/archived/h-kim/` for similar past work
 4. Search git history for related changes
 
 ---
 
-**Last Updated:** April 1, 2026
+**Last Updated:** July 11, 2026

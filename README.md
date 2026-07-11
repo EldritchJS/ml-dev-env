@@ -36,7 +36,7 @@ Development and testing on one node with 4x H100 GPUs.
   - VSCode, Jupyter, DeepSpeed, Flash Attention, LLaMAFactory
 - **h-kim (PyTorch 26.01)** (minimal training) - `h-kim`
   - TorchTitan, minimal packages, ~9GB vs 12GB
-  - See [H-KIM-QUICKSTART.md](H-KIM-QUICKSTART.md)
+  - See [H-KIM-QUICKSTART.md](deployments/archived/h-kim/QUICKSTART.md)
 - **PyTorch 2.8 + NumPy 1.x** (legacy) - `pytorch-2.8-numpy1`
 
 ### Development Tools
@@ -198,7 +198,7 @@ That's it! See [MULTI-NODE-QUICKSTART.md](docs/MULTI-NODE-QUICKSTART.md) for det
   - Automatic topology detection
   - NUMA-aware RDMA configuration
   - 10-25% performance improvement
-  - See also: [GPU-NIC-AFFINITY-QUICKSTART.md](GPU-NIC-AFFINITY-QUICKSTART.md)
+  - See also: [GPU-NIC-AFFINITY-QUICKSTART.md](docs/GPU-NIC-AFFINITY-QUICKSTART.md)
 
 ### Development Workflows
 
@@ -513,59 +513,50 @@ ml-dev-env/
 │   ├── nerc-production.yaml   # NERC Production cluster config
 │   └── template.yaml          # Template for new clusters
 │
+├── claude_guidance/           # Operational guides for cluster management
+│
+├── deployments/               # Deployment configurations
+│   ├── archived/              # Completed deployments (h-kim, yunshi, deepti)
+│   ├── ops/                   # Operational benchmark templates and tools
+│   └── prism/                 # Active prism deployment
+│
 ├── k8s/                       # Kubernetes/OpenShift manifests
+│   ├── gold-standard-kustomize/  # Kustomize-based benchmark deployments
+│   ├── network-attachments/   # Network attachment definitions
+│   ├── rdma-perftest/         # RDMA perftest pod templates
+│   ├── machineconfigs/        # OpenShift MachineConfig resources
 │   ├── buildconfig.yaml       # Container image build
-│   ├── imagestream.yaml       # Image registry
 │   ├── pod-multi-gpu.yaml     # Single-node pod (4 GPUs)
-│   ├── pvcs.yaml              # Persistent storage
-│   ├── service.yaml           # Services and routes
 │   ├── statefulset-multi-node-rdma.yaml  # Multi-node RDMA
 │   └── statefulset-multi-node-tcp.yaml   # Multi-node TCP
 │
 ├── scripts/                   # Automation scripts
-│   ├── deployment-wizard.py   # Interactive deployment wizard
-│   ├── discover-cluster.py    # Auto-discover cluster config
-│   ├── deploy-cluster.py      # Cluster-based deployment
-│   ├── deploy-multi-node-rdma.sh
-│   ├── deploy-multi-node-tcp.sh
-│   ├── dev-session.sh         # Development automation
-│   ├── sync-code.sh
-│   ├── sync-multi-node.sh
-│   └── debug-remote.sh
+│   ├── mellanox-firmware/     # Mellanox firmware check/apply scripts
+│   ├── deployment_wizard.py   # Interactive deployment wizard
+│   ├── discover_cluster.py    # Auto-discover cluster config
+│   ├── deploy_cluster.py      # Cluster-based deployment
+│   ├── run-rdma-perftest.sh   # Automated RDMA testing
+│   └── ...                    # Deploy, sync, and dev scripts
 │
 ├── docs/                      # Documentation
-│   ├── DEPLOYMENT-WIZARD-GUIDE.md
-│   ├── CLUSTER-DISCOVERY-GUIDE.md
-│   ├── CLUSTER-CONFIG-GUIDE.md
-│   ├── MULTI-NODE-QUICKSTART.md
-│   ├── MULTI-NODE-GUIDE.md
-│   ├── MULTI-NODE-TCP-GUIDE.md
-│   ├── QUICKSTART.md
-│   ├── BUILD-ON-CLUSTER.md
-│   ├── QUICK-DEV-GUIDE.md
-│   ├── AUTOMATION-GUIDE.md
-│   ├── CONFIGURATION-GUIDE.md
-│   ├── VSCODE-SETUP.md
-│   ├── VSCODE-DEBUG-GUIDE.md
-│   ├── VSCODE-DEBUG-TROUBLESHOOTING.md
-│   └── REMOTE-DEBUG-WALKTHROUGH.md
+│   ├── investigations/        # Historical investigation summaries
+│   ├── rdma/                  # RDMA setup documentation
+│   └── ...                    # Guides for deployment, debugging, etc.
 │
 ├── examples/                  # Example code and configs
 │   ├── test_multi_gpu.py
 │   ├── test_deepspeed.py
 │   ├── test_flash_attn.py
-│   └── vscode/               # VSCode configs for pod
-│       ├── launch.json
-│       └── settings.json
+│   ├── inference/             # Inference deployment examples
+│   ├── research/              # Research workflow examples
+│   └── vscode/                # VSCode configs for pod
 │
-├── workspace/                 # Development workspace (syncs to pod)
-│   ├── ds_config.json         # DeepSpeed configuration
-│   ├── launch_deepspeed.sh    # Launch script
-│   ├── test_debug.py
-│   └── train_multi_node.py
+├── templates/                 # Deployment wizard templates
 │
-└── .vscode/                   # Local VSCode configuration
-    └── launch.json            # Debug configurations
+└── workspace/                 # Development workspace (syncs to pod)
+    ├── ds_config.json         # DeepSpeed configuration
+    ├── launch_deepspeed.sh    # Launch script
+    └── train_multi_node.py
 ```
 
 ## 🧪 Testing

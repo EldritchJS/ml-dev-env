@@ -42,7 +42,7 @@ OMP_NUM_THREADS=$((CPU_COUNT / GPU_COUNT))  # Detected!
 
 ```bash
 # Deploy the test version (separate from h-kim)
-oc apply -f test-h-kim-autodetect.yaml
+oc apply -f deployments/archived/h-kim/test-h-kim-autodetect.yaml
 ```
 
 This creates:

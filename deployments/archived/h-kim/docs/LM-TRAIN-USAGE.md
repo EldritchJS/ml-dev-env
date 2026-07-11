@@ -1,8 +1,8 @@
-# deployments/h-kim/scripts/lm-train.sh Usage Guide
+# deployments/archived/h-kim/scripts/lm-train.sh Usage Guide
 
 ## Overview
 
-`deployments/h-kim/scripts/lm-train.sh` is configured to run TorchTitan distributed training on h-kim pods with full RDMA/InfiniBand support.
+`deployments/archived/h-kim/scripts/lm-train.sh` is configured to run TorchTitan distributed training on h-kim pods with full RDMA/InfiniBand support.
 
 ## Recent Updates (2026-02-25)
 
@@ -48,19 +48,19 @@ NCCL_DEBUG            # Default: INFO
 ```bash
 # On both h-kim pods, the script will run automatically
 # Or execute manually:
-./deployments/h-kim/scripts/lm-train.sh
+./deployments/archived/h-kim/scripts/lm-train.sh
 ```
 
 ### With Custom Configuration
 ```bash
 # Use a different TorchTitan config
-CONFIG_FILE=/path/to/custom/config.toml ./deployments/h-kim/scripts/lm-train.sh
+CONFIG_FILE=/path/to/custom/config.toml ./deployments/archived/h-kim/scripts/lm-train.sh
 
 # Run with different node count
-NNODES=4 NPROC_PER_NODE=4 ./deployments/h-kim/scripts/lm-train.sh
+NNODES=4 NPROC_PER_NODE=4 ./deployments/archived/h-kim/scripts/lm-train.sh
 
 # Debug RDMA issues
-NCCL_DEBUG=TRACE ./deployments/h-kim/scripts/lm-train.sh
+NCCL_DEBUG=TRACE ./deployments/archived/h-kim/scripts/lm-train.sh
 ```
 
 ### Running from h-kim Deployment
@@ -69,11 +69,11 @@ The script is designed to run inside h-kim pods:
 
 ```bash
 # Copy to pod (if not already there)
-oc cp deployments/h-kim/scripts/lm-train.sh <namespace>/h-kim-0:/workspace/
+oc cp deployments/archived/h-kim/scripts/lm-train.sh <namespace>/h-kim-0:/workspace/
 
 # Execute on both pods simultaneously
-oc exec h-kim-0 -n <namespace> -- /workspace/deployments/h-kim/scripts/lm-train.sh &
-oc exec h-kim-1 -n <namespace> -- /workspace/deployments/h-kim/scripts/lm-train.sh &
+oc exec h-kim-0 -n <namespace> -- /workspace/deployments/archived/h-kim/scripts/lm-train.sh &
+oc exec h-kim-1 -n <namespace> -- /workspace/deployments/archived/h-kim/scripts/lm-train.sh &
 ```
 
 ## RDMA Configuration Verification
@@ -133,7 +133,7 @@ The script expects:
 
 ## Integration with h-kim Deployment
 
-The `deployments/h-kim/scripts/lm-train.sh` script is designed to work with the h-kim StatefulSet deployment:
+The `deployments/archived/h-kim/scripts/lm-train.sh` script is designed to work with the h-kim StatefulSet deployment:
 
 1. **Auto-detection:** NCCL_IB_HCA is set by the wrapper script at pod startup
 2. **Networking:** Uses headless service for rendezvous
@@ -176,7 +176,7 @@ TorchTitan Distributed Training - OpenShift
 ## Related Documentation
 
 - **RDMA Setup:** `docs/rdma/RDMA-SETUP-COMPLETE.md`
-- **Auto-detection:** `IB-AUTODETECT-FINAL-SUMMARY.md`
+- **Auto-detection:** `docs/investigations/IB-AUTODETECT-FINAL-SUMMARY.md`
 - **Troubleshooting:** `docs/rdma/IOMMU-PASSTHROUGH-FIX.md`
 - **h-kim Deployment:** `scripts/deploy-h-kim.sh`
 
