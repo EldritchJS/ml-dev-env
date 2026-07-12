@@ -46,6 +46,64 @@ oc exec -it -n <YOUR_PROJECT> <pod-name> -- bash
 nvidia-smi
 ```
 
+## Setting Up a New Deployment
+
+To create your own deployment on this cluster:
+
+### 1. Create your deployment directory
+
+```bash
+mkdir deployments/<your-name>
+```
+
+### 2. Create your config
+
+```bash
+cp deployments/ops/configs/example.conf deployments/ops/configs/<your-name>.conf
+```
+
+Edit your config — at minimum, set these 5 fields:
+
+```bash
+NAMESPACE="your-namespace"
+DEPLOY_NAME="your-benchmark"
+IMAGE="quay.io/jschless/ml-dev-env:prism-pytorch-25.06"
+SERVICE_ACCOUNT="nccl-benchmark"
+NODES="moc-r4pcc02u15-yunshi moc-r4pcc02u16-yunshi"  # your nodes, space-separated
+```
+
+To use a custom Python script instead of the default IBM AllReduce benchmark:
+
+```bash
+BENCHMARK_SCRIPT="/path/to/your-script.py"
+```
+
+See `deployments/ops/configs/example.conf` for all available settings (hardware, NCCL tuning, resources).
+
+### 3. Generate your manifest
+
+```bash
+./deployments/ops/generate-nccl-manifest.sh \
+  -c deployments/ops/configs/<your-name>.conf \
+  -o deployments/<your-name>/manifest.yaml
+```
+
+### 4. Run the benchmark
+
+```bash
+./deployments/ops/run-nccl-job.sh \
+  -c deployments/ops/configs/<your-name>.conf \
+  -m deployments/<your-name>/manifest.yaml
+```
+
+Monitor results: `tail -f deployments/<your-name>/benchmark-pod-0.log`
+
+### 5. Clean up
+
+```bash
+oc delete -f deployments/<your-name>/manifest.yaml -n <your-namespace>
+```
+
 ## NCCL Configuration
 
 Critical environment variables for this cluster:
@@ -86,11 +144,18 @@ ml-dev-env/
 ### NCCL Benchmarking
 
 ```bash
-oc apply -f deployments/prism/nccl-test-5node.yaml -n <YOUR_PROJECT>
-./deployments/prism/run-5node-nccl-test.sh
+# Generate manifest from config
+./deployments/ops/generate-nccl-manifest.sh \
+  -c deployments/ops/configs/<your-config>.conf \
+  -o deployments/<your-name>/manifest.yaml
+
+# Deploy and run
+./deployments/ops/run-nccl-job.sh \
+  -c deployments/ops/configs/<your-config>.conf \
+  -m deployments/<your-name>/manifest.yaml
 ```
 
-See `deployments/prism/README.md` and `claude_guidance/nccl-configuration-h100-cluster.md`.
+See `deployments/ops/configs/example.conf` for all config options and `claude_guidance/nccl-configuration-h100-cluster.md` for NCCL details.
 
 ### RDMA Perftest
 

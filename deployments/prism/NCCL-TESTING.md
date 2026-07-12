@@ -58,19 +58,20 @@ If you've changed the config (image, nodes, namespace, etc.), regenerate the man
   -o deployments/prism/nccl-test-5node.yaml
 ```
 
-### Gold Standard Method - Automated Script
+### Automated Run Script
 
-**Use this method** - it deploys the StatefulSet and auto-starts the benchmark on all 5 pods:
+**Use this method** — it deploys the StatefulSet and auto-starts the benchmark on all pods:
 
 ```bash
-cd deployments/prism
-./run-5node-nccl-test.sh
+./deployments/ops/run-nccl-job.sh \
+  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -m deployments/prism/nccl-test-5node.yaml
 ```
 
 The script will:
-1. Deploy the 5-pod StatefulSet
+1. Deploy the StatefulSet
 2. Wait for all pods to be Running
-3. Automatically start torchrun on all 5 pods in parallel
+3. Automatically start torchrun on all pods in parallel
 4. Save logs to `benchmark-pod-N.log` files
 
 **Monitor results:**
@@ -80,7 +81,10 @@ tail -f deployments/prism/benchmark-pod-0.log
 
 **Custom number of runs:**
 ```bash
-./run-5node-nccl-test.sh 5  # Run 5 iterations instead of default 3
+./deployments/ops/run-nccl-job.sh \
+  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -m deployments/prism/nccl-test-5node.yaml \
+  -r 5
 ```
 
 ---

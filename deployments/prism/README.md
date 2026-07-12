@@ -18,12 +18,14 @@ The benchmark YAML is generated from a config file. The prism config is already 
 ### 2. Run the benchmark
 
 ```bash
-cd deployments/prism
-./run-5node-nccl-test.sh          # Deploys, waits for pods, runs benchmark (3 runs)
-./run-5node-nccl-test.sh 5        # Custom number of runs
+./deployments/ops/run-nccl-job.sh \
+  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -m deployments/prism/nccl-test-5node.yaml
 ```
 
-Results appear in `benchmark-pod-0.log`.
+Deploys the StatefulSet, waits for pods, runs the benchmark (3 runs by default). Results in `deployments/prism/benchmark-pod-0.log`.
+
+For a custom number of runs: add `-r 5`
 
 ### 3. Clean up
 
@@ -48,24 +50,7 @@ Then regenerate:
   -o deployments/prism/nccl-test-5node.yaml
 ```
 
-## How to Create a New Deployment for Your Team
-
-```bash
-# Copy the prism config as a starting point
-cp deployments/ops/configs/barcelona-5node-prism.conf \
-   deployments/ops/configs/my-team.conf
-
-# Edit my-team.conf: set your NAMESPACE, IMAGE, NODES, SERVICE_ACCOUNT
-# See deployments/ops/configs/example.conf for all available settings
-
-# Generate your manifest
-./deployments/ops/generate-nccl-manifest.sh \
-  -c deployments/ops/configs/my-team.conf \
-  -o /tmp/my-benchmark.yaml
-
-# Deploy
-oc apply -f /tmp/my-benchmark.yaml
-```
+**Setting up a new deployment?** See the [root README](../../README.md#setting-up-a-new-deployment) for step-by-step instructions.
 
 ## Container Images
 
@@ -172,8 +157,9 @@ deployments/prism/
     └── requirements.txt            # Python dependencies (for NeMo image)
 
 deployments/ops/
-├── generate-nccl-manifest.sh      # Manifest generator
-├── allreduce-loop.py               # IBM AllReduce benchmark script
+├── generate-nccl-manifest.sh       # Manifest generator
+├── run-nccl-job.sh                 # Config-driven benchmark runner
+├── allreduce-loop.py               # IBM AllReduce benchmark script (default)
 └── configs/
     ├── example.conf                # Reference config (all parameters documented)
     └── barcelona-5node-prism.conf  # Prism deployment config
