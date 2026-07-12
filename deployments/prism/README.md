@@ -151,7 +151,6 @@ deployments/prism/
 ├── IMAGE-REFERENCE.md              # Detailed image documentation
 ├── NCCL-TESTING.md                 # Complete NCCL testing guide
 ├── nccl-test-5node.yaml            # Generated manifest
-├── run-5node-nccl-test.sh          # Legacy run script (use run-nccl-job.sh instead)
 ├── Dockerfile.pytorch-base         # PyTorch-only image build
 ├── Dockerfile.nemo-base            # NeMo full-stack image build
 └── workspace/
