@@ -1,0 +1,36 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-h100-pci-optimization
+  labels:
+    machineconfiguration.openshift.io/role: h100
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+      - path: /usr/local/bin/pci-optimization.sh
+        mode: 0755
+        overwrite: true
+        contents:
+          source: data:text/plain;charset=utf-8;base64,IyEvYmluL2Jhc2gKCiMgRW5hYmxlIEFUUyBvbiBhbGwgUENJIGRldmljZXMgKEdQVXMsIGJyaWRnZXMsIE5JQ3MpCiMgTklDLXNpZGUgQVRTIGlzIGhhbmRsZWQgYnkgbnZjb25maWcgQVRTX0VOQUJMRUQgdmlhIE5JQyBDb25maWd1cmF0aW9uIE9wZXJhdG9yCiMgVGhpcyBjb3ZlcnMgR1BVLXNpZGUgYW5kIG90aGVyIGRldmljZSBBVFMgZm9yIEdQVURpcmVjdCBSRE1BCmZvciBpIGluICQobHNwY2kgfCBhd2sgJ3twcmludCAkMX0nKTsgZG8gc2V0cGNpIC1zICRpIEVDQVBfQVRTKzYudz04MDAwIDI+L2Rldi9udWxsOyBkb25lCgplY2hvICJBVFMgZW5hYmxlZCBvbiBhbGwgUENJIGRldmljZXMiCgo=
+    systemd:
+      units:
+      - name: pci-optimization.service
+        enabled: true
+        contents: |
+          [Unit]
+          Description=Enable PCI ATS for GPUDirect RDMA
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/pci-optimization.sh
+          RemainAfterExit=yes
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
