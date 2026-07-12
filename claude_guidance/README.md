@@ -27,7 +27,8 @@ This directory contains operational guides and best practices for managing the H
   - Creating privileged mlxconfig pods for querying/modifying NIC settings
   - Performance-critical nvconfig parameters and optimal values
   - Node firmware audit status and reboot procedure
-  - NVIDIA NIC Configuration Operator inventory usage
+  - NVIDIA NIC Configuration Operator and Maintenance Operator status
+  - Install manifests: `k8s/maintenance-operator/`
 
 - **[connectx7-phy-rate-mask-bug.md](./connectx7-phy-rate-mask-bug.md)** - ConnectX-7 PHY_RATE_MASK firmware bug
   - Firmware version 28.37.1014 bug where PHY_RATE_MASK_P1 is enforced even when override=False

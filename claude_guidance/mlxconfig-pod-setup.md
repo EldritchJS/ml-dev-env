@@ -74,6 +74,8 @@ done
 | MAX_ACC_OUT_READ | 128 | Maximum outstanding PCI read requests (hidden when ADVANCED_PCI_SETTINGS=False) |
 | PCI_WR_ORDERING | per_mkey(0) | PCI write ordering mode |
 | RDMA_SELECTIVE_REPEAT_EN | True(1) | RDMA selective repeat for reliability |
+| ATS_ENABLED | True(1) | PCI Address Translation Services for GPUDirect RDMA |
+| ROCE_CONTROL | 2 | RoCE mode control |
 
 **Important:** `MAX_ACC_OUT_READ` is invisible when `ADVANCED_PCI_SETTINGS=False`. However, you do **NOT** need to reboot after enabling `ADVANCED_PCI_SETTINGS` — setting it via mlxconfig immediately makes `MAX_ACC_OUT_READ` available to set in the same session. Set both, then reboot once.
 
@@ -114,30 +116,57 @@ oc adm uncordon <FULL_NODE_NAME>
 
 ## Node Firmware Status (as of 2026-07-12)
 
-| Node | ADVANCED_PCI_SETTINGS | MAX_ACC_OUT_READ | PCI_WR_ORDERING | RDMA_SELECTIVE_REPEAT_EN | Status |
-|------|----------------------|------------------|-----------------|--------------------------|--------|
-| u15-yunshi | True(1) | 128 | per_mkey(0) | True(1) | Optimal |
-| u16-yunshi | True(1) | 128 | per_mkey(0) | True(1) | Optimal |
-| u17-nairr | True(1) | 128 | per_mkey(0) | True(1) | Optimal |
-| u18-nairr | True(1) | 128 | per_mkey(0) | True(1) | Optimal |
-| u25-nairr | True(1) | 128 | per_mkey(0) | True(1) | Optimal |
+| Node | ADVANCED_PCI_SETTINGS | MAX_ACC_OUT_READ | PCI_WR_ORDERING | RDMA_SELECTIVE_REPEAT_EN | ATS_ENABLED | ROCE_CONTROL | Status |
+|------|----------------------|------------------|-----------------|--------------------------|-------------|--------------|--------|
+| u15-yunshi | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 | Optimal |
+| u16-yunshi | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 | Optimal |
+| u17-nairr | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 | Optimal |
+| u18-nairr | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 | Optimal |
+| u25-nairr | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 | Optimal |
 
-All 5 nodes verified optimal as of 2026-07-12.
+All 5 nodes verified optimal as of 2026-07-12. Managed by NicConfigurationTemplate `connectx7-performance` (rawNvConfig only, no operator profiles).
 
 ## NVIDIA NIC Configuration Operator
 
-The NIC Configuration Operator (part of NVIDIA Network Operator) is enabled on the cluster for NIC inventory via NicDevice CRs. However, it **cannot apply nvconfig changes** without the Maintenance Operator (`maintenance.nvidia.com`), which is not installed. The daemon pods log errors every 10 seconds looking for the `NodeMaintenance` CRD.
+The NIC Configuration Operator (part of NVIDIA Network Operator) manages nvconfig via NicDevice CRs. The **NVIDIA Maintenance Operator** (`maintenance.nvidia.com`) is installed with `maxUnavailable: 0`, meaning it cannot schedule maintenance (cordon/drain/reboot) on any node. This is intentional — the operator is in read-only mode until `maxUnavailable` is raised.
 
-The operator provides useful read-only inventory:
+**Current state (2026-07-12):**
+- A `NicConfigurationTemplate` (`connectx7-performance`) declares the desired nvconfig for all ConnectX-7 NICs using rawNvConfig only (no operator profiles — profiles caused side effects like CNP_DSCP_P1 drift)
+- All 5 nodes: nvconfig matches desired state after MO rollout
+- Template manages 6 params: ADVANCED_PCI_SETTINGS, RDMA_SELECTIVE_REPEAT_EN, PCI_WR_ORDERING, ROCE_CONTROL, ATS_ENABLED, plus linkType and numVfs
+- MAX_ACC_OUT_READ is not in the template (it is set implicitly when ADVANCED_PCI_SETTINGS=1)
+- **Important:** Do NOT use `pciPerformanceOptimized` or `roceOptimized` profiles — they change params beyond what's declared (e.g., CNP_DSCP_P1 from 48→4) and caused a 10 GB/s regression
+
+**To allow the operator to apply changes (one node at a time):**
 ```bash
-# List all discovered NICs
-oc get nicdevices
-
-# View details for a specific NIC
-oc get nicdevice <name> -o yaml
+oc patch maintenanceoperatorconfig -n nvidia-maintenance-operator default \
+  --type merge -p '{"spec":{"maxUnavailable":1}}'
 ```
 
-Until the Maintenance Operator is installed, use the manual mlxconfig pod procedure above.
+**To freeze maintenance again:**
+```bash
+oc patch maintenanceoperatorconfig -n nvidia-maintenance-operator default \
+  --type merge -p '{"spec":{"maxUnavailable":0}}'
+```
+
+**Operator inventory:**
+```bash
+# List all discovered NICs
+oc get nicdevices -n nvidia-network-operator
+
+# View details for a specific NIC
+oc get nicdevice <name> -n nvidia-network-operator -o yaml
+
+# Check pending maintenance requests
+oc get nodemaintenance -A
+
+# Check operator config
+oc get maintenanceoperatorconfig -n nvidia-maintenance-operator default -o yaml
+```
+
+**Install manifests:** `k8s/maintenance-operator/`
+
+The manual mlxconfig pod procedure above remains available as a fallback.
 
 ## Cleanup
 

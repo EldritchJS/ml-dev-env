@@ -39,14 +39,14 @@ This repository manages the MOC H100 GPU cluster running on OpenShift (Barcelona
 
 **H100 nodes (-nairr suffix):**
 - moc-r4pcc02u17-nairr
-- moc-r4pcc02u18-nairr (h100 role label)
-- moc-r4pcc02u25-nairr (h100 role label)
+- moc-r4pcc02u18-nairr
+- moc-r4pcc02u25-nairr
 
 **H100 nodes (-yunshi suffix):**
 - moc-r4pcc02u15-yunshi
 - moc-r4pcc02u16-yunshi
 
-All GPU nodes: 4x H100 80GB HBM3, ConnectX-7 400G NICs
+All GPU nodes: 4x H100 80GB HBM3, ConnectX-7 400G NICs, `node-role.kubernetes.io/h100` label, member of `h100` MachineConfigPool
 
 ### Other Nodes
 
@@ -61,25 +61,41 @@ All GPU nodes: 4x H100 80GB HBM3, ConnectX-7 400G NICs
 
 ### ConnectX-7 Firmware Settings (nvconfig)
 
-**Status: Audited 2026-07-12. Optimization in progress.**
+**Status: All 5 nodes fully optimized. Validated 2026-07-12.**
 
 Performance-critical nvconfig parameters across all 5 nodes (4 ConnectX-7 NICs each):
 
-| Node | ADVANCED_PCI_SETTINGS | MAX_ACC_OUT_READ | PCI_WR_ORDERING | RDMA_SELECTIVE_REPEAT_EN |
-|------|----------------------|------------------|-----------------|--------------------------|
-| u15-yunshi | True(1) | 128 | per_mkey(0) | True(1) |
-| u16-yunshi | True(1) | 128 | per_mkey(0) | True(1) |
-| u17-nairr | True(1) | 128 | per_mkey(0) | True(1) |
-| u18-nairr | True(1) | 128 | per_mkey(0) | True(1) |
-| u25-nairr | True(1) | 128 | per_mkey(0) | True(1) |
+| Node | ADVANCED_PCI_SETTINGS | MAX_ACC_OUT_READ | PCI_WR_ORDERING | RDMA_SELECTIVE_REPEAT_EN | ATS_ENABLED | ROCE_CONTROL |
+|------|----------------------|------------------|-----------------|--------------------------|-------------|--------------|
+| u15-yunshi | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 |
+| u16-yunshi | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 |
+| u17-nairr | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 |
+| u18-nairr | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 |
+| u25-nairr | True(1) | 128 | per_mkey(0) | True(1) | True(1) | 2 |
 
-All 5 nodes fully optimized as of 2026-07-12.
+All 5 nodes optimized as of 2026-07-12. Managed by NicConfigurationTemplate `connectx7-performance` (rawNvConfig only).
 
 To modify settings, use `claude_guidance/mlxconfig-pod-setup.md`.
 
 ### NVIDIA NIC Configuration Operator
 
-The NIC Configuration Operator and NIC Feature Discovery are enabled on the cluster. The operator provides read-only NIC inventory via `NicDevice` CRs (25 total, 5 per node). However, it **cannot apply nvconfig changes** because the Maintenance Operator (`maintenance.nvidia.com`) is not installed. Manual mlxconfig pods are required for changes.
+The NIC Configuration Operator, NIC Feature Discovery, and **Maintenance Operator** are all enabled on the cluster. The operator provides NIC inventory via `NicDevice` CRs (25 total, 5 per node) and can apply nvconfig changes automatically.
+
+**Maintenance Operator** is installed with `maxUnavailable: 0` — it will not schedule any maintenance until this is raised. A `NicConfigurationTemplate` (`connectx7-performance`) declares the desired nvconfig state for all ConnectX-7 NICs. Install manifests are in `k8s/maintenance-operator/`.
+
+See `claude_guidance/mlxconfig-pod-setup.md` for operator status, commands, and the manual fallback procedure.
+
+**Important:** Do NOT use `pciPerformanceOptimized` or `roceOptimized` profiles in the NicConfigurationTemplate — they change params beyond what's declared (e.g., CNP_DSCP_P1 from 48→4) and caused a ~10 GB/s regression. Use rawNvConfig only.
+
+### h100 MachineConfigPool
+
+All 5 GPU nodes are in the `h100` MachineConfigPool (selected by `node-role.kubernetes.io/h100` label). The pool applies a `99-h100-pci-optimization` MachineConfig that enables PCI ATS on all devices at boot via systemd:
+
+```bash
+for i in $(lspci | awk '{print $1}'); do setpci -s $i ECAP_ATS+6.w=8000 2>/dev/null; done
+```
+
+This covers GPU-side and bridge ATS (NIC-side ATS is handled by nvconfig `ATS_ENABLED`). The MCP `maxUnavailable` is set to 0 to prevent uncontrolled rollouts.
 
 ### IOMMU Configuration
 
@@ -175,22 +191,23 @@ NCCL_ALGO=Ring
 
 ## Performance Benchmarks
 
-### Current 5-Node Results (validated 2026-07-11)
+### Current 5-Node Results (validated 2026-07-12)
 
 **Without rate limiting (8GB messages, IBM AllReduce bus bandwidth):**
 
 | Image | Avg GB/s | Max GB/s | Runs |
 |-------|----------|----------|------|
-| prism-pytorch-25.06 (NCCL 2.27.3) | 194.15 | 194.80 | 3 |
+| prism-pytorch-25.06 (NCCL 2.27.3) | 193.03 | 194.55 | 3 |
 | prism-nemo-25.04 (NCCL 2.23.4) | 194.15 | 194.95 | 3 |
 
 Both images match the gold standard ~194 GB/s. Bus bandwidth is independent of node count for Ring AllReduce.
 
 **Hardware optimizations applied:**
-- All 5 nodes: nvconfig firmware params optimized (ADVANCED_PCI_SETTINGS, MAX_ACC_OUT_READ=128, PCI_WR_ORDERING=per_mkey, RDMA_SELECTIVE_REPEAT_EN)
-- PCI MaxReadReq=4096 and ATS enabled via setpci (does not persist across reboots)
+- All 5 nodes: nvconfig firmware params managed by NicConfigurationTemplate (rawNvConfig only, no operator profiles)
+- ATS_ENABLED=True in nvconfig (persists across reboots)
+- PCI ATS enabled on all devices at boot via `99-h100-pci-optimization` MachineConfig (covers GPUs/bridges, not just NICs)
 
-**See:** `deployments/prism/` for the current benchmark setup and `deployments/prism/run-5node-nccl-test.sh` for automated execution.
+**See:** `deployments/prism/` for the current benchmark setup and `deployments/ops/run-benchmark.sh` for automated execution.
 
 ### Historical 8-Node Results (old cluster)
 
@@ -214,6 +231,7 @@ These results were from the previous 8-node configuration.
 │   └── rdma/                     # RDMA setup documentation
 ├── k8s/                          # Kubernetes resources
 │   ├── gold-standard-kustomize/  # Kustomize-based benchmark deployments
+│   ├── maintenance-operator/     # NVIDIA Maintenance Operator install + config
 │   ├── network-attachments/      # Network attachment definitions
 │   ├── rdma-perftest/            # RDMA perftest pod templates and docs
 │   ├── machineconfigs/           # OpenShift MachineConfig resources
@@ -370,6 +388,7 @@ kubectl exec -it -n nccl-test nccl-benchmark-0 -- bash
 2. `NCCL_IB_HCA` not set correctly
 3. `NCCL_CROSS_NIC=1` (should be 0)
 4. Rate limiting still applied from previous test
+5. NIC Configuration Operator profiles changed nvconfig params (e.g., CNP_DSCP_P1 drift from 48→4 via roceOptimized profile)
 
 **See:** `claude_guidance/nccl-configuration-h100-cluster.md#root-cause-analysis`
 
@@ -423,4 +442,4 @@ Examples:
 
 ---
 
-**Last Updated:** July 11, 2026
+**Last Updated:** July 12, 2026

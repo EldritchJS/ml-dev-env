@@ -1,0 +1,25 @@
+apiVersion: configuration.net.nvidia.com/v1alpha1
+kind: NicConfigurationTemplate
+metadata:
+  name: connectx7-performance
+  namespace: nvidia-network-operator
+spec:
+  nodeSelector:
+    nvidia.com/gpu.product: NVIDIA-H100-80GB-HBM3
+  nicSelector:
+    nicType: "1021"
+  resetToDefault: false
+  template:
+    linkType: Ethernet
+    numVfs: 1
+    rawNvConfig:
+    - name: ADVANCED_PCI_SETTINGS
+      value: "1"
+    - name: RDMA_SELECTIVE_REPEAT_EN
+      value: "1"
+    - name: PCI_WR_ORDERING
+      value: "0"
+    - name: ROCE_CONTROL
+      value: "2"
+    - name: ATS_ENABLED
+      value: "1"
