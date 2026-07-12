@@ -10,7 +10,7 @@ The benchmark YAML is generated from a config file. The prism config is already 
 
 ```bash
 # Generate the manifest
-./deployments/ops/generate-nccl-benchmark.sh \
+./deployments/ops/generate-nccl-manifest.sh \
   -c deployments/ops/configs/barcelona-5node-prism.conf \
   -o deployments/prism/nccl-test-5node.yaml
 ```
@@ -43,7 +43,7 @@ Edit `deployments/ops/configs/barcelona-5node-prism.conf`, then regenerate:
 
 Then regenerate:
 ```bash
-./deployments/ops/generate-nccl-benchmark.sh \
+./deployments/ops/generate-nccl-manifest.sh \
   -c deployments/ops/configs/barcelona-5node-prism.conf \
   -o deployments/prism/nccl-test-5node.yaml
 ```
@@ -59,7 +59,7 @@ cp deployments/ops/configs/barcelona-5node-prism.conf \
 # See deployments/ops/configs/example.conf for all available settings
 
 # Generate your manifest
-./deployments/ops/generate-nccl-benchmark.sh \
+./deployments/ops/generate-nccl-manifest.sh \
   -c deployments/ops/configs/my-team.conf \
   -o /tmp/my-benchmark.yaml
 
@@ -172,7 +172,7 @@ deployments/prism/
     └── requirements.txt            # Python dependencies (for NeMo image)
 
 deployments/ops/
-├── generate-nccl-benchmark.sh      # Manifest generator
+├── generate-nccl-manifest.sh      # Manifest generator
 ├── allreduce-loop.py               # IBM AllReduce benchmark script
 └── configs/
     ├── example.conf                # Reference config (all parameters documented)

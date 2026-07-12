@@ -53,7 +53,7 @@ NCCL_ALGO=Ring
 If you've changed the config (image, nodes, namespace, etc.), regenerate the manifest first:
 
 ```bash
-./deployments/ops/generate-nccl-benchmark.sh \
+./deployments/ops/generate-nccl-manifest.sh \
   -c deployments/ops/configs/barcelona-5node-prism.conf \
   -o deployments/prism/nccl-test-5node.yaml
 ```
@@ -229,7 +229,7 @@ oc delete -f nccl-test-5node.yaml -n nccl-test
 
 ## References
 
-- Benchmark generator: `deployments/ops/generate-nccl-benchmark.sh`
+- Benchmark generator: `deployments/ops/generate-nccl-manifest.sh`
 - Config files: `deployments/ops/configs/`
 - Gold standard reference: `deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
 - NCCL configuration guide: `claude_guidance/nccl-configuration-h100-cluster.md`
