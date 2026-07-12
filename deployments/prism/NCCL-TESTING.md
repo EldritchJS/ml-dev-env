@@ -48,6 +48,16 @@ NCCL_ALGO=Ring
 
 ## Quick Start: Run 5-Node NCCL Test (Recommended)
 
+### Step 0: Generate the Manifest (if needed)
+
+If you've changed the config (image, nodes, namespace, etc.), regenerate the manifest first:
+
+```bash
+./deployments/ops/generate-nccl-benchmark.sh \
+  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -o deployments/prism/nccl-test-5node.yaml
+```
+
 ### Gold Standard Method - Automated Script
 
 **Use this method** - it deploys the StatefulSet and auto-starts the benchmark on all 5 pods:
@@ -219,5 +229,7 @@ oc delete -f nccl-test-5node.yaml -n nccl-test
 
 ## References
 
-- Gold standard config: `deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
+- Benchmark generator: `deployments/ops/generate-nccl-benchmark.sh`
+- Config files: `deployments/ops/configs/`
+- Gold standard reference: `deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
 - NCCL configuration guide: `claude_guidance/nccl-configuration-h100-cluster.md`

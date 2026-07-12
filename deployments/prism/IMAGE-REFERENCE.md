@@ -10,7 +10,7 @@
 
 **Build Status:** ✅ Validated (Build #8, tested 2026-07-10)
 
-**Performance:** 90.19 GB/s (4-node NCCL benchmark with 16 GPUs)
+**Performance:** ~194 GB/s bus bandwidth (5-node NCCL benchmark with 20 GPUs)
 
 #### What This Image HAS:
 
@@ -82,12 +82,12 @@ pip install transformers datasets accelerate tokenizers huggingface_hub \
 
 #### Validation Results:
 
-**Test:** 4-node NCCL AllReduce benchmark (Barcelona cluster)
-- **Date:** 2026-07-10
-- **Configuration:** 4 nodes × 4 GPUs = 16 GPUs total
-- **Message size:** 8GB
-- **Bandwidth:** 90.19 GB/s total (5.64 GB/s per GPU)
-- **NCCL Config:** DMABUF_ENABLE=1, CROSS_NIC=0, IB_HCA=mlx5_6,7,8,9
+**Test:** 5-node NCCL AllReduce benchmark (Barcelona cluster, IBM bus bandwidth)
+- **Date:** 2026-07-11
+- **Configuration:** 5 nodes × 4 GPUs = 20 GPUs total
+- **Message size:** 8GB, 3 runs
+- **Bus bandwidth:** ~194.15 avg, ~194.80 max GB/s
+- **NCCL Config:** Gold standard (DMABUF_ENABLE=1, CROSS_NIC=0, IB_HCA=mlx5_6,7,8,9)
 
 **Build Information:**
 - **Build ID:** prism-image-build-8
@@ -98,7 +98,7 @@ pip install transformers datasets accelerate tokenizers huggingface_hub \
 
 ### 2. prism-nemo-25.04 (Full NeMo Stack)
 
-**Registry:** `quay.io/jschless/ml-dev-env:prism-nemo-25.04` *(push in progress)*
+**Registry:** `quay.io/jschless/ml-dev-env:prism-nemo-25.04`
 
 **OpenShift Registry:** `image-registry.openshift-image-registry.svc:5000/nccl-test/prism@sha256:314a4644aa664bc43cb1a47e86eda5c4fdf9ae6ac4e9337a57b17e793738da07`
 
@@ -156,7 +156,7 @@ If you need these packages, install at runtime or build a custom image.
 |---------|---------------------|------------------|
 | PyTorch 2.9 + CUDA | ✅ | ✅ |
 | RDMA/InfiniBand | ✅ | ✅ |
-| NCCL Validated | ✅ (94.47 GB/s) | ✅ (94.63 GB/s) |
+| NCCL Validated | ✅ (~194 GB/s) | ✅ (~194 GB/s) |
 | NeMo Toolkit | ❌ | ✅ |
 | HuggingFace | ❌ | ✅ |
 | DeepSpeed | ❌ | ✅ |
@@ -236,4 +236,4 @@ podman run --rm quay.io/jschless/ml-dev-env:prism-pytorch-25.06 \
 
 - **NCCL Testing:** [NCCL-TESTING.md](./NCCL-TESTING.md)
 - **5-Node Test Manifest:** [nccl-test-5node.yaml](./nccl-test-5node.yaml)
-- **Barcelona mlx5 Mapping:** [../claude_guidance/barcelona-mlx5-mapping.md](../../claude_guidance/barcelona-mlx5-mapping.md)
+- **NCCL Configuration:** [../../claude_guidance/nccl-configuration-h100-cluster.md](../../claude_guidance/nccl-configuration-h100-cluster.md)
