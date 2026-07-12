@@ -38,6 +38,7 @@ Edit `deployments/ops/configs/barcelona-5node-prism.conf`, then regenerate:
 - **Different image**: Change `IMAGE="quay.io/jschless/ml-dev-env:prism-nemo-25.04"`
 - **Different nodes**: Change `NODES="node1 node2 node3"` (replica count is automatic)
 - **Different namespace**: Change `NAMESPACE="my-namespace"`
+- **Different benchmark script**: Set `BENCHMARK_SCRIPT="/path/to/my-script.py"` (default: IBM AllReduce)
 - **NCCL tuning**: Add any `NCCL_*` variable (e.g. `NCCL_ALGO="Tree"`)
 
 Then regenerate:

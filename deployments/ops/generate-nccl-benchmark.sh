@@ -124,12 +124,12 @@ fi
 # ---------------------------------------------------------------------------
 # Resolve benchmark script path
 # ---------------------------------------------------------------------------
-BENCHMARK_SCRIPT="$SCRIPT_DIR/allreduce-loop.py"
+: "${BENCHMARK_SCRIPT:=$SCRIPT_DIR/allreduce-loop.py}"
 if [[ ! -f "$BENCHMARK_SCRIPT" ]]; then
     echo "Error: benchmark script not found: $BENCHMARK_SCRIPT" >&2
-    echo "Expected deployments/ops/allreduce-loop.py" >&2
     exit 1
 fi
+BENCHMARK_FILENAME=$(basename "$BENCHMARK_SCRIPT")
 
 # ---------------------------------------------------------------------------
 # Output destination
@@ -199,7 +199,7 @@ echo "Ready to run benchmark."
 echo "Exec into pod-0 and run:"
 echo "  torchrun --nnodes=__REPLICAS__ --nproc_per_node=__GPU_COUNT__ --node_rank=0 \\"
 echo "    --master_addr=__DEPLOY_NAME__-0.__DEPLOY_NAME__-svc \\"
-echo "    --master_port=__MASTER_PORT__ /benchmark/allreduce-loop.py -r 3"
+echo "    --master_port=__MASTER_PORT__ /benchmark/__BENCHMARK_FILENAME__ -r 3"
 echo ""
 
 sleep infinity
@@ -211,6 +211,7 @@ ENTRYPOINT_SCRIPT="${ENTRYPOINT_SCRIPT//__DEPLOY_NAME__/$DEPLOY_NAME}"
 ENTRYPOINT_SCRIPT="${ENTRYPOINT_SCRIPT//__MASTER_PORT__/$MASTER_PORT}"
 ENTRYPOINT_SCRIPT="${ENTRYPOINT_SCRIPT//__GPU_COUNT__/$GPU_COUNT}"
 ENTRYPOINT_SCRIPT="${ENTRYPOINT_SCRIPT//__REPLICAS__/$REPLICAS}"
+ENTRYPOINT_SCRIPT="${ENTRYPOINT_SCRIPT//__BENCHMARK_FILENAME__/$BENCHMARK_FILENAME}"
 
 # Indent the entrypoint for YAML embedding (10 spaces for args block, blank lines stay blank)
 INDENTED_ENTRYPOINT=""
@@ -265,7 +266,7 @@ metadata:
   name: ${DEPLOY_NAME}-script
   namespace: ${NAMESPACE}
 data:
-  allreduce-loop.py: |
+  ${BENCHMARK_FILENAME}: |
 ${INDENTED_BENCHMARK}---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -449,4 +450,5 @@ if [[ "$USE_STDOUT" != true ]]; then
     echo "  Namespace: $NAMESPACE" >&2
     echo "  Nodes: $REPLICAS (${NODES})" >&2
     echo "  Image: $IMAGE" >&2
+    echo "  Script: $BENCHMARK_SCRIPT" >&2
 fi
