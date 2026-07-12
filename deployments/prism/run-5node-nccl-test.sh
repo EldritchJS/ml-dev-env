@@ -17,7 +17,7 @@ sleep 10
 
 echo ""
 echo "=== Step 2: Check pod status ==="
-oc get pods -n nccl-test -l app=prism-nccl-test -o wide
+oc get pods -n nccl-test -l app=nccl-benchmark -o wide
 
 echo ""
 echo "Waiting 30 more seconds for all pods to be Running..."
@@ -25,16 +25,16 @@ sleep 30
 
 echo ""
 echo "=== Step 3: Verify all 5 pods are Running ==="
-READY=$(oc get pods -n nccl-test -l app=prism-nccl-test --no-headers | grep -c "1/1.*Running" || true)
+READY=$(oc get pods -n nccl-test -l app=nccl-benchmark --no-headers | grep -c "1/1.*Running" || true)
 echo "Ready pods: $READY / 5"
 
 if [ "$READY" -lt 5 ]; then
   echo ""
   echo "ERROR: Not all pods are ready. Current status:"
-  oc get pods -n nccl-test -l app=prism-nccl-test
+  oc get pods -n nccl-test -l app=nccl-benchmark
   echo ""
   echo "Check which nodes they're on:"
-  oc get pods -n nccl-test -l app=prism-nccl-test -o custom-columns='POD:.metadata.name,NODE:.spec.nodeName,STATUS:.status.phase'
+  oc get pods -n nccl-test -l app=nccl-benchmark -o custom-columns='POD:.metadata.name,NODE:.spec.nodeName,STATUS:.status.phase'
   exit 1
 fi
 
@@ -45,10 +45,10 @@ echo "=== Step 4: Start benchmark on all 5 pods (${NUM_RUNS} run(s)) ==="
 
 # Start pod-0 (master)
 echo "Starting pod-0 (master)..."
-oc exec -n nccl-test prism-nccl-test-0 -- bash -c \
+oc exec -n nccl-test nccl-benchmark-0 -- bash -c \
   "torchrun --nproc_per_node=4 --nnodes=5 --node_rank=0 \
-   --master_addr=prism-nccl-test-0.prism-nccl-test \
-   --master_port=29500 /workspace/nccl_torch_bench.py -r $NUM_RUNS" \
+   --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
+   --master_port=29501 /benchmark/allreduce-loop.py -r $NUM_RUNS" \
   > "$LOG_DIR/benchmark-pod-0.log" 2>&1 &
 
 sleep 3
@@ -56,10 +56,10 @@ sleep 3
 # Start workers
 for i in {1..4}; do
   echo "Starting pod-$i (worker)..."
-  oc exec -n nccl-test prism-nccl-test-$i -- bash -c \
+  oc exec -n nccl-test nccl-benchmark-$i -- bash -c \
     "torchrun --nproc_per_node=4 --nnodes=5 --node_rank=$i \
-     --master_addr=prism-nccl-test-0.prism-nccl-test \
-     --master_port=29500 /workspace/nccl_torch_bench.py -r $NUM_RUNS" \
+     --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
+     --master_port=29501 /benchmark/allreduce-loop.py -r $NUM_RUNS" \
     > "$LOG_DIR/benchmark-pod-$i.log" 2>&1 &
   sleep 1
 done
@@ -71,7 +71,7 @@ echo "Running $NUM_RUNS time(s)"
 echo "Log directory: $LOG_DIR"
 echo ""
 echo "Monitor with:  tail -f $LOG_DIR/benchmark-pod-0.log"
-echo "Check status:  ps aux | grep 'prism-nccl-test' | grep -v grep"
+echo "Check status:  ps aux | grep 'nccl-benchmark' | grep -v grep"
 echo ""
 EXPECTED_TIME=$((NUM_RUNS * 2))
 echo "Results will be in $LOG_DIR/benchmark-pod-0.log (takes ~${EXPECTED_TIME} minutes)"

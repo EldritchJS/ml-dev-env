@@ -27,9 +27,7 @@ This repository manages the MOC H100 GPU cluster running on OpenShift (Barcelona
 | "rate limit", "mlnx_qos", "bandwidth limit" | `claude_guidance/manual-rate-limiting-mlnx-qos.md` | Hardware rate limiting with DaemonSet, mlnx_qos tool usage |
 | "gold standard", "nccl benchmark", "run benchmark" | `claude_guidance/nccl-configuration-h100-cluster.md` | Proper NCCL benchmark execution, critical settings |
 | "rdma test", "perftest", "ib_write_bw", "gpudirect" | `claude_guidance/rdma-perftest-gpudirect.md` | RDMA performance testing procedures |
-| "firmware", "mlxconfig", "mft tools", "nic settings" | `claude_guidance/mlxconfig-pod-setup.md` | Mellanox firmware inspection using MFT tools |
-| "check iommu", "iommu status", "verify iommu" | `claude_guidance/check-iommu-status.md` | Checking IOMMU status in OS (not just dmesg) |
-| "gpu affinity", "nic affinity", "numa", "topology manager" | `claude_guidance/gpu-nic-affinity-mapping.md` | GPU-NIC NUMA affinity enforcement and optimization |
+| "firmware", "mlxconfig", "mft tools", "nic settings" | `claude_guidance/mlxconfig-pod-setup.md` | Mellanox firmware query/modify with mlxconfig pods |
 
 **Required Action:** Read the guide, follow documented procedures, use exact commands from guides. Do not improvise methods that are already documented.
 
@@ -61,13 +59,27 @@ All GPU nodes: 4x H100 80GB HBM3, ConnectX-7 400G NICs
 
 ## Node Configuration Status
 
-### PCI and Firmware Configuration
+### ConnectX-7 Firmware Settings (nvconfig)
 
-**Status: UNKNOWN — needs re-verification on current nodes.**
+**Status: Audited 2026-07-12. Optimization in progress.**
 
-The previous cluster nodes (rack 4) had PCI optimizations applied (MaxReadReq=4096, ATS enabled) and firmware differences documented. The current nodes (rack 2, `u17/u18/u25-nairr` and `u15/u16-yunshi`) have not been verified for these settings.
+Performance-critical nvconfig parameters across all 5 nodes (4 ConnectX-7 NICs each):
 
-To verify, use `claude_guidance/mlxconfig-pod-setup.md` and `claude_guidance/check-iommu-status.md`.
+| Node | ADVANCED_PCI_SETTINGS | MAX_ACC_OUT_READ | PCI_WR_ORDERING | RDMA_SELECTIVE_REPEAT_EN |
+|------|----------------------|------------------|-----------------|--------------------------|
+| u15-yunshi | True(1) | 128 | per_mkey(0) | True(1) |
+| u16-yunshi | True(1) | 128 | per_mkey(0) | True(1) |
+| u17-nairr | True(1) | 128 | per_mkey(0) | True(1) |
+| u18-nairr | True(1) | 128 | per_mkey(0) | True(1) |
+| u25-nairr | True(1) | 128 | per_mkey(0) | True(1) |
+
+All 5 nodes fully optimized as of 2026-07-12.
+
+To modify settings, use `claude_guidance/mlxconfig-pod-setup.md`.
+
+### NVIDIA NIC Configuration Operator
+
+The NIC Configuration Operator and NIC Feature Discovery are enabled on the cluster. The operator provides read-only NIC inventory via `NicDevice` CRs (25 total, 5 per node). However, it **cannot apply nvconfig changes** because the Maintenance Operator (`maintenance.nvidia.com`) is not installed. Manual mlxconfig pods are required for changes.
 
 ### IOMMU Configuration
 
@@ -107,6 +119,21 @@ Historically disabled at BIOS level on all nodes. Current status unverified on n
 
 ### Validated Images
 
+**Prism PyTorch image (validated 2026-07-11):**
+```
+quay.io/jschless/ml-dev-env:prism-pytorch-25.06
+```
+- Base: NVIDIA PyTorch 25.06, NCCL 2.27.3
+- Performance: ~194 GB/s bus bandwidth (5 nodes, 20 GPUs, no rate limit)
+
+**Prism NeMo image (validated 2026-07-11):**
+```
+quay.io/jschless/ml-dev-env:prism-nemo-25.04
+```
+- Base: NVIDIA NeMo 25.04, NCCL 2.23.4
+- Includes: NeMo Toolkit 2.3.2, HuggingFace, DeepSpeed, Lightning, wandb
+- Performance: ~194 GB/s bus bandwidth (5 nodes, 20 GPUs, no rate limit)
+
 **Cluster-built image (validated 2026-04-01):**
 ```
 image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env@sha256:8f99384b8277ff732153c58874679fa4d6592104bfa0fe21ca2d5750ee213bed
@@ -118,8 +145,6 @@ image-registry.openshift-image-registry.svc:5000/nccl-test/ml-dev-env@sha256:8f9
 ```
 quay.io/jschless/ml-dev-env:latest
 ```
-
-Both images achieve identical benchmark performance.
 
 ---
 
@@ -150,16 +175,29 @@ NCCL_ALGO=Ring
 
 ## Performance Benchmarks
 
+### Current 5-Node Results (validated 2026-07-11)
+
+**Without rate limiting (8GB messages, IBM AllReduce bus bandwidth):**
+
+| Image | Avg GB/s | Max GB/s | Runs |
+|-------|----------|----------|------|
+| prism-pytorch-25.06 (NCCL 2.27.3) | 194.15 | 194.80 | 3 |
+| prism-nemo-25.04 (NCCL 2.23.4) | 194.15 | 194.95 | 3 |
+
+Both images match the gold standard ~194 GB/s. Bus bandwidth is independent of node count for Ring AllReduce.
+
+**Hardware optimizations applied:**
+- All 5 nodes: nvconfig firmware params optimized (ADVANCED_PCI_SETTINGS, MAX_ACC_OUT_READ=128, PCI_WR_ORDERING=per_mkey, RDMA_SELECTIVE_REPEAT_EN)
+- PCI MaxReadReq=4096 and ATS enabled via setpci (does not persist across reboots)
+
+**See:** `deployments/prism/` for the current benchmark setup and `deployments/prism/run-5node-nccl-test.sh` for automated execution.
+
 ### Historical 8-Node Results (old cluster)
 
 **Without rate limiting:** ~194 GB/s (8GB messages)
 **With 100 Gbps rate limiting:** 49.0 GB/s (99% of theoretical 50 GB/s max)
 
-These results were from the previous 8-node configuration. The current cluster has 5 GPU nodes.
-
-### Current 5-Node Benchmark
-
-**See:** `deployments/prism/` for the current benchmark setup and `deployments/prism/run-5node-nccl-test.sh` for automated execution.
+These results were from the previous 8-node configuration.
 
 ---
 

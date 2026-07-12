@@ -23,7 +23,7 @@ Two validated images available on quay.io:
 **What it HAS:**
 - PyTorch 2.9.0 + CUDA 13.2
 - RDMA/InfiniBand tools (infiniband-diags, ibverbs-utils)
-- Validated NCCL performance: 94.47 GB/s (5 nodes, 20 GPUs)
+- Validated NCCL performance: ~194 GB/s bus bandwidth (5 nodes, 20 GPUs)
 
 **What it DOESN'T have:**
 - NeMo Toolkit
@@ -125,19 +125,34 @@ NCCL_NVLS_ENABLE=0            # Disable NVLink Switch (H100 PCIe)
 NCCL_NET_SHARED_BUFFERS=1
 NCCL_NET_OVERHEAD=0
 NCCL_IGNORE_CPU_AFFINITY=1
-NCCL_P2P_LEVEL=NVL
 NCCL_SOCKET_IFNAME=net1,net2,net3,net4
 ```
 
 **See nccl-test-5node.yaml for complete gold standard configuration.**
 
+## Hardware Optimization Status
+
+**ConnectX-7 Firmware (nvconfig) — all 5 nodes optimized (2026-07-12):**
+- ADVANCED_PCI_SETTINGS=True(1)
+- MAX_ACC_OUT_READ=128
+- PCI_WR_ORDERING=per_mkey(0)
+- RDMA_SELECTIVE_REPEAT_EN=True(1)
+
+**PCI Settings (runtime, does not persist across reboots):**
+- MaxReadReq=4096 (via `pci_mrr.sh`)
+- ATS enabled (via `pci_ats.sh`)
+
 ## Validated Performance
 
-**5-node NCCL AllReduce benchmark:**
-- Configuration: 5 nodes × 4 GPUs = 20 GPUs
-- Image: prism-pytorch-25.06
-- 8GB messages: **94.47 GB/s**
-- Date: 2026-07-10
+**5-node NCCL AllReduce benchmark (IBM bus bandwidth, 8GB messages, 2026-07-11):**
+
+| Image | NCCL Version | Avg GB/s | Max GB/s |
+|-------|-------------|----------|----------|
+| prism-pytorch-25.06 | 2.27.3 | 194.15 | 194.80 |
+| prism-nemo-25.04 | 2.23.4 | 194.15 | 194.95 |
+
+- Configuration: 5 nodes × 4 GPUs = 20 GPUs, 3 runs each
+- Matches gold standard ~194 GB/s (bus bandwidth is independent of node count for Ring AllReduce)
 
 ## Files
 
@@ -174,9 +189,9 @@ See NCCL-TESTING.md for complete manual execution instructions.
 
 **Check critical settings:**
 ```bash
-oc logs prism-nccl-test-0 -n nccl-test | grep NCCL_DMABUF
-oc logs prism-nccl-test-0 -n nccl-test | grep NCCL_CROSS_NIC
-oc logs prism-nccl-test-0 -n nccl-test | grep NCCL_IB_HCA
+oc logs nccl-benchmark-0 -n nccl-test | grep NCCL_DMABUF
+oc logs nccl-benchmark-0 -n nccl-test | grep NCCL_CROSS_NIC
+oc logs nccl-benchmark-0 -n nccl-test | grep NCCL_IB_HCA
 ```
 
 **Common issues:**
@@ -195,7 +210,7 @@ oc adm policy add-scc-to-user nccl-rdma-scc -z default -n nccl-test
 
 **Not all pods running:**
 ```bash
-oc get pods -n nccl-test -l app=prism-nccl-test
+oc get pods -n nccl-test -l app=nccl-benchmark
 ```
 
 All 5 pods must be Running before starting torchrun.

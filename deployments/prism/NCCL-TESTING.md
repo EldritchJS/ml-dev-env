@@ -91,7 +91,7 @@ This creates a StatefulSet with 5 pods (one per node), each with 4 GPUs.
 ### Step 2: Wait for All Pods to be Running
 
 ```bash
-oc get pods -n nccl-test -l app=prism-nccl-test -w
+oc get pods -n nccl-test -l app=nccl-benchmark -w
 ```
 
 Wait until all 5 pods show `1/1 Running`. Press Ctrl+C when ready.
@@ -102,70 +102,71 @@ The benchmark must be run **on each pod separately** with a different `--node_ra
 
 **On pod-0 (master):**
 ```bash
-oc exec -it prism-nccl-test-0 -n nccl-test -- torchrun \
+oc exec -it nccl-benchmark-0 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=0 \
-  --master_addr=prism-nccl-test-0.prism-nccl-test \
-  --master_port=29500 \
-  /workspace/nccl_torch_bench.py -r 3
+  --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
+  --master_port=29501 \
+  /benchmark/allreduce-loop.py -r 3
 ```
 
 **On pod-1:**
 ```bash
-oc exec -it prism-nccl-test-1 -n nccl-test -- torchrun \
+oc exec -it nccl-benchmark-1 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=1 \
-  --master_addr=prism-nccl-test-0.prism-nccl-test \
-  --master_port=29500 \
-  /workspace/nccl_torch_bench.py -r 3
+  --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
+  --master_port=29501 \
+  /benchmark/allreduce-loop.py -r 3
 ```
 
 **On pod-2:**
 ```bash
-oc exec -it prism-nccl-test-2 -n nccl-test -- torchrun \
+oc exec -it nccl-benchmark-2 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=2 \
-  --master_addr=prism-nccl-test-0.prism-nccl-test \
-  --master_port=29500 \
-  /workspace/nccl_torch_bench.py -r 3
+  --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
+  --master_port=29501 \
+  /benchmark/allreduce-loop.py -r 3
 ```
 
 **On pod-3:**
 ```bash
-oc exec -it prism-nccl-test-3 -n nccl-test -- torchrun \
+oc exec -it nccl-benchmark-3 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=3 \
-  --master_addr=prism-nccl-test-0.prism-nccl-test \
-  --master_port=29500 \
-  /workspace/nccl_torch_bench.py -r 3
+  --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
+  --master_port=29501 \
+  /benchmark/allreduce-loop.py -r 3
 ```
 
 **On pod-4:**
 ```bash
-oc exec -it prism-nccl-test-4 -n nccl-test -- torchrun \
+oc exec -it nccl-benchmark-4 -n nccl-test -- torchrun \
   --nnodes=5 \
   --nproc_per_node=4 \
   --node_rank=4 \
-  --master_addr=prism-nccl-test-0.prism-nccl-test \
-  --master_port=29500 \
-  /workspace/nccl_torch_bench.py -r 3
+  --master_addr=nccl-benchmark-0.nccl-benchmark-svc \
+  --master_port=29501 \
+  /benchmark/allreduce-loop.py -r 3
 ```
 
 ### Step 4: Check Results
 
-The benchmark output appears on **pod-0** (the master). Look for the final line:
+The benchmark output appears on **pod-0** stderr. Look for the 8000.00 MB row:
 
 ```
-8GB messages: XXX.XX GB/s
+ size(MB)   tavg(usec)    tmin(usec)    tmax(usec)  avgbw(GB/sec)  maxbw(GB/sec)  minbw(GB/sec)
+ 8000.00     ...           ...           ...          ~194.15        ~194.80        ...
 ```
 
 **Expected performance (5 nodes, 20 GPUs, no rate limiting):**
-- Approximately **6-7 GB/s per GPU**
-- Total: **120-140 GB/s** for 8GB messages
+- Bus bandwidth at 8GB: **~194 GB/s** (matches gold standard)
+- Per-GPU: ~12.4 GB/s (bus bandwidth is independent of node count for Ring AllReduce)
 
 
 ## Expected NCCL Output
@@ -173,11 +174,11 @@ The benchmark output appears on **pod-0** (the master). Look for the final line:
 When working correctly, you should see on pod-0:
 
 ```
-prism-nccl-test-0:36:36 [0] NCCL INFO Channel 00/16 :    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19
-prism-nccl-test-0:36:36 [0] NCCL INFO Ring 00 : 0[0] -> 1[10000] -> 2[20000] -> 3[30000] -> 4[40000]
+nccl-benchmark-0:36:36 [0] NCCL INFO Channel 00/16 :    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19
+nccl-benchmark-0:36:36 [0] NCCL INFO Ring 00 : 0[0] -> 1[10000] -> 2[20000] -> 3[30000] -> 4[40000]
 ...
-prism-nccl-test-0:36:36 [0] NCCL INFO Using 256 threads, Min Comp Cap 9, Trees disabled
-prism-nccl-test-0:36:36 [0] NCCL INFO comm 0x... rank 0 nranks 20 cudaDev 0 busId 6000 - Init COMPLETE
+nccl-benchmark-0:36:36 [0] NCCL INFO Using 256 threads, Min Comp Cap 9, Trees disabled
+nccl-benchmark-0:36:36 [0] NCCL INFO comm 0x... rank 0 nranks 20 cudaDev 0 busId 6000 - Init COMPLETE
 ```
 
 ## Troubleshooting
@@ -187,16 +188,16 @@ prism-nccl-test-0:36:36 [0] NCCL INFO comm 0x... rank 0 nranks 20 cudaDev 0 busI
 **Cause:** Not all pods are running or not all torchrun commands started.
 
 **Fix:** 
-1. Check all 5 pods are Running: `oc get pods -n nccl-test -l app=prism-nccl-test`
+1. Check all 5 pods are Running: `oc get pods -n nccl-test -l app=nccl-benchmark`
 2. Ensure you ran all 5 torchrun commands with correct `--node_rank` (0, 1, 2, 3, 4)
 
-### Issue: Low bandwidth (< 100 GB/s total)
+### Issue: Low bandwidth (< 190 GB/s bus bandwidth)
 
-**Cause:** Missing critical NCCL environment variables.
+**Cause:** Missing critical NCCL environment variables or hardware optimization.
 
 **Fix:** Check the pod logs for NCCL warnings:
 ```bash
-oc logs prism-nccl-test-0 -n nccl-test | grep -i nccl
+oc logs nccl-benchmark-0 -n nccl-test | grep -i nccl
 ```
 
 Look for:
@@ -219,5 +220,4 @@ oc delete -f nccl-test-5node.yaml -n nccl-test
 ## References
 
 - Gold standard config: `deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
-- Barcelona mlx5 mapping: `claude_guidance/barcelona-mlx5-mapping.md`
 - NCCL configuration guide: `claude_guidance/nccl-configuration-h100-cluster.md`
