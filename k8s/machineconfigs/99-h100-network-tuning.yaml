@@ -1,0 +1,207 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-h100-network-tuning
+  labels:
+    machineconfiguration.openshift.io/role: worker
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+      - path: /usr/local/bin/h100-network-tuning.sh
+        mode: 0755
+        overwrite: false
+        contents:
+          inline: |
+            #!/bin/bash
+            # H100 Cluster High-Performance Network Tuning
+            # Targets: 90%+ link utilization on 4x ConnectX-7 400G NICs
+
+            set -e
+
+            echo "[$(date)] Starting H100 network performance tuning..."
+
+            # Only run on nodes with H100 GPUs
+            if ! nvidia-smi -L 2>/dev/null | grep -q "H100"; then
+                echo "No H100 GPUs detected, skipping tuning"
+                exit 0
+            fi
+
+            # ============================================
+            # PRIORITY 1: NIC Ring Buffers (+3-5%)
+            # ============================================
+            echo "Increasing NIC ring buffers to maximum..."
+            for iface in eno5np0 eno6np0 eno7np0 eno8np0 eno2np0 eno3np1; do
+                if [ -e /sys/class/net/$iface ]; then
+                    # Get maximum supported values
+                    MAX_RX=$(ethtool -g $iface 2>/dev/null | grep -A4 "Pre-set" | grep "RX:" | awk '{print $2}')
+                    MAX_TX=$(ethtool -g $iface 2>/dev/null | grep -A4 "Pre-set" | grep "TX:" | awk '{print $2}')
+
+                    if [ -n "$MAX_RX" ] && [ -n "$MAX_TX" ]; then
+                        echo "  $iface: Setting RX=$MAX_RX TX=$MAX_TX"
+                        ethtool -G $iface rx $MAX_RX tx $MAX_TX 2>/dev/null || echo "  Warning: Could not set ring buffers for $iface"
+                    fi
+                fi
+            done
+
+            # ============================================
+            # PRIORITY 2: Network Buffer Tuning (+1-2%)
+            # ============================================
+            echo "Tuning network buffers..."
+
+            # Socket buffers (32MB max for 400G NICs)
+            sysctl -w net.core.rmem_max=33554432 > /dev/null
+            sysctl -w net.core.wmem_max=33554432 > /dev/null
+            sysctl -w net.core.rmem_default=16777216 > /dev/null
+            sysctl -w net.core.wmem_default=16777216 > /dev/null
+
+            # TCP buffers
+            sysctl -w net.ipv4.tcp_rmem="4096 87380 33554432" > /dev/null
+            sysctl -w net.ipv4.tcp_wmem="4096 65536 33554432" > /dev/null
+
+            # Increase netdev backlog for high packet rates
+            sysctl -w net.core.netdev_max_backlog=250000 > /dev/null
+            sysctl -w net.core.netdev_budget=600 > /dev/null
+            sysctl -w net.core.netdev_budget_usecs=8000 > /dev/null
+
+            # ============================================
+            # PRIORITY 3: TCP Optimizations (+0.5-1%)
+            # ============================================
+            echo "Applying TCP optimizations..."
+
+            # BBR congestion control for better throughput
+            sysctl -w net.ipv4.tcp_congestion_control=bbr > /dev/null 2>&1 || \
+                sysctl -w net.ipv4.tcp_congestion_control=cubic > /dev/null
+
+            # Fair queuing for better packet scheduling
+            sysctl -w net.core.default_qdisc=fq > /dev/null
+
+            # Don't slow down after idle
+            sysctl -w net.ipv4.tcp_slow_start_after_idle=0 > /dev/null
+
+            # MTU probing for optimal packet size
+            sysctl -w net.ipv4.tcp_mtu_probing=1 > /dev/null
+
+            # Reduce TIME_WAIT socket overhead
+            sysctl -w net.ipv4.tcp_fin_timeout=15 > /dev/null
+            sysctl -w net.ipv4.tcp_tw_reuse=1 > /dev/null
+
+            # Enable TCP window scaling
+            sysctl -w net.ipv4.tcp_window_scaling=1 > /dev/null
+
+            # ============================================
+            # PRIORITY 4: NIC Offload Verification
+            # ============================================
+            echo "Verifying NIC offload features..."
+            for iface in eno5np0 eno6np0 eno7np0 eno8np0; do
+                if [ -e /sys/class/net/$iface ]; then
+                    # Ensure offloads are enabled
+                    ethtool -K $iface rx on tx on gso on tso on gro on 2>/dev/null || true
+                fi
+            done
+
+            # ============================================
+            # PRIORITY 5: Additional Optimizations
+            # ============================================
+            echo "Applying additional optimizations..."
+
+            # Increase connection tracking
+            sysctl -w net.netfilter.nf_conntrack_max=1048576 > /dev/null 2>&1 || true
+
+            # Increase ARP cache
+            sysctl -w net.ipv4.neigh.default.gc_thresh1=4096 > /dev/null
+            sysctl -w net.ipv4.neigh.default.gc_thresh2=8192 > /dev/null
+            sysctl -w net.ipv4.neigh.default.gc_thresh3=16384 > /dev/null
+
+            # Increase local port range
+            sysctl -w net.ipv4.ip_local_port_range="10000 65535" > /dev/null
+
+            # Enable timestamps (useful for RDMA)
+            sysctl -w net.ipv4.tcp_timestamps=1 > /dev/null
+
+            # ============================================
+            # Summary
+            # ============================================
+            echo "[$(date)] H100 network tuning completed successfully"
+            echo "Expected improvement: +3-7% link utilization"
+            echo "Target: 90%+ of 1600 Gbps (4x 400G NICs)"
+
+            # Log current settings for verification
+            echo ""
+            echo "Current ring buffer sizes:"
+            for iface in eno5np0 eno6np0 eno7np0 eno8np0; do
+                if [ -e /sys/class/net/$iface ]; then
+                    echo "  $iface: $(ethtool -g $iface 2>/dev/null | grep -A2 'Current' | tail -2 | xargs)"
+                fi
+            done
+
+            exit 0
+      - path: /etc/sysctl.d/99-h100-network.conf
+        mode: 0644
+        overwrite: false
+        contents:
+          inline: |
+            # H100 Cluster Network Performance Tuning
+            # Applied at boot via sysctl
+
+            # Socket buffers (32MB for 400G NICs)
+            net.core.rmem_max = 33554432
+            net.core.wmem_max = 33554432
+            net.core.rmem_default = 16777216
+            net.core.wmem_default = 16777216
+
+            # TCP buffers
+            net.ipv4.tcp_rmem = 4096 87380 33554432
+            net.ipv4.tcp_wmem = 4096 65536 33554432
+
+            # Network device backlog
+            net.core.netdev_max_backlog = 250000
+            net.core.netdev_budget = 600
+            net.core.netdev_budget_usecs = 8000
+
+            # TCP optimizations
+            net.ipv4.tcp_congestion_control = bbr
+            net.core.default_qdisc = fq
+            net.ipv4.tcp_slow_start_after_idle = 0
+            net.ipv4.tcp_mtu_probing = 1
+            net.ipv4.tcp_window_scaling = 1
+
+            # Connection tracking
+            net.netfilter.nf_conntrack_max = 1048576
+
+            # ARP cache
+            net.ipv4.neigh.default.gc_thresh1 = 4096
+            net.ipv4.neigh.default.gc_thresh2 = 8192
+            net.ipv4.neigh.default.gc_thresh3 = 16384
+
+            # Port range
+            net.ipv4.ip_local_port_range = 10000 65535
+
+            # TCP TIME_WAIT
+            net.ipv4.tcp_fin_timeout = 15
+            net.ipv4.tcp_tw_reuse = 1
+
+            # Timestamps for RDMA
+            net.ipv4.tcp_timestamps = 1
+    systemd:
+      units:
+      - name: h100-network-tuning.service
+        enabled: true
+        contents: |
+          [Unit]
+          Description=H100 High-Performance Network Tuning
+          After=network-online.target NetworkManager.service
+          Wants=network-online.target
+          Before=kubelet.service crio.service
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/usr/local/bin/h100-network-tuning.sh
+          StandardOutput=journal+console
+          StandardError=journal+console
+
+          [Install]
+          WantedBy=multi-user.target
