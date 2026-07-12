@@ -146,12 +146,12 @@ ml-dev-env/
 ```bash
 # Generate manifest from config
 ./deployments/ops/generate-nccl-manifest.sh \
-  -c deployments/ops/configs/<your-config>.conf \
+  -c deployments/<your-name>/config.conf \
   -o deployments/<your-name>/manifest.yaml
 
 # Deploy and run
 ./deployments/ops/run-nccl-job.sh \
-  -c deployments/ops/configs/<your-config>.conf \
+  -c deployments/<your-name>/config.conf \
   -m deployments/<your-name>/manifest.yaml
 ```
 
