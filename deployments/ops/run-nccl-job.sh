@@ -17,9 +17,9 @@ Options:
   -h, --help             Show this help
 
 Examples:
-  $(basename "$0") -c configs/barcelona-5node-prism.conf -m ../prism/nccl-test-5node.yaml
-  $(basename "$0") -c configs/barcelona-5node-prism.conf -m ../prism/nccl-test-5node.yaml -r 5
-  $(basename "$0") -c configs/my-team.conf -m ../my-team/manifest.yaml -l /tmp/logs
+  $(basename "$0") -c ../prism/config.conf -m ../prism/manifest.yaml
+  $(basename "$0") -c ../prism/config.conf -m ../prism/manifest.yaml -r 5
+  $(basename "$0") -c ../my-team/config.conf -m ../my-team/manifest.yaml -l /tmp/logs
 USAGE
     exit "${1:-0}"
 }

@@ -59,7 +59,7 @@ mkdir deployments/<your-name>
 ### 2. Create your config
 
 ```bash
-cp deployments/ops/configs/example.conf deployments/ops/configs/<your-name>.conf
+cp deployments/ops/configs/example.conf deployments/<your-name>/config.conf
 ```
 
 Edit your config — at minimum, set these 5 fields:
@@ -84,7 +84,7 @@ See `deployments/ops/configs/example.conf` for all available settings (hardware,
 
 ```bash
 ./deployments/ops/generate-nccl-manifest.sh \
-  -c deployments/ops/configs/<your-name>.conf \
+  -c deployments/<your-name>/config.conf \
   -o deployments/<your-name>/manifest.yaml
 ```
 
@@ -92,7 +92,7 @@ See `deployments/ops/configs/example.conf` for all available settings (hardware,
 
 ```bash
 ./deployments/ops/run-nccl-job.sh \
-  -c deployments/ops/configs/<your-name>.conf \
+  -c deployments/<your-name>/config.conf \
   -m deployments/<your-name>/manifest.yaml
 ```
 

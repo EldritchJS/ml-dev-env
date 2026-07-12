@@ -54,7 +54,7 @@ If you've changed the config (image, nodes, namespace, etc.), regenerate the man
 
 ```bash
 ./deployments/ops/generate-nccl-manifest.sh \
-  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -c deployments/prism/config.conf \
   -o deployments/prism/nccl-test-5node.yaml
 ```
 
@@ -64,7 +64,7 @@ If you've changed the config (image, nodes, namespace, etc.), regenerate the man
 
 ```bash
 ./deployments/ops/run-nccl-job.sh \
-  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -c deployments/prism/config.conf \
   -m deployments/prism/nccl-test-5node.yaml
 ```
 
@@ -82,7 +82,7 @@ tail -f deployments/prism/benchmark-pod-0.log
 **Custom number of runs:**
 ```bash
 ./deployments/ops/run-nccl-job.sh \
-  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -c deployments/prism/config.conf \
   -m deployments/prism/nccl-test-5node.yaml \
   -r 5
 ```

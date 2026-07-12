@@ -16,9 +16,9 @@ Options:
   -h, --help           Show this help
 
 Examples:
-  $(basename "$0") -c configs/barcelona-5node-prism.conf
-  $(basename "$0") -c configs/barcelona-5node-prism.conf -o /tmp/benchmark.yaml
-  $(basename "$0") -c configs/barcelona-5node-prism.conf --stdout | oc apply -f -
+  $(basename "$0") -c ../prism/config.conf -o ../prism/manifest.yaml
+  $(basename "$0") -c ../prism/config.conf -o /tmp/benchmark.yaml
+  $(basename "$0") -c ../prism/config.conf --stdout | oc apply -f -
 USAGE
     exit "${1:-0}"
 }

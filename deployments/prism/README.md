@@ -11,7 +11,7 @@ The benchmark YAML is generated from a config file. The prism config is already 
 ```bash
 # Generate the manifest
 ./deployments/ops/generate-nccl-manifest.sh \
-  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -c deployments/prism/config.conf \
   -o deployments/prism/nccl-test-5node.yaml
 ```
 
@@ -19,7 +19,7 @@ The benchmark YAML is generated from a config file. The prism config is already 
 
 ```bash
 ./deployments/ops/run-nccl-job.sh \
-  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -c deployments/prism/config.conf \
   -m deployments/prism/nccl-test-5node.yaml
 ```
 
@@ -35,7 +35,7 @@ oc delete -f deployments/prism/nccl-test-5node.yaml -n <namespace>
 
 ## How to Change Settings
 
-Edit `deployments/ops/configs/barcelona-5node-prism.conf`, then regenerate:
+Edit `deployments/prism/config.conf`, then regenerate:
 
 - **Different image**: Change `IMAGE="quay.io/jschless/ml-dev-env:prism-nemo-25.04"`
 - **Different nodes**: Change `NODES="node1 node2 node3"` (replica count is automatic)
@@ -46,7 +46,7 @@ Edit `deployments/ops/configs/barcelona-5node-prism.conf`, then regenerate:
 Then regenerate:
 ```bash
 ./deployments/ops/generate-nccl-manifest.sh \
-  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -c deployments/prism/config.conf \
   -o deployments/prism/nccl-test-5node.yaml
 ```
 
@@ -147,10 +147,11 @@ The three critical settings for this cluster are:
 ```
 deployments/prism/
 ├── README.md                       # This file
+├── config.conf                     # Deployment config (image, nodes, namespace)
 ├── IMAGE-REFERENCE.md              # Detailed image documentation
 ├── NCCL-TESTING.md                 # Complete NCCL testing guide
-├── nccl-test-5node.yaml            # Generated 5-node manifest
-├── run-5node-nccl-test.sh          # Automated test runner
+├── nccl-test-5node.yaml            # Generated manifest
+├── run-5node-nccl-test.sh          # Legacy run script (use run-nccl-job.sh instead)
 ├── Dockerfile.pytorch-base         # PyTorch-only image build
 ├── Dockerfile.nemo-base            # NeMo full-stack image build
 └── workspace/
@@ -161,8 +162,7 @@ deployments/ops/
 ├── run-nccl-job.sh                 # Config-driven benchmark runner
 ├── allreduce-loop.py               # IBM AllReduce benchmark script (default)
 └── configs/
-    ├── example.conf                # Reference config (all parameters documented)
-    └── barcelona-5node-prism.conf  # Prism deployment config
+    └── example.conf                # Reference config (all parameters documented)
 ```
 
 ## Troubleshooting
