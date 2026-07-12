@@ -28,7 +28,7 @@ Results appear in `benchmark-pod-0.log`.
 ### 3. Clean up
 
 ```bash
-oc delete -f deployments/prism/nccl-test-5node.yaml -n nccl-test
+oc delete -f deployments/prism/nccl-test-5node.yaml -n <namespace>
 ```
 
 ## How to Change Settings
@@ -184,9 +184,9 @@ deployments/ops/
 
 **Check critical settings:**
 ```bash
-oc logs nccl-benchmark-0 -n nccl-test | grep NCCL_DMABUF
-oc logs nccl-benchmark-0 -n nccl-test | grep NCCL_CROSS_NIC
-oc logs nccl-benchmark-0 -n nccl-test | grep NCCL_IB_HCA
+oc logs nccl-benchmark-0 -n <namespace> | grep NCCL_DMABUF
+oc logs nccl-benchmark-0 -n <namespace> | grep NCCL_CROSS_NIC
+oc logs nccl-benchmark-0 -n <namespace> | grep NCCL_IB_HCA
 ```
 
 **Common issues:**
@@ -198,14 +198,14 @@ oc logs nccl-benchmark-0 -n nccl-test | grep NCCL_IB_HCA
 
 **Missing SecurityContextConstraint:**
 ```bash
-oc adm policy add-scc-to-user nccl-rdma-scc -z default -n nccl-test
+oc adm policy add-scc-to-user nccl-rdma-scc -z <service-account> -n <namespace>
 ```
 
 ### Benchmark Hangs
 
 **Not all pods running:**
 ```bash
-oc get pods -n nccl-test -l app=nccl-benchmark
+oc get pods -n <namespace> -l app=nccl-benchmark
 ```
 
 All 5 pods must be Running before starting torchrun.
