@@ -4,13 +4,67 @@ Multi-node distributed training deployment for Barcelona H100 cluster (5 nodes, 
 
 ## Quick Start
 
-**Run 5-node NCCL benchmark:**
+### 1. Generate the benchmark manifest
+
+The benchmark YAML is generated from a config file. The prism config is already set up:
+
 ```bash
-cd deployments/prism
-./run-5node-nccl-test.sh
+# Generate the manifest
+./deployments/ops/generate-nccl-benchmark.sh \
+  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -o deployments/prism/nccl-test-5node.yaml
 ```
 
-Deploys StatefulSet, waits for pods, auto-starts benchmark on all 5 nodes. Results in `benchmark-pod-0.log`.
+### 2. Run the benchmark
+
+```bash
+cd deployments/prism
+./run-5node-nccl-test.sh          # Deploys, waits for pods, runs benchmark (3 runs)
+./run-5node-nccl-test.sh 5        # Custom number of runs
+```
+
+Results appear in `benchmark-pod-0.log`.
+
+### 3. Clean up
+
+```bash
+oc delete -f deployments/prism/nccl-test-5node.yaml -n nccl-test
+```
+
+## How to Change Settings
+
+Edit `deployments/ops/configs/barcelona-5node-prism.conf`, then regenerate:
+
+- **Different image**: Change `IMAGE="quay.io/jschless/ml-dev-env:prism-nemo-25.04"`
+- **Different nodes**: Change `NODES="node1 node2 node3"` (replica count is automatic)
+- **Different namespace**: Change `NAMESPACE="my-namespace"`
+- **NCCL tuning**: Add any `NCCL_*` variable (e.g. `NCCL_ALGO="Tree"`)
+
+Then regenerate:
+```bash
+./deployments/ops/generate-nccl-benchmark.sh \
+  -c deployments/ops/configs/barcelona-5node-prism.conf \
+  -o deployments/prism/nccl-test-5node.yaml
+```
+
+## How to Create a New Deployment for Your Team
+
+```bash
+# Copy the prism config as a starting point
+cp deployments/ops/configs/barcelona-5node-prism.conf \
+   deployments/ops/configs/my-team.conf
+
+# Edit my-team.conf: set your NAMESPACE, IMAGE, NODES, SERVICE_ACCOUNT
+# See deployments/ops/configs/example.conf for all available settings
+
+# Generate your manifest
+./deployments/ops/generate-nccl-benchmark.sh \
+  -c deployments/ops/configs/my-team.conf \
+  -o /tmp/my-benchmark.yaml
+
+# Deploy
+oc apply -f /tmp/my-benchmark.yaml
+```
 
 ## Container Images
 
@@ -69,66 +123,14 @@ Two validated images available on quay.io:
 **RDMA devices (SR-IOV pods):**
 - mlx5_6, mlx5_7, mlx5_8, mlx5_9 (mapped to net1, net2, net3, net4)
 
-## Critical NCCL Configuration
+## NCCL Configuration
 
-**MUST HAVE - These are REQUIRED:**
+All NCCL parameters are managed by the generator script with gold standard defaults. To see the full list of configurable parameters, check `deployments/ops/configs/example.conf`.
 
-```bash
-# GPUDirect DMABUF - no nvidia_peermem kernel module
-NCCL_DMABUF_ENABLE=1
-
-# Isolated subnet configuration - NO cross-NIC communication
-NCCL_CROSS_NIC=0
-
-# Explicit IB device specification - auto-detect fails in SR-IOV
-NCCL_IB_HCA=mlx5_6,mlx5_7,mlx5_8,mlx5_9
-```
-
-**Performance Settings:**
-
-```bash
-NCCL_MIN_NCHANNELS=8
-NCCL_MAX_NCHANNELS=16
-NCCL_NET_GDR_LEVEL=5          # GPUDirect RDMA level
-NCCL_NET_GDR_READ=1           # Enable GPUDirect read
-NCCL_PROTO=Simple
-NCCL_ALGO=Ring
-```
-
-**InfiniBand Settings:**
-
-```bash
-NCCL_IB_GID_INDEX=3           # RoCE v2
-NCCL_IB_TC=106                # Traffic class
-NCCL_IB_TIMEOUT=23
-NCCL_IB_RETRY_CNT=7
-NCCL_IB_SL=0
-NCCL_IB_AR_THRESHOLD=8192
-NCCL_IB_PCI_RELAXED_ORDERING=1
-```
-
-**Buffer and Thread Configuration:**
-
-```bash
-NCCL_BUFFSIZE=8388608
-NCCL_NTHREADS=640
-NCCL_LL_THRESHOLD=0
-NCCL_TREE_THRESHOLD=0
-NCCL_SOCKET_FAMILY=4
-NCCL_NSOCKS_PERTHREAD=8
-```
-
-**Other Settings:**
-
-```bash
-NCCL_NVLS_ENABLE=0            # Disable NVLink Switch (H100 PCIe)
-NCCL_NET_SHARED_BUFFERS=1
-NCCL_NET_OVERHEAD=0
-NCCL_IGNORE_CPU_AFFINITY=1
-NCCL_SOCKET_IFNAME=net1,net2,net3,net4
-```
-
-**See nccl-test-5node.yaml for complete gold standard configuration.**
+The three critical settings for this cluster are:
+- `NCCL_DMABUF_ENABLE=1` — no nvidia_peermem kernel module
+- `NCCL_CROSS_NIC=0` — isolated /24 subnets
+- `NCCL_IB_HCA=mlx5_6,mlx5_7,mlx5_8,mlx5_9` — explicit IB devices for SR-IOV
 
 ## Hardware Optimization Status
 
@@ -161,27 +163,20 @@ deployments/prism/
 ├── README.md                       # This file
 ├── IMAGE-REFERENCE.md              # Detailed image documentation
 ├── NCCL-TESTING.md                 # Complete NCCL testing guide
-├── nccl-test-5node.yaml            # 5-node StatefulSet manifest
-├── run-5node-nccl-test.sh          # Automated test runner (gold standard)
+├── nccl-test-5node.yaml            # Generated 5-node manifest
+├── run-5node-nccl-test.sh          # Automated test runner
 ├── Dockerfile.pytorch-base         # PyTorch-only image build
 ├── Dockerfile.nemo-base            # NeMo full-stack image build
 └── workspace/
     └── requirements.txt            # Python dependencies (for NeMo image)
+
+deployments/ops/
+├── generate-nccl-benchmark.sh      # Manifest generator
+├── allreduce-loop.py               # IBM AllReduce benchmark script
+└── configs/
+    ├── example.conf                # Reference config (all parameters documented)
+    └── barcelona-5node-prism.conf  # Prism deployment config
 ```
-
-## Running NCCL Benchmarks
-
-### Method 1: Automated Script (Recommended)
-
-```bash
-cd deployments/prism
-./run-5node-nccl-test.sh          # Default 3 runs
-./run-5node-nccl-test.sh 5        # Custom number of runs
-```
-
-### Method 2: Manual Execution
-
-See NCCL-TESTING.md for complete manual execution instructions.
 
 ## Troubleshooting
 
@@ -217,7 +212,8 @@ All 5 pods must be Running before starting torchrun.
 
 ## Related Documentation
 
-- **IMAGE-REFERENCE.md** - Complete image documentation and selection guide
-- **NCCL-TESTING.md** - Detailed NCCL testing procedures
-- **Gold standard reference:** `/deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml`
-- **NCCL config guide:** `/claude_guidance/nccl-configuration-h100-cluster.md`
+- **IMAGE-REFERENCE.md** — Complete image documentation and selection guide
+- **NCCL-TESTING.md** — Manual benchmark execution instructions
+- **deployments/ops/configs/example.conf** — All configurable parameters
+- **deployments/ops/GOLD-STANDARD-NCCL-BENCHMARK.yaml** — Original gold standard reference
+- **claude_guidance/nccl-configuration-h100-cluster.md** — NCCL configuration guide
