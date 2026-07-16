@@ -10,6 +10,8 @@ Compared CPU-based encryption methods for TCP traffic on ConnectX-7 NICs. Neithe
 
 ## Results
 
+### TCP (iperf3, veth pair)
+
 | Test | Throughput | vs Baseline | Retransmits |
 |------|-----------|-------------|-------------|
 | Baseline (no encryption) | 26.1 Gbits/sec | — | 0 |
@@ -17,6 +19,18 @@ Compared CPU-based encryption methods for TCP traffic on ConnectX-7 NICs. Neithe
 | Software IPsec (AES-GCM-128) | 5.23 Gbits/sec | -80% | 1,214 |
 
 **Software MACsec is the better option** — 23% faster than software IPsec with zero retransmits.
+
+### RDMA context
+
+These TCP numbers significantly understate the gap that encryption creates for GPU workloads. The ConnectX-7 NICs deliver ~226 Gbits/sec per NIC over RDMA (validated via `ib_write_bw` on Barcelona). Falling back to TCP with software encryption means:
+
+| Path | Throughput | vs RDMA baseline |
+|------|-----------|-----------------|
+| RDMA (no encryption) | ~226 Gbits/sec | — |
+| TCP baseline | 26.1 Gbits/sec | -88% |
+| TCP + software MACsec | 6.42 Gbits/sec | -97% |
+
+NCCL/distributed training uses RDMA for inter-node communication. There is no way to encrypt this traffic on kernel 5.14. When RHEL 10 (kernel 6.12) arrives, MACsec hardware offload should encrypt RDMA at near line rate (~226 Gbits/sec) with zero CPU overhead, since the NIC performs AES-GCM in hardware.
 
 ## Test Setup
 
