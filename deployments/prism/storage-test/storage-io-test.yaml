@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: storage-io-test
+  namespace: b-prism
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: storage-io-test
+  serviceName: storage-io-test
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: storage-io-test
+    spec:
+      serviceAccountName: nccl-benchmark
+      nodeSelector:
+        node-role.kubernetes.io/h100: ""
+      containers:
+      - name: io-test
+        image: registry.access.redhat.com/ubi9/ubi:latest
+        command: ["sleep", "86400"]
+        volumeMounts:
+        - name: shared-data
+          mountPath: /data
+        - name: checkpoint
+          mountPath: /checkpoints
+      volumes:
+      - name: shared-data
+        persistentVolumeClaim:
+          claimName: prism-data-shared
+  volumeClaimTemplates:
+  - metadata:
+      name: checkpoint
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: ocs-external-storagecluster-ceph-rbd
+      resources:
+        requests:
+          storage: 200Gi
